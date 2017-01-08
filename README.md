@@ -131,7 +131,7 @@ Download and install [httpie](https://github.com/jkbrzt/httpie) CLI HTTP client.
 ### Login API:
 
 ```bash
-$ http -v --json POST localhost:8000/login username=admin password=admin
+$ http -v --json POST localhost:8000/auth/login username=admin password=admin
 ```
 
 Output screenshot
