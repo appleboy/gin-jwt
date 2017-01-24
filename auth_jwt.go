@@ -63,6 +63,22 @@ type GinJWTMiddleware struct {
 	// - "query:<name>"
 	// - "cookie:<name>"
 	TokenLookup string
+
+	// WriteCookie is a bool for controlling weather or not cookies are written back
+	// with the logout handler.
+	WriteCookie bool
+
+	// CookieDomain is the domain the cookie is written back under. Defaults to localhost.
+	CookieDomain string
+
+	// CookiePath is the path the cookie is written back under. Defaults to true.
+	CookiePath string
+
+	// CookieSecure cookie must go over https.
+	CookieSecure bool
+
+	// CookieHttpOnly is only http.
+	CookieHttpOnly bool
 }
 
 // Login form structure.
@@ -201,6 +217,8 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
+	mw.createCookie(tokenString, c)
+
 	c.JSON(http.StatusOK, gin.H{
 		"token":  tokenString,
 		"expire": expire.Format(time.RFC3339),
@@ -241,10 +259,20 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 		return
 	}
 
+	mw.createCookie(tokenString, c)
+
 	c.JSON(http.StatusOK, gin.H{
 		"token":  tokenString,
 		"expire": expire.Format(time.RFC3339),
 	})
+}
+
+// LogoutHandler can be used by clients to get a jwt token.
+// Payload needs to be json in the form of {"message" : "Goodbye"}.
+func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
+	mw.destroyCookie(c)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Goodbye"})
 }
 
 // ExtractClaims help to extract the JWT claims
@@ -313,6 +341,68 @@ func (mw *GinJWTMiddleware) jwtFromCookie(c *gin.Context, key string) (string, e
 	}
 
 	return cookie, nil
+}
+
+func (mw *GinJWTMiddleware) cookieLookup() string {
+	parts := strings.Split(mw.TokenLookup, ":")
+
+	if parts[0] == "cookie" {
+		return parts[1]
+	}
+
+	return ""
+}
+
+func (mw *GinJWTMiddleware) createCookie(token string, c *gin.Context) {
+	if mw.WriteCookie != true {
+		return
+	}
+
+	key := mw.cookieLookup()
+
+	if key == "" {
+		return
+	}
+
+	domain, path := mw.cookieLocation()
+
+	c.SetCookie(key, token, int(mw.Timeout.Seconds()), path, domain, mw.CookieSecure, mw.CookieHttpOnly)
+}
+
+func (mw *GinJWTMiddleware) destroyCookie(c *gin.Context) {
+	if mw.WriteCookie != true {
+		return
+	}
+
+	key := mw.cookieLookup()
+
+	if key == "" {
+		return
+	}
+
+	domain, path := mw.cookieLocation()
+
+	c.SetCookie(key, "", -1, path, domain, mw.CookieSecure, mw.CookieHttpOnly)
+}
+
+func (mw *GinJWTMiddleware) cookieLocation() (string, string) {
+	if mw.WriteCookie != true {
+		return "", ""
+	}
+
+	domain := "localhost"
+
+	if mw.CookieDomain != "" {
+		domain = mw.CookieDomain
+	}
+
+	path := "/"
+
+	if mw.CookiePath != "" {
+		path = "/"
+	}
+
+	return domain, path
 }
 
 func (mw *GinJWTMiddleware) parseToken(c *gin.Context) (*jwt.Token, error) {
