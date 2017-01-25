@@ -1,10 +1,8 @@
-hash: ecf8cddfe1f399e4c46a6dc0b07da5a1202aa6d537a5dd5908311f750e7b4f3a
-updated: 2016-09-22T11:07:53.927198565+08:00
+hash: 79c8828b8083076950b021615e41975204ccfa7b475cce0e26d933a1562b97a5
+updated: 2017-01-25T09:40:56.800019046+08:00
 imports:
-- name: github.com/fvbock/endless
-  version: 67d0a784ad8ab10a69d12107f6de220db0c18002
 - name: github.com/gin-gonic/gin
-  version: f931d1ea80ae95a6fc739213cdd9399bd2967fb6
+  version: e2212d40c62a98b388a5eb48ecbdcf88534688ba
   subpackages:
   - binding
   - render
@@ -14,14 +12,22 @@ imports:
   - proto
 - name: github.com/manucorporat/sse
   version: ee05b128a739a0fb76c7ebd3ae4810c1de808d6d
+- name: github.com/mattn/go-isatty
+  version: 3a115632dcd687f9c8cd01679c83a06a0e21c1f3
 - name: golang.org/x/net
   version: f315505cf3349909cdf013ea56690da34e96a451
   subpackages:
   - context
+- name: golang.org/x/sys
+  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
+  subpackages:
+  - unix
 - name: gopkg.in/appleboy/gin-jwt.v2
   version: 89be89cdc6ee002b5c9b95fb57963ad7e746a82c
 - name: gopkg.in/dgrijalva/jwt-go.v3
   version: d2709f9f1f31ebcda9651b03077758c1f3a0018c
+- name: gopkg.in/gin-gonic/gin.v1
+  version: e2212d40c62a98b388a5eb48ecbdcf88534688ba
 - name: gopkg.in/go-playground/validator.v8
   version: c193cecd124b5cc722d7ee5538e945bdb3348435
 - name: gopkg.in/yaml.v2
@@ -33,35 +39,13 @@ testImports:
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
   - spew
-- name: github.com/labstack/echo
-  version: 04f45046b1ebb56690836391fe26f6f1187788b7
-  subpackages:
-  - engine
-  - test
-  - context
-  - log
-- name: github.com/labstack/gommon
-  version: 431777a5117c8de4352a400dad1e2a55f484b189
-  subpackages:
-  - log
-  - color
-- name: github.com/mattn/go-colorable
-  version: ed8eb9e318d7a84ce5915b495b7d35e0cfe7b5a8
-- name: github.com/mattn/go-isatty
-  version: 66b8e73f3f5cda9f96b69efd03dd3d7fc4a5cdb8
 - name: github.com/pmezard/go-difflib
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: d77da356e56a7428ad25149ca77381849a6a5232
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
   subpackages:
   - assert
-- name: github.com/valyala/fasttemplate
-  version: 3b874956e03f1636d171bda64b130f9135f42cff
-- name: golang.org/x/sys
-  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
-  subpackages:
-  - unix
 - name: gopkg.in/appleboy/gofight.v1
-  version: 3efeef2c2c3ce4e639346c347b65171e419b2ebc
+  version: beadc315fb676177c07a89c34159b9ca4e1aafd9
