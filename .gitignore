@@ -24,7 +24,6 @@ _testmain.go
 *.prof
 .DS_Store
 gin-bin
-vendor
 .cover
 .vscode
 coverage.txt

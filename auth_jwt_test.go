@@ -8,7 +8,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/appleboy/gofight.v1"
+	"gopkg.in/appleboy/gofight.v2"
 	"gopkg.in/dgrijalva/jwt-go.v3"
 	"gopkg.in/gin-gonic/gin.v1"
 )

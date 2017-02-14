@@ -3,10 +3,7 @@
 PACKAGES ?= $(shell go list ./... | grep -v /vendor/)
 
 install:
-	glide install
-
-update:
-	glide up
+	govendor sync
 
 test:
 	for PKG in $(PACKAGES); do go test -v -cover -coverprofile $$GOPATH/src/$$PKG/coverage.txt $$PKG || exit 1; done;
