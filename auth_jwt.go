@@ -2,11 +2,12 @@ package jwt
 
 import (
 	"errors"
-	"github.com/gin-gonic/gin"
-	"gopkg.in/dgrijalva/jwt-go.v3"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"gopkg.in/dgrijalva/jwt-go.v3"
 )
 
 // GinJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response
@@ -77,8 +78,8 @@ type GinJWTMiddleware struct {
 	// CookieSecure cookie must go over https.
 	CookieSecure bool
 
-	// CookieHttpOnly is only http.
-	CookieHttpOnly bool
+	// CookieHTTPOnly is only http.
+	CookieHTTPOnly bool
 }
 
 // Login form structure.
@@ -366,7 +367,7 @@ func (mw *GinJWTMiddleware) createCookie(token string, c *gin.Context) {
 
 	domain, path := mw.cookieLocation()
 
-	c.SetCookie(key, token, int(mw.Timeout.Seconds()), path, domain, mw.CookieSecure, mw.CookieHttpOnly)
+	c.SetCookie(key, token, int(mw.Timeout.Seconds()), path, domain, mw.CookieSecure, mw.CookieHTTPOnly)
 }
 
 func (mw *GinJWTMiddleware) destroyCookie(c *gin.Context) {
@@ -382,7 +383,7 @@ func (mw *GinJWTMiddleware) destroyCookie(c *gin.Context) {
 
 	domain, path := mw.cookieLocation()
 
-	c.SetCookie(key, "", -1, path, domain, mw.CookieSecure, mw.CookieHttpOnly)
+	c.SetCookie(key, "", -1, path, domain, mw.CookieSecure, mw.CookieHTTPOnly)
 }
 
 func (mw *GinJWTMiddleware) cookieLocation() (string, string) {
