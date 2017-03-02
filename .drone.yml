@@ -1,28 +1,13 @@
 pipeline:
-  restore_cache:
-    image: appleboy/drone-sftp-cache
-    pull: true
-    restore: true
-    mount: [ .glide, vendor ]
-    ignore_branch: true
-
   build:
     image: appleboy/golang-testing:${GO_VERSION}
     environment:
       - GOPATH=/go
     commands:
-      - make install
       - make vet
       - make lint
       - coverage all
       - make coverage
-
-  line:
-    image: appleboy/drone-line
-    pull: true
-    to: u359650f919427b5229330c7205c47ee4
-    when:
-      status: [ success, failure ]
 
   facebook:
     image: appleboy/drone-facebook
@@ -31,19 +16,10 @@ pipeline:
     when:
       status: [ success, failure ]
 
-  rebuild_cache:
-    image: appleboy/drone-sftp-cache
-    pull: true
-    rebuild: true
-    mount: [ .glide, vendor ]
-    ignore_branch: true
-    when:
-      branch: master
-
 workspace:
   path: /go/src/github.com/appleboy/gin-jwt
 
 matrix:
   GO_VERSION:
     - 1.6.4
-    - 1.7.4
+    - 1.7.5

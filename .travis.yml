@@ -7,12 +7,5 @@ go:
   - 1.7.x
   - tip
 
-before_install:
-  - mkdir -p $GOPATH/bin
-  - curl https://glide.sh/get | sh
-
-install:
-  - make install
-
 script:
   - make test

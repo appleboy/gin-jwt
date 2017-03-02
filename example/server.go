@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/fvbock/endless"
-	"github.com/gin-gonic/gin"
-	"gopkg.in/appleboy/gin-jwt.v2"
+	"net/http"
 	"os"
 	"time"
+
+	"github.com/appleboy/gin-jwt"
+	"gopkg.in/gin-gonic/gin.v1"
 )
 
 func helloHandler(c *gin.Context) {
@@ -71,5 +72,5 @@ func main() {
 		auth.GET("/refresh_token", authMiddleware.RefreshHandler)
 	}
 
-	endless.ListenAndServe(":"+port, r)
+	http.ListenAndServe(":"+port, r)
 }
