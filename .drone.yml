@@ -4,6 +4,7 @@ pipeline:
     environment:
       - GOPATH=/go
     commands:
+      - make install
       - make vet
       - make lint
       - coverage all
