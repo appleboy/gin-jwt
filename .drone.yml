@@ -19,6 +19,8 @@ pipeline:
     image: appleboy/drone-facebook
     pull: true
     to: 1234973386524610
+    fb_page_token: ${FB_PAGE_TOKEN}
+    fb_verify_token: ${FB_VERIFY_TOKEN}
     when:
       status: [ success, failure ]
 
