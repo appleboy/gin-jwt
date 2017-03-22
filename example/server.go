@@ -61,6 +61,9 @@ func main() {
 		TokenLookup: "header:Authorization",
 		// TokenLookup: "query:token",
 		// TokenLookup: "cookie:token",
+
+		// TokenHeadName is a string in the header. Default value is "Bearer"
+		TokenHeadName: "Bearer",
 	}
 
 	r.POST("/login", authMiddleware.LoginHandler)

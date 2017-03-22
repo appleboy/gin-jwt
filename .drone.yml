@@ -5,6 +5,7 @@ pipeline:
       - GOPATH=/go
     commands:
       - make install
+      - make embedmd
       - make vet
       - make lint
       - coverage all

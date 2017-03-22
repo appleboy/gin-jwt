@@ -40,6 +40,7 @@ import "gopkg.in/appleboy/gin-jwt.v1"
 
 Please see [server example file](example/server.go).
 
+[embedmd]:# (example/server.go go)
 ```go
 package main
 
@@ -48,7 +49,7 @@ import (
 	"os"
 	"time"
 
-	"gopkg.in/appleboy/gin-jwt.v2"
+	"github.com/appleboy/gin-jwt"
 	"github.com/gin-gonic/gin"
 )
 
