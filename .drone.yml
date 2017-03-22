@@ -1,6 +1,5 @@
 workspace:
-  base: /go
-  path: src/github.com/appleboy/gin-jwt
+  path: /go/src/github.com/appleboy/gin-jwt
 
 pipeline:
   build:
