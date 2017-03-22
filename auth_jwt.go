@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"gopkg.in/dgrijalva/jwt-go.v3"
-	"gopkg.in/gin-gonic/gin.v1"
 )
 
 // GinJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response

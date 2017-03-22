@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/appleboy/gin-jwt"
-	"gopkg.in/gin-gonic/gin.v1"
+	"github.com/gin-gonic/gin"
 )
 
 func helloHandler(c *gin.Context) {
