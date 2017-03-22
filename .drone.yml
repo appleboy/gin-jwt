@@ -7,6 +7,7 @@ pipeline:
     image: appleboy/golang-testing:${GO_VERSION}
     environment:
       - GOPATH=/go
+      - CODECOV_TOKEN=${CODECOV_TOKEN}
     commands:
       - make install
       - make embedmd
