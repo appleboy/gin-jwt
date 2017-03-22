@@ -14,7 +14,7 @@ import (
 // is returned. On success, the wrapped middleware is called, and the userID is made available as
 // c.Get("userID").(string).
 // Users can get a token by posting a json request to LoginHandler. The token then needs to be passed in
-// the Authentication header. Example: Authorization:Bearer XXX_TOKEN_XXX#!/usr/bin/env
+// the Authentication header. Example: Authorization:Bearer XXX_TOKEN_XXX
 type GinJWTMiddleware struct {
 	// Realm name to display to the user. Required.
 	Realm string
@@ -64,6 +64,9 @@ type GinJWTMiddleware struct {
 	// - "query:<name>"
 	// - "cookie:<name>"
 	TokenLookup string
+
+	// TokenHeadName is a string in the header. Default value is "Bearer"
+	TokenHeadName string
 }
 
 // Login form structure.
@@ -85,6 +88,11 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 
 	if mw.Timeout == 0 {
 		mw.Timeout = time.Hour
+	}
+
+	mw.TokenHeadName = strings.TrimSpace(mw.TokenHeadName)
+	if len(mw.TokenHeadName) == 0 {
+		mw.TokenHeadName = "Bearer"
 	}
 
 	if mw.Authorizator == nil {
@@ -289,7 +297,7 @@ func (mw *GinJWTMiddleware) jwtFromHeader(c *gin.Context, key string) (string, e
 	}
 
 	parts := strings.SplitN(authHeader, " ", 2)
-	if !(len(parts) == 2 && parts[0] == "Bearer") {
+	if !(len(parts) == 2 && parts[0] == mw.TokenHeadName) {
 		return "", errors.New("invalid auth header")
 	}
 
