@@ -56,6 +56,9 @@ type GinJWTMiddleware struct {
 	// User can define own Unauthorized func.
 	Unauthorized func(*gin.Context, int, string)
 
+	// Set the identity handler function
+	IdentityHandler func(jwt.MapClaims) string
+
 	// TokenLookup is a string in the form of "<source>:<name>" that is used
 	// to extract token from the request.
 	// Optional. Default value "header:Authorization".
@@ -110,6 +113,12 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		}
 	}
 
+	if mw.IdentityHandler == nil {
+		mw.IdentityHandler = func (claims jwt.MapClaims) string {
+	    return claims["id"].(string)
+	  }
+	}
+
 	if mw.Realm == "" {
 		return errors.New("realm is required")
 	}
@@ -150,7 +159,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 
 	claims := token.Claims.(jwt.MapClaims)
 
-	id := claims["id"].(string)
+	id := mw.IdentityHandler(claims)
 	c.Set("JWT_PAYLOAD", claims)
 	c.Set("userID", id)
 
