@@ -18,9 +18,6 @@ pipeline:
     when:
       status: [ success, failure ]
 
-workspace:
-  path: /go/src/github.com/appleboy/gin-jwt
-
 matrix:
   GO_VERSION:
     - 1.6.4
