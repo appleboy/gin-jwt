@@ -1,3 +1,7 @@
+workspace:
+  base: /go
+  path: src/github.com/appleboy/gin-jwt
+
 pipeline:
   build:
     image: appleboy/golang-testing:${GO_VERSION}
