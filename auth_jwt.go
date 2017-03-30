@@ -10,6 +10,7 @@ import (
 	"gopkg.in/dgrijalva/jwt-go.v3"
 )
 
+// TimeFunc provides the current time. You can override it to use another time value. This is useful for testing or if your server uses a different time zone than your tokens.
 var TimeFunc = time.Now
 
 // GinJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response
