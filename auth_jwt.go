@@ -10,6 +10,8 @@ import (
 	"gopkg.in/dgrijalva/jwt-go.v3"
 )
 
+var TimeFunc = time.Now
+
 // GinJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response
 // is returned. On success, the wrapped middleware is called, and the userID is made available as
 // c.Get("userID").(string).
@@ -114,9 +116,9 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.IdentityHandler == nil {
-		mw.IdentityHandler = func (claims jwt.MapClaims) string {
-	    return claims["id"].(string)
-	  }
+		mw.IdentityHandler = func(claims jwt.MapClaims) string {
+			return claims["id"].(string)
+		}
 	}
 
 	if mw.Realm == "" {
@@ -207,10 +209,10 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		userID = loginVals.Username
 	}
 
-	expire := time.Now().Add(mw.Timeout)
+	expire := TimeFunc().Add(mw.Timeout)
 	claims["id"] = userID
 	claims["exp"] = expire.Unix()
-	claims["orig_iat"] = time.Now().Unix()
+	claims["orig_iat"] = TimeFunc().Unix()
 
 	tokenString, err := token.SignedString(mw.Key)
 
@@ -234,7 +236,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 
 	origIat := int64(claims["orig_iat"].(float64))
 
-	if origIat < time.Now().Add(-mw.MaxRefresh).Unix() {
+	if origIat < TimeFunc().Add(-mw.MaxRefresh).Unix() {
 		mw.unauthorized(c, http.StatusUnauthorized, "Token is expired.")
 		return
 	}
@@ -247,7 +249,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 		newClaims[key] = claims[key]
 	}
 
-	expire := time.Now().Add(mw.Timeout)
+	expire := TimeFunc().Add(mw.Timeout)
 	newClaims["id"] = claims["id"]
 	newClaims["exp"] = expire.Unix()
 	newClaims["orig_iat"] = origIat
@@ -290,8 +292,8 @@ func (mw *GinJWTMiddleware) TokenGenerator(userID string) string {
 	}
 
 	claims["id"] = userID
-	claims["exp"] = time.Now().Add(mw.Timeout).Unix()
-	claims["orig_iat"] = time.Now().Unix()
+	claims["exp"] = TimeFunc().Add(mw.Timeout).Unix()
+	claims["orig_iat"] = TimeFunc().Unix()
 
 	tokenString, _ := token.SignedString(mw.Key)
 
