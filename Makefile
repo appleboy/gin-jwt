@@ -1,6 +1,8 @@
 .PHONY: test
 
+GOFMT ?= gofmt "-s"
 PACKAGES ?= $(shell go list ./... | grep -v /vendor/)
+GOFILES := find . -name "*.go" -type f -not -path "./vendor/*"
 
 install:
 	@hash govendor > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
@@ -15,23 +17,16 @@ embedmd:
 	embedmd -d *.md
 
 fmt:
-	find . -name "*.go" -type f -not -path "./vendor/*" | xargs gofmt -s -w
+	$(GOFILES) | xargs $(GOFMT) -w
 
 .PHONY: fmt-check
 fmt-check:
-	@if git diff --quiet --exit-code; then \
-		$(MAKE) fmt && git diff --exit-code || { \
-			git checkout .; \
-			echo; \
-			echo "Please run 'make fmt' and commit the result"; \
-			echo; \
-			false; } >&2; \
-	else { \
-		echo; \
-		echo "'make fmt-check' cannot be run with unstaged changes"; \
-		echo; \
-		false; } >&2; \
-	fi
+	# get all go files and run go fmt on them
+	@files=$$($(GOFILES) | xargs $(GOFMT) -l); if [ -n "$$files" ]; then \
+		echo "Please run 'make fmt' and commit the result:"; \
+		echo "$${files}"; \
+		exit 1; \
+		fi;
 
 test: fmt-check
 	for PKG in $(PACKAGES); do go test -v -cover -coverprofile $$GOPATH/src/$$PKG/coverage.txt $$PKG || exit 1; done;
