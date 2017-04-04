@@ -130,10 +130,6 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		return errors.New("realm is required")
 	}
 
-	if mw.Authenticator == nil {
-		return errors.New("authenticator is required")
-	}
-
 	if mw.Key == nil {
 		return errors.New("secret key is required")
 	}
@@ -190,6 +186,11 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	if c.BindJSON(&loginVals) != nil {
 		mw.unauthorized(c, http.StatusBadRequest, "Missing Username or Password")
+		return
+	}
+
+	if mw.Authenticator == nil {
+		mw.unauthorized(c, http.StatusInternalServerError, "Missing define authenticator func")
 		return
 	}
 

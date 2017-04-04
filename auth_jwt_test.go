@@ -54,21 +54,6 @@ func TestMissingRealm(t *testing.T) {
 	assert.Equal(t, "realm is required", err.Error())
 }
 
-func TestMissingAuthenticator(t *testing.T) {
-
-	authMiddleware := &GinJWTMiddleware{
-		Realm:      "test zone",
-		Key:        key,
-		Timeout:    time.Hour,
-		MaxRefresh: time.Hour * 24,
-	}
-
-	err := authMiddleware.MiddlewareInit()
-
-	assert.Error(t, err)
-	assert.Equal(t, "authenticator is required", err.Error())
-}
-
 func TestMissingKey(t *testing.T) {
 
 	authMiddleware := &GinJWTMiddleware{
@@ -165,6 +150,32 @@ func TestInternalServerError(t *testing.T) {
 			message, _ := jsonparser.GetString(data, "message")
 
 			assert.Equal(t, "realm is required", message)
+			assert.Equal(t, http.StatusInternalServerError, r.Code)
+		})
+}
+
+func TestMissingAuthenticatorForLoginHandler(t *testing.T) {
+
+	authMiddleware := &GinJWTMiddleware{
+		Realm:      "test zone",
+		Key:        key,
+		Timeout:    time.Hour,
+		MaxRefresh: time.Hour * 24,
+	}
+
+	handler := ginHandler(authMiddleware)
+	r := gofight.New()
+
+	r.POST("/login").
+		SetJSON(gofight.D{
+			"username": "admin",
+			"password": "admin",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			data := []byte(r.Body.String())
+			message, _ := jsonparser.GetString(data, "message")
+
+			assert.Equal(t, "Missing define authenticator func", message)
 			assert.Equal(t, http.StatusInternalServerError, r.Code)
 		})
 }
