@@ -1,13 +1,11 @@
 workspace:
-  base: /go/src
-  path: github.com/appleboy/gin-jwt
+  base: /go
+  path: src/github.com/appleboy/gin-jwt
 
 pipeline:
   build:
     image: appleboy/golang-testing:${GO_VERSION}
-    environment:
-      - GOPATH=/go
-      - CODECOV_TOKEN=${CODECOV_TOKEN}
+    secrets: [ codecov_token ]
     commands:
       - make install
       - make embedmd
@@ -20,8 +18,7 @@ pipeline:
     image: appleboy/drone-facebook
     pull: true
     to: 1234973386524610
-    fb_page_token: ${FB_PAGE_TOKEN}
-    fb_verify_token: ${FB_VERIFY_TOKEN}
+    secrets: [ fb_page_token, fb_verify_token ]
     when:
       status: [ success, failure ]
 
