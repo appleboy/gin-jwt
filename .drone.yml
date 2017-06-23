@@ -1,11 +1,14 @@
 workspace:
-  base: /go
+  base: /srv/app
   path: src/github.com/appleboy/gin-jwt
 
 pipeline:
   build:
     image: appleboy/golang-testing:${GO_VERSION}
     secrets: [ codecov_token ]
+    environment:
+      - GOPATH=/srv/app
+      - PATH=$${PATH}:/srv/app/bin
     commands:
       - make install
       - make embedmd
