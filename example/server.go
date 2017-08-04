@@ -10,8 +10,10 @@ import (
 )
 
 func helloHandler(c *gin.Context) {
+	claims := jwt.ExtractClaims(c)
 	c.JSON(200, gin.H{
-		"text": "Hello World.",
+		"userID": claims["id"],
+		"text":   "Hello World.",
 	})
 }
 

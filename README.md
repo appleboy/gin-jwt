@@ -38,7 +38,7 @@ import "gopkg.in/appleboy/gin-jwt.v1"
 
 ## Example
 
-Please see [server example file](example/server.go).
+Please see [the example file](example/server.go) and you can use `ExtractClaims` to fetch user ID.
 
 [embedmd]:# (example/server.go go)
 ```go
@@ -54,8 +54,10 @@ import (
 )
 
 func helloHandler(c *gin.Context) {
+	claims := jwt.ExtractClaims(c)
 	c.JSON(200, gin.H{
-		"text": "Hello World.",
+		"userID": claims["id"],
+		"text":   "Hello World.",
 	})
 }
 
