@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"gopkg.in/dgrijalva/jwt-go.v3"
 )
 
@@ -184,7 +185,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	var loginVals Login
 
-	if c.BindJSON(&loginVals) != nil {
+	if c.ShouldBindWith(&loginVals, binding.JSON) != nil {
 		mw.unauthorized(c, http.StatusBadRequest, "Missing Username or Password")
 		return
 	}

@@ -217,6 +217,7 @@ func TestLoginHandler(t *testing.T) {
 
 			assert.Equal(t, "Missing Username or Password", message)
 			assert.Equal(t, http.StatusBadRequest, r.Code)
+			assert.Equal(t, "application/json; charset=utf-8", r.HeaderMap.Get("Content-Type"))
 		})
 
 	r.POST("/login").
