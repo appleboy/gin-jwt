@@ -15,6 +15,32 @@ import (
 
 var (
 	key = []byte("secret key")
+
+	rsaPrivateKeyString = `-----BEGIN RSA PRIVATE KEY-----
+MIICXQIBAAKBgQDm5P69FhprYEz6BI6Dt0KaXheNG5LMiahMGsmW2/4ydwWQnB1t
+Lf5OhRxJV8NV+k+e1HiP+ovzNWJ610hjDMhTtRahmgs0HAJ8kpQe4QCZAtHgbc6q
+OIKK0c8+v0UGYqVrxJA0bASIhjTXOjPLvZqEU2p2IMacrjLecXKTW0/YEwIDAQAB
+AoGBAKFI5pSIow3MaBjhI/foBHM2NLdRwnpz0gbPU2+43li8ATwhgQCp9xE8NCUb
+VAxz3DgzbMAOIMJT0SXDygG+hRN4GCRX7xqtLt67t38Nr25Qgf8V+NPbLp4sHPFo
+Fk2ODt5XxfE1Ca4tNYBSNPg8ozz+xjRPhuqT5lskXPVNrZ2xAkEA+Fmp0bDa1SSo
+LAGg0YUee6NmMh+VoyuhSKNfkKGNSzPYz0PBFljtkYP0C16RHXBs/BdIc7tqSiIN
+gFFer9IsmwJBAO4Br8MCjiGv8nXe8tx/IViJR0XM67SGHl8P9XSNa3p6Ih+F2nbG
+rlPR2B4quVEFyKkRohUPkbs5ahrle/FqLekCQDHMIM4IDUkRyZrRVMLOU3dtIy/H
+v4RxWiyrfZ0Nl7xNkBq3Nj9Z44D7GXMyKhziDyhZLtDt8nkc7OIe7sKIfSMCQQDF
+pBTmZXrNsqQvCYK3Y8K3GNhcuDyLXkxeOIxlywITZNRtROQTeg1NgZZsBqJ5C8qD
+yybDQniL9rOLvkFcSgXxAkA5GW4lJpmo2ZxDynVjfKkOlmwpAGXHWk4ta8vVzhEQ
+blwQMKuzuVTPek5c2R3RXbSxxdivaFoIdbcYzWEPtqu4
+-----END RSA PRIVATE KEY-----`
+
+	rsaPublicKeyString = `-----BEGIN PUBLIC KEY-----
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDm5P69FhprYEz6BI6Dt0KaXheN
+G5LMiahMGsmW2/4ydwWQnB1tLf5OhRxJV8NV+k+e1HiP+ovzNWJ610hjDMhTtRah
+mgs0HAJ8kpQe4QCZAtHgbc6qOIKK0c8+v0UGYqVrxJA0bASIhjTXOjPLvZqEU2p2
+IMacrjLecXKTW0/YEwIDAQAB
+-----END PUBLIC KEY-----`
+
+	rsaPrivateKey, _ = jwt.ParseRSAPrivateKeyFromPEM([]byte(rsaPrivateKeyString))
+	rsaPublicKey, _  = jwt.ParseRSAPublicKeyFromPEM([]byte(rsaPublicKeyString))
 )
 
 func makeTokenString(SigningAlgorithm string, username string) string {
@@ -29,6 +55,18 @@ func makeTokenString(SigningAlgorithm string, username string) string {
 	claims["exp"] = time.Now().Add(time.Hour).Unix()
 	claims["orig_iat"] = time.Now().Unix()
 	tokenString, _ := token.SignedString(key)
+
+	return tokenString
+}
+
+func makeAsymmetricTokenString(SigningAlgorithm string, username string) string {
+
+	token := jwt.New(jwt.GetSigningMethod(SigningAlgorithm))
+	claims := token.Claims.(jwt.MapClaims)
+	claims["id"] = username
+	claims["exp"] = time.Now().Add(time.Hour).Unix()
+	claims["orig_iat"] = time.Now().Unix()
+	tokenString, _ := token.SignedString(rsaPrivateKey)
 
 	return tokenString
 }
@@ -73,6 +111,51 @@ func TestMissingKey(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Equal(t, "secret key is required", err.Error())
+}
+
+func TestMissingPrivateKey(t *testing.T) {
+
+	authMiddleware := &GinJWTMiddleware{
+		Realm:            "test zone",
+		SigningAlgorithm: "RS256",
+		Timeout:          time.Hour,
+		MaxRefresh:       time.Hour * 24,
+		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+			if userId == "admin" && password == "admin" {
+				return "", true
+			}
+
+			return "", false
+		},
+	}
+
+	err := authMiddleware.MiddlewareInit()
+
+	assert.Error(t, err)
+	assert.Equal(t, "private key is required", err.Error())
+}
+
+func TestMissingPublicKey(t *testing.T) {
+
+	authMiddleware := &GinJWTMiddleware{
+		Realm:            "test zone",
+		SigningAlgorithm: "RS256",
+		SignKey:          rsaPrivateKey,
+		Timeout:          time.Hour,
+		MaxRefresh:       time.Hour * 24,
+		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+			if userId == "admin" && password == "admin" {
+				return "", true
+			}
+
+			return "", false
+		},
+	}
+
+	err := authMiddleware.MiddlewareInit()
+
+	assert.Error(t, err)
+	assert.Equal(t, "public key is required", err.Error())
 }
 
 func TestMissingTimeOut(t *testing.T) {
@@ -427,6 +510,51 @@ func TestAuthorizator(t *testing.T) {
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
 			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
+}
+
+func TestAuthorizatorRS256(t *testing.T) {
+	// the middleware to test
+	authMiddleware := &GinJWTMiddleware{
+		Realm:            "test zone",
+		SigningAlgorithm: "RS256",
+		SignKey:          rsaPrivateKey,
+		VerifyKey:        rsaPublicKey,
+		Timeout:          time.Hour,
+		MaxRefresh:       time.Hour * 24,
+		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+			if userId == "admin" && password == "admin" {
+				return userId, true
+			}
+			return userId, false
+		},
+		Authorizator: func(userId string, c *gin.Context) bool {
+			if userId != "admin" {
+				return false
+			}
+
+			return true
+		},
+	}
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeAsymmetricTokenString("RS256", "test"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusForbidden, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeAsymmetricTokenString("RS256", "admin"),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
