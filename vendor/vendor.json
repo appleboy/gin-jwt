@@ -45,10 +45,6 @@
 			"revisionTime": "2017-08-04T05:45:59Z"
 		},
 		{
-			"path": "github.com/gin-gonic/render",
-			"revision": ""
-		},
-		{
 			"checksumSHA1": "kBeNcaKk56FguvPSUCEaH6AxpRc=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "c9c7427a2a70d2eb3bafa0ab2dc163e45f143317",
