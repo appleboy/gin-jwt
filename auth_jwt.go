@@ -287,8 +287,8 @@ func ExtractClaims(c *gin.Context) jwt.MapClaims {
 	return jwtClaims.(jwt.MapClaims)
 }
 
-// TokenGenerator handler that clients can use to get a jwt token.
-func (mw *GinJWTMiddleware) TokenGenerator(userID string) string {
+// TokenGenerator method that clients can use to get a jwt token.
+func (mw *GinJWTMiddleware) TokenGenerator(userID string) (string, time.Time, error) {
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
 
@@ -298,13 +298,18 @@ func (mw *GinJWTMiddleware) TokenGenerator(userID string) string {
 		}
 	}
 
+	expire := mw.TimeFunc().UTC().Add(mw.Timeout)
 	claims["id"] = userID
-	claims["exp"] = mw.TimeFunc().Add(mw.Timeout).Unix()
+	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
 
-	tokenString, _ := token.SignedString(mw.Key)
+	tokenString, err := token.SignedString(mw.Key)
 
-	return tokenString
+	if err != nil {
+		return "", time.Time{}, err
+	}
+
+	return tokenString, expire, nil
 }
 
 func (mw *GinJWTMiddleware) jwtFromHeader(c *gin.Context, key string) (string, error) {
