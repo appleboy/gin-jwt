@@ -480,7 +480,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 	r := gofight.New()
 	handler := ginHandler(authMiddleware)
 
-	userToken := authMiddleware.TokenGenerator("admin")
+	userToken, _, _ := authMiddleware.TokenGenerator("admin")
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
@@ -627,7 +627,7 @@ func TestTokenExpire(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken := authMiddleware.TokenGenerator("admin")
+	userToken, _, _ := authMiddleware.TokenGenerator("admin")
 
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
@@ -660,7 +660,7 @@ func TestTokenFromQueryString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken := authMiddleware.TokenGenerator("admin")
+	userToken, _, _ := authMiddleware.TokenGenerator("admin")
 
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
@@ -701,7 +701,7 @@ func TestTokenFromCookieString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken := authMiddleware.TokenGenerator("admin")
+	userToken, _, _ := authMiddleware.TokenGenerator("admin")
 
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
