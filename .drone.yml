@@ -1,14 +1,11 @@
 workspace:
-  base: /srv/app
-  path: src/github.com/appleboy/gin-jwt
+  base: /go/src
+  path: github.com/appleboy/gin-jwt
 
 pipeline:
   build:
     image: appleboy/golang-testing:${GO_VERSION}
     secrets: [ codecov_token ]
-    environment:
-      - GOPATH=/srv/app
-      - PATH=$${PATH}:/srv/app/bin
     commands:
       - make install
       - make embedmd
@@ -17,16 +14,14 @@ pipeline:
       - coverage all
       - make coverage
 
-  facebook:
-    image: appleboy/drone-facebook
+  discord:
+    image: appleboy/drone-discord
     pull: true
-    to: 1234973386524610
-    secrets: [ fb_page_token, fb_verify_token ]
+    secrets: [ discord_webhook_id, discord_webhook_token ]
     when:
       status: [ changed, failure ]
 
 matrix:
   GO_VERSION:
-    - 1.6.4
-    - 1.7.5
-    - 1.8.3
+    - 1.8.4
+    - 1.9.1
