@@ -81,19 +81,44 @@ type GinJWTMiddleware struct {
 }
 
 var (
-	ErrMissingRealm             = errors.New("Realm is missing.")
-	ErrMissingSecretKey         = errors.New("Secret key is required.")
-	ErrForbidden                = errors.New("You don't have permission to access this resource.")
-	ErrMissingAuthenticatorFunc = errors.New("GinJWTMiddleware.Authenticator func is undefined.")
-	ErrMissingLoginValues       = errors.New("Missing Username or Password.")
-	ErrFailedAuthentication     = errors.New("Incorrect Username or Password.")
-	ErrFailedTokenCreation      = errors.New("Failed to create JWT Token.")
-	ErrExpiredToken             = errors.New("Token is expired.")
-	ErrEmptyAuthHeader          = errors.New("Auth header is empty.")
-	ErrInvalidAuthHeader        = errors.New("Auth header is invalid.")
-	ErrEmptyQueryToken          = errors.New("Query token is empty.")
-	ErrEmptyCookieToken         = errors.New("Cookie token is empty.")
-	ErrInvalidSigningAlgorithm  = errors.New("Invalid signing algorithm.")
+	// Realm name is required
+	ErrMissingRealm = errors.New("realm is missing")
+
+	// Secret key is required
+	ErrMissingSecretKey = errors.New("secret key is required")
+
+	// HTTP status 403
+	ErrForbidden = errors.New("you don't have permission to access this resource")
+
+	// Authenticator is required
+	ErrMissingAuthenticatorFunc = errors.New("ginJWTMiddleware.Authenticator func is undefined")
+
+	// Tried to authenticate without username or password
+	ErrMissingLoginValues = errors.New("missing Username or Password")
+
+	// Authentication failed, could be faulty username or password
+	ErrFailedAuthentication = errors.New("incorrect Username or Password")
+
+	// JWT Token failed to create, reason unknown
+	ErrFailedTokenCreation = errors.New("failed to create JWT Token")
+
+	// JWT token as expired. Can't refresh.
+	ErrExpiredToken = errors.New("token is expired")
+
+	// If authing with a HTTP header, the Auth header needs to be set
+	ErrEmptyAuthHeader = errors.New("auth header is empty")
+
+	// Auth header is invalid, could for example have the wrong Realm name
+	ErrInvalidAuthHeader = errors.New("auth header is invalid")
+
+	// If authing with URL Query, the query token variable is empty
+	ErrEmptyQueryToken = errors.New("query token is empty")
+
+	// If authing with a cookie, the token cokie is empty
+	ErrEmptyCookieToken = errors.New("cookie token is empty")
+
+	// Signing algorithm needs to be HS256, HS384, or HS512
+	ErrInvalidSigningAlgorithm = errors.New("invalid signing algorithm")
 )
 
 // Login form structure.
