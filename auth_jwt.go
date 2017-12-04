@@ -81,43 +81,43 @@ type GinJWTMiddleware struct {
 }
 
 var (
-	// Realm name is required
+	// ErrMissingRealm indicates Realm name is required
 	ErrMissingRealm = errors.New("realm is missing")
 
-	// Secret key is required
+	// ErrMissingSecretKey indicates Secret key is required
 	ErrMissingSecretKey = errors.New("secret key is required")
 
-	// HTTP status 403
+	// ErrForbidden when HTTP status 403 is given
 	ErrForbidden = errors.New("you don't have permission to access this resource")
 
-	// Authenticator is required
+	// ErrMissingAuthenticatorFunc indicates Authenticator is required
 	ErrMissingAuthenticatorFunc = errors.New("ginJWTMiddleware.Authenticator func is undefined")
 
-	// Tried to authenticate without username or password
+	// ErrMissingLoginValues indicates a user tried to authenticate without username or password
 	ErrMissingLoginValues = errors.New("missing Username or Password")
 
-	// Authentication failed, could be faulty username or password
+	// ErrFailedAuthentication indicates authentication failed, could be faulty username or password
 	ErrFailedAuthentication = errors.New("incorrect Username or Password")
 
-	// JWT Token failed to create, reason unknown
+	// ErrFailedTokenCreation indicates JWT Token failed to create, reason unknown
 	ErrFailedTokenCreation = errors.New("failed to create JWT Token")
 
-	// JWT token as expired. Can't refresh.
+	// ErrExpiredToken indicates JWT token has expired. Can't refresh.
 	ErrExpiredToken = errors.New("token is expired")
 
-	// If authing with a HTTP header, the Auth header needs to be set
+	// ErrEmptyAuthHeader can be thrown if authing with a HTTP header, the Auth header needs to be set
 	ErrEmptyAuthHeader = errors.New("auth header is empty")
 
-	// Auth header is invalid, could for example have the wrong Realm name
+	// ErrInvalidAuthHeader indicates auth header is invalid, could for example have the wrong Realm name
 	ErrInvalidAuthHeader = errors.New("auth header is invalid")
 
-	// If authing with URL Query, the query token variable is empty
+	// ErrEmptyQueryToken can be thrown if authing with URL Query, the query token variable is empty
 	ErrEmptyQueryToken = errors.New("query token is empty")
 
-	// If authing with a cookie, the token cokie is empty
+	// ErrEmptyCookieToken can be thrown if authing with a cookie, the token cokie is empty
 	ErrEmptyCookieToken = errors.New("cookie token is empty")
 
-	// Signing algorithm needs to be HS256, HS384, or HS512
+	// ErrInvalidSigningAlgorithm indicates signing algorithm is invalid, needs to be HS256, HS384, or HS512
 	ErrInvalidSigningAlgorithm = errors.New("invalid signing algorithm")
 )
 
