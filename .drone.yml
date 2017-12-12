@@ -10,6 +10,7 @@ pipeline:
       - make embedmd
       - make vet
       - make lint
+      - make fmt-check
       - coverage all
 
   codecov:

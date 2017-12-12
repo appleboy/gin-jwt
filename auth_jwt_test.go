@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -51,7 +52,7 @@ func TestMissingRealm(t *testing.T) {
 	err := authMiddleware.MiddlewareInit()
 
 	assert.Error(t, err)
-	assert.Equal(t, "realm is required", err.Error())
+	assert.Equal(t, ErrMissingRealm, err)
 }
 
 func TestMissingKey(t *testing.T) {
@@ -72,7 +73,7 @@ func TestMissingKey(t *testing.T) {
 	err := authMiddleware.MiddlewareInit()
 
 	assert.Error(t, err)
-	assert.Equal(t, "secret key is required", err.Error())
+	assert.Equal(t, ErrMissingSecretKey, err)
 }
 
 func TestMissingTimeOut(t *testing.T) {
@@ -149,7 +150,7 @@ func TestInternalServerError(t *testing.T) {
 
 			message, _ := jsonparser.GetString(data, "message")
 
-			assert.Equal(t, "realm is required", message)
+			assert.Equal(t, ErrMissingRealm.Error(), message)
 			assert.Equal(t, http.StatusInternalServerError, r.Code)
 		})
 }
@@ -175,7 +176,7 @@ func TestMissingAuthenticatorForLoginHandler(t *testing.T) {
 			data := []byte(r.Body.String())
 			message, _ := jsonparser.GetString(data, "message")
 
-			assert.Equal(t, "Missing define authenticator func", message)
+			assert.Equal(t, ErrMissingAuthenticatorFunc.Error(), message)
 			assert.Equal(t, http.StatusInternalServerError, r.Code)
 		})
 }
@@ -215,7 +216,7 @@ func TestLoginHandler(t *testing.T) {
 
 			message, _ := jsonparser.GetString(data, "message")
 
-			assert.Equal(t, "Missing Username or Password", message)
+			assert.Equal(t, ErrMissingLoginValues.Error(), message)
 			assert.Equal(t, http.StatusBadRequest, r.Code)
 			assert.Equal(t, "application/json; charset=utf-8", r.HeaderMap.Get("Content-Type"))
 		})
@@ -230,7 +231,7 @@ func TestLoginHandler(t *testing.T) {
 
 			message, _ := jsonparser.GetString(data, "message")
 
-			assert.Equal(t, "Incorrect Username / Password", message)
+			assert.Equal(t, ErrFailedAuthentication.Error(), message)
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
@@ -754,4 +755,37 @@ func TestDefineTokenHeadName(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
+}
+
+func TestHTTPStatusMessageFunc(t *testing.T) {
+	var successError = errors.New("Successful test error")
+	var failedError = errors.New("Failed test error")
+	var successMessage = "Overwrite error message."
+
+	authMiddleware := &GinJWTMiddleware{
+		Key:        key,
+		Timeout:    time.Hour,
+		MaxRefresh: time.Hour * 24,
+		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+			if userId == "admin" && password == "admin" {
+				return "", true
+			}
+
+			return "", false
+		},
+
+		HTTPStatusMessageFunc: func(e error, c *gin.Context) string {
+			if e == successError {
+				return successMessage
+			}
+
+			return e.Error()
+		},
+	}
+
+	successString := authMiddleware.HTTPStatusMessageFunc(successError, nil)
+	failedString := authMiddleware.HTTPStatusMessageFunc(failedError, nil)
+
+	assert.Equal(t, successMessage, successString)
+	assert.NotEqual(t, successMessage, failedString)
 }
