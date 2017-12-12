@@ -766,12 +766,12 @@ func TestHTTPStatusMessageFunc(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return "", true
+		Authenticator: func(userId interface{}, password string, c *gin.Context) (interface{}, bool) {
+			if userId.(string) == "admin" && password == "admin" {
+				return userId, true
 			}
 
-			return "", false
+			return userId, false
 		},
 
 		HTTPStatusMessageFunc: func(e error, c *gin.Context) string {
