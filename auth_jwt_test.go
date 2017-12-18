@@ -421,6 +421,60 @@ func TestParseTokenRS256(t *testing.T) {
 		})
 }
 
+func TestRefreshHandlerRS256(t *testing.T) {
+	// the middleware to test
+	authMiddleware := &GinJWTMiddleware{
+		Realm:            "test zone",
+		Key:              key,
+		Timeout:          time.Hour,
+		MaxRefresh:       time.Hour * 24,
+		SigningAlgorithm: "RS256",
+		privKeyFile:      "testdata/jwtRS256.key",
+		pubKeyFile:       "testdata/jwtRS256.key.pub",
+		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+			if userId == "admin" && password == "admin" {
+				return userId, true
+			}
+
+			return userId, false
+		},
+	}
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	r.GET("/auth/refresh_token").
+		SetHeader(gofight.H{
+			"Authorization": "",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+
+	r.GET("/auth/refresh_token").
+		SetHeader(gofight.H{
+			"Authorization": "Test 1234",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+	r.GET("/auth/refresh_token").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+	r.GET("/auth/refresh_token").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("RS256", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
+}
+
 func TestRefreshHandler(t *testing.T) {
 	// the middleware to test
 	authMiddleware := &GinJWTMiddleware{
@@ -466,7 +520,7 @@ func TestRefreshHandler(t *testing.T) {
 		})
 }
 
-func TestExpriedTokenOnRefreshHandler(t *testing.T) {
+func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 	// the middleware to test
 	authMiddleware := &GinJWTMiddleware{
 		Realm:   "test zone",
