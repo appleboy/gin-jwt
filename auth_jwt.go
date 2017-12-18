@@ -1,7 +1,9 @@
 package jwt
 
 import (
+	"crypto/rsa"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -78,6 +80,18 @@ type GinJWTMiddleware struct {
 	// HTTP Status messages for when something in the JWT middleware fails.
 	// Check error (e) to determine the appropriate error message.
 	HTTPStatusMessageFunc func(e error, c *gin.Context) string
+
+	// Private key file for asymmetric algorithms
+	privKeyFile string
+
+	// Public key file for asymmetric algorithms
+	pubKeyFile string
+
+	// Private key
+	PrivKey *rsa.PrivateKey
+
+	// Public key
+	PubKey *rsa.PublicKey
 }
 
 var (
@@ -119,12 +133,70 @@ var (
 
 	// ErrInvalidSigningAlgorithm indicates signing algorithm is invalid, needs to be HS256, HS384, or HS512
 	ErrInvalidSigningAlgorithm = errors.New("invalid signing algorithm")
+
+	// ErrNoPrivKeyFile
+	ErrNoPrivKeyFile = errors.New("private key file unreadable")
+
+	// ErrNoPubKeyFile
+	ErrNoPubKeyFile = errors.New("public key file unreadable")
+
+	// ErrInvalidPrivKey
+	ErrInvalidPrivKey = errors.New("private key invalid")
+
+	// ErrInvalidPubKey
+	ErrInvalidPubKey = errors.New("public key invalid")
 )
 
 // Login form structure.
 type Login struct {
 	Username string `form:"username" json:"username" binding:"required"`
 	Password string `form:"password" json:"password" binding:"required"`
+}
+
+func (mw *GinJWTMiddleware) readKeys() error {
+	err := mw.privateKey()
+	if err != nil {
+		return err
+	}
+	err = mw.publicKey()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (mw *GinJWTMiddleware) privateKey() error {
+	keyData, err := ioutil.ReadFile(mw.privKeyFile)
+	if err != nil {
+		return ErrNoPrivKeyFile
+	}
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
+	if err != nil {
+		return ErrInvalidPrivKey
+	}
+	mw.PrivKey = key
+	return nil
+}
+
+func (mw *GinJWTMiddleware) publicKey() error {
+	keyData, err := ioutil.ReadFile(mw.pubKeyFile)
+	if err != nil {
+		return ErrNoPubKeyFile
+	}
+	key, err := jwt.ParseRSAPublicKeyFromPEM(keyData)
+	if err != nil {
+		return ErrInvalidPubKey
+	}
+	mw.PubKey = key
+	return nil
+}
+
+func (mw *GinJWTMiddleware) usingPublicKeyAlgo() bool {
+	switch mw.SigningAlgorithm {
+	case "RS256", "RS512", "RS384":
+		return true
+	}
+	return false
 }
 
 // MiddlewareInit initialize jwt configs.
@@ -182,10 +254,13 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		return ErrMissingRealm
 	}
 
+	if mw.usingPublicKeyAlgo() {
+		return mw.readKeys()
+	}
+
 	if mw.Key == nil {
 		return ErrMissingSecretKey
 	}
-
 	return nil
 }
 
@@ -271,8 +346,13 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	claims["id"] = userID
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
-
-	tokenString, err := token.SignedString(mw.Key)
+	var tokenString string
+	var err error
+	if mw.usingPublicKeyAlgo() {
+		tokenString, err = token.SignedString(mw.PrivKey)
+	} else {
+		tokenString, err = token.SignedString(mw.Key)
+	}
 
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
@@ -312,8 +392,13 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	newClaims["id"] = claims["id"]
 	newClaims["exp"] = expire.Unix()
 	newClaims["orig_iat"] = origIat
-
-	tokenString, err := newToken.SignedString(mw.Key)
+	var tokenString string
+	var err error
+	if mw.usingPublicKeyAlgo() {
+		tokenString, err = token.SignedString(mw.PrivKey)
+	} else {
+		tokenString, err = token.SignedString(mw.Key)
+	}
 
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
@@ -355,8 +440,13 @@ func (mw *GinJWTMiddleware) TokenGenerator(userID string) (string, time.Time, er
 	claims["id"] = userID
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
-
-	tokenString, err := token.SignedString(mw.Key)
+	var tokenString string
+	var err error
+	if mw.usingPublicKeyAlgo() {
+		tokenString, err = token.SignedString(mw.PrivKey)
+	} else {
+		tokenString, err = token.SignedString(mw.Key)
+	}
 
 	if err != nil {
 		return "", time.Time{}, err
@@ -422,8 +512,11 @@ func (mw *GinJWTMiddleware) parseToken(c *gin.Context) (*jwt.Token, error) {
 		if jwt.GetSigningMethod(mw.SigningAlgorithm) != token.Method {
 			return nil, ErrInvalidSigningAlgorithm
 		}
-
-		return mw.Key, nil
+		if mw.usingPublicKeyAlgo(){
+			return mw.PubKey, nil
+		}else{
+			return mw.Key, nil
+		}
 	})
 }
 
