@@ -88,10 +88,10 @@ type GinJWTMiddleware struct {
 	pubKeyFile string
 
 	// Private key
-	PrivKey *rsa.PrivateKey
+	privKey *rsa.PrivateKey
 
 	// Public key
-	PubKey *rsa.PublicKey
+	pubKey *rsa.PublicKey
 }
 
 var (
@@ -174,7 +174,7 @@ func (mw *GinJWTMiddleware) privateKey() error {
 	if err != nil {
 		return ErrInvalidPrivKey
 	}
-	mw.PrivKey = key
+	mw.privKey = key
 	return nil
 }
 
@@ -187,7 +187,7 @@ func (mw *GinJWTMiddleware) publicKey() error {
 	if err != nil {
 		return ErrInvalidPubKey
 	}
-	mw.PubKey = key
+	mw.pubKey = key
 	return nil
 }
 
@@ -349,7 +349,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	var tokenString string
 	var err error
 	if mw.usingPublicKeyAlgo() {
-		tokenString, err = token.SignedString(mw.PrivKey)
+		tokenString, err = token.SignedString(mw.privKey)
 	} else {
 		tokenString, err = token.SignedString(mw.Key)
 	}
@@ -395,7 +395,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	var tokenString string
 	var err error
 	if mw.usingPublicKeyAlgo() {
-		tokenString, err = token.SignedString(mw.PrivKey)
+		tokenString, err = token.SignedString(mw.privKey)
 	} else {
 		tokenString, err = token.SignedString(mw.Key)
 	}
@@ -443,7 +443,7 @@ func (mw *GinJWTMiddleware) TokenGenerator(userID string) (string, time.Time, er
 	var tokenString string
 	var err error
 	if mw.usingPublicKeyAlgo() {
-		tokenString, err = token.SignedString(mw.PrivKey)
+		tokenString, err = token.SignedString(mw.privKey)
 	} else {
 		tokenString, err = token.SignedString(mw.Key)
 	}
@@ -513,7 +513,7 @@ func (mw *GinJWTMiddleware) parseToken(c *gin.Context) (*jwt.Token, error) {
 			return nil, ErrInvalidSigningAlgorithm
 		}
 		if mw.usingPublicKeyAlgo(){
-			return mw.PubKey, nil
+			return mw.pubKey, nil
 		}else{
 			return mw.Key, nil
 		}
