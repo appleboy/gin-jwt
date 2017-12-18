@@ -87,7 +87,7 @@ func TestMissingPrivKey(t *testing.T) {
 	authMiddleware := &GinJWTMiddleware{
 		Realm:            "zone",
 		SigningAlgorithm: "RS256",
-		privKeyFile:      "nonexisting",
+		PrivKeyFile:      "nonexisting",
 	}
 	err := authMiddleware.MiddlewareInit()
 	assert.Error(t, err)
@@ -98,8 +98,8 @@ func TestMissingPubKey(t *testing.T) {
 	authMiddleWare := &GinJWTMiddleware{
 		Realm:            "zone",
 		SigningAlgorithm: "RS256",
-		privKeyFile:      "testdata/jwtRS256.key",
-		pubKeyFile:       "nonexisting",
+		PrivKeyFile:      "testdata/jwtRS256.key",
+		PubKeyFile:       "nonexisting",
 	}
 	err := authMiddleWare.MiddlewareInit()
 	assert.Error(t, err)
@@ -110,8 +110,8 @@ func TestInvalidPrivKey(t *testing.T) {
 	authMiddleWare := &GinJWTMiddleware{
 		Realm:            "zone",
 		SigningAlgorithm: "RS256",
-		privKeyFile:      "testdata/invalidprivkey.key",
-		pubKeyFile:       "testdata/jwtRS256.key.pub",
+		PrivKeyFile:      "testdata/invalidprivkey.key",
+		PubKeyFile:       "testdata/jwtRS256.key.pub",
 	}
 	err := authMiddleWare.MiddlewareInit()
 	assert.Error(t, err)
@@ -122,8 +122,8 @@ func TestInvalidPubKey(t *testing.T) {
 	authMiddleWare := &GinJWTMiddleware{
 		Realm:            "zone",
 		SigningAlgorithm: "RS256",
-		privKeyFile:      "testdata/jwtRS256.key",
-		pubKeyFile:       "testdata/invalidpubkey.key",
+		PrivKeyFile:      "testdata/jwtRS256.key",
+		PubKeyFile:       "testdata/invalidpubkey.key",
 	}
 	err := authMiddleWare.MiddlewareInit()
 	assert.Error(t, err)
@@ -373,8 +373,8 @@ func TestParseTokenRS256(t *testing.T) {
 		Timeout:          time.Hour,
 		MaxRefresh:       time.Hour * 24,
 		SigningAlgorithm: "RS256",
-		privKeyFile:      "testdata/jwtRS256.key",
-		pubKeyFile:       "testdata/jwtRS256.key.pub",
+		PrivKeyFile:      "testdata/jwtRS256.key",
+		PubKeyFile:       "testdata/jwtRS256.key.pub",
 		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
@@ -429,8 +429,8 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		Timeout:          time.Hour,
 		MaxRefresh:       time.Hour * 24,
 		SigningAlgorithm: "RS256",
-		privKeyFile:      "testdata/jwtRS256.key",
-		pubKeyFile:       "testdata/jwtRS256.key.pub",
+		PrivKeyFile:      "testdata/jwtRS256.key",
+		PubKeyFile:       "testdata/jwtRS256.key.pub",
 		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true

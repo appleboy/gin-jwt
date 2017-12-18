@@ -82,10 +82,10 @@ type GinJWTMiddleware struct {
 	HTTPStatusMessageFunc func(e error, c *gin.Context) string
 
 	// Private key file for asymmetric algorithms
-	privKeyFile string
+	PrivKeyFile string
 
 	// Public key file for asymmetric algorithms
-	pubKeyFile string
+	PubKeyFile string
 
 	// Private key
 	privKey *rsa.PrivateKey
@@ -166,7 +166,7 @@ func (mw *GinJWTMiddleware) readKeys() error {
 }
 
 func (mw *GinJWTMiddleware) privateKey() error {
-	keyData, err := ioutil.ReadFile(mw.privKeyFile)
+	keyData, err := ioutil.ReadFile(mw.PrivKeyFile)
 	if err != nil {
 		return ErrNoPrivKeyFile
 	}
@@ -179,7 +179,7 @@ func (mw *GinJWTMiddleware) privateKey() error {
 }
 
 func (mw *GinJWTMiddleware) publicKey() error {
-	keyData, err := ioutil.ReadFile(mw.pubKeyFile)
+	keyData, err := ioutil.ReadFile(mw.PubKeyFile)
 	if err != nil {
 		return ErrNoPubKeyFile
 	}
