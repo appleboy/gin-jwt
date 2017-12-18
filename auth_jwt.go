@@ -131,19 +131,19 @@ var (
 	// ErrEmptyCookieToken can be thrown if authing with a cookie, the token cokie is empty
 	ErrEmptyCookieToken = errors.New("cookie token is empty")
 
-	// ErrInvalidSigningAlgorithm indicates signing algorithm is invalid, needs to be HS256, HS384, or HS512
+	// ErrInvalidSigningAlgorithm indicates signing algorithm is invalid, needs to be HS256, HS384, HS512, RS256, RS384 or RS512
 	ErrInvalidSigningAlgorithm = errors.New("invalid signing algorithm")
 
-	// ErrNoPrivKeyFile
+	// ErrNoPrivKeyFile indicates that the given private key is unreadable
 	ErrNoPrivKeyFile = errors.New("private key file unreadable")
 
-	// ErrNoPubKeyFile
+	// ErrNoPubKeyFile indicates that the given public key is unreadable
 	ErrNoPubKeyFile = errors.New("public key file unreadable")
 
-	// ErrInvalidPrivKey
+	// ErrInvalidPrivKey indicates that the given private key is invalid
 	ErrInvalidPrivKey = errors.New("private key invalid")
 
-	// ErrInvalidPubKey
+	// ErrInvalidPubKey indicates the the given public key is invalid
 	ErrInvalidPubKey = errors.New("public key invalid")
 )
 
@@ -506,9 +506,8 @@ func (mw *GinJWTMiddleware) parseToken(c *gin.Context) (*jwt.Token, error) {
 		}
 		if mw.usingPublicKeyAlgo() {
 			return mw.pubKey, nil
-		} else {
-			return mw.Key, nil
 		}
+		return mw.Key, nil
 	})
 }
 
