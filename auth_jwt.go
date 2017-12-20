@@ -397,7 +397,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	newClaims["id"] = claims["id"]
 	newClaims["exp"] = expire.Unix()
 	newClaims["orig_iat"] = origIat
-	tokenString, err := mw.signedString(token)
+	tokenString, err := mw.signedString(newToken)
 
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
