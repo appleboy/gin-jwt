@@ -307,7 +307,10 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	// Initial middleware default setting.
-	mw.MiddlewareInit()
+	if err := mw.MiddlewareInit(); err != nil {
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
+		return
+	}
 
 	var loginVals Login
 
