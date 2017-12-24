@@ -209,6 +209,33 @@ func TestInternalServerError(t *testing.T) {
 		})
 }
 
+func TestErrMissingSecretKeyForLoginHandler(t *testing.T) {
+
+	authMiddleware := &GinJWTMiddleware{
+		Realm: "test zone",
+		// Check key exist.
+		// Key:        key,
+		Timeout:    time.Hour,
+		MaxRefresh: time.Hour * 24,
+	}
+
+	handler := ginHandler(authMiddleware)
+	r := gofight.New()
+
+	r.POST("/login").
+		SetJSON(gofight.D{
+			"username": "admin",
+			"password": "admin",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			data := []byte(r.Body.String())
+			message, _ := jsonparser.GetString(data, "message")
+
+			assert.Equal(t, ErrMissingSecretKey.Error(), message)
+			assert.Equal(t, http.StatusInternalServerError, r.Code)
+		})
+}
+
 func TestMissingAuthenticatorForLoginHandler(t *testing.T) {
 
 	authMiddleware := &GinJWTMiddleware{
