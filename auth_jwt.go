@@ -417,14 +417,12 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 // ExtractClaims help to extract the JWT claims
 func ExtractClaims(c *gin.Context) jwt.MapClaims {
 
-	if _, exists := c.Get("JWT_PAYLOAD"); !exists {
-		emptyClaims := make(jwt.MapClaims)
-		return emptyClaims
+	claims, exists := c.Get("JWT_PAYLOAD")
+	if !exists {
+		return make(jwt.MapClaims)
 	}
 
-	jwtClaims, _ := c.Get("JWT_PAYLOAD")
-
-	return jwtClaims.(jwt.MapClaims)
+	return claims.(jwt.MapClaims)
 }
 
 // TokenGenerator method that clients can use to get a jwt token.
