@@ -27,18 +27,32 @@ func main() {
 		port = "8000"
 	}
 
+	// Login form structure.
+	type Login struct {
+		Username string `form:"username" json:"username" binding:"required"`
+		Password string `form:"password" json:"password" binding:"required"`
+	}
+
 	// the jwt middleware
 	authMiddleware := &jwt.GinJWTMiddleware{
 		Realm:      "test zone",
 		Key:        []byte("secret key"),
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if (userId == "admin" && password == "admin") || (userId == "test" && password == "test") {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", jwt.ErrMissingLoginValues
 			}
 
-			return userId, false
+			userId := loginVals.Username
+			password := loginVals.Password
+
+			if (userId == "admin" && password == "admin") || (userId == "test" && password == "test") {
+				return userId, nil
+			}
+
+			return userId, jwt.ErrFailedAuthentication
 		},
 		Authorizator: func(userId string, c *gin.Context) bool {
 			if userId == "admin" {

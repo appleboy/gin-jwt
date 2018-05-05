@@ -19,6 +19,12 @@ var (
 	key = []byte("secret key")
 )
 
+// Login form structure.
+type Login struct {
+	Username string `form:"username" json:"username" binding:"required"`
+	Password string `form:"password" json:"password" binding:"required"`
+}
+
 func makeTokenString(SigningAlgorithm string, username string) string {
 	if SigningAlgorithm == "" {
 		SigningAlgorithm = "HS256"
@@ -47,12 +53,19 @@ func TestMissingRealm(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return "", true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return "", false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return "", ErrFailedAuthentication
 		},
 	}
 
@@ -68,12 +81,19 @@ func TestMissingKey(t *testing.T) {
 		Realm:      "test zone",
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return "", true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return "", false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return "", ErrFailedAuthentication
 		},
 	}
 
@@ -135,12 +155,19 @@ func TestMissingTimeOut(t *testing.T) {
 	authMiddleware := &GinJWTMiddleware{
 		Realm: "test zone",
 		Key:   key,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return "", true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return "", false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return "", ErrFailedAuthentication
 		},
 	}
 
@@ -154,12 +181,19 @@ func TestMissingTokenLookup(t *testing.T) {
 	authMiddleware := &GinJWTMiddleware{
 		Realm: "test zone",
 		Key:   key,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return "", true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return "", false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return "", ErrFailedAuthentication
 		},
 	}
 
@@ -272,12 +306,19 @@ func TestLoginHandler(t *testing.T) {
 			// Set custom claim, to be checked in Authorizator method
 			return map[string]interface{}{"testkey": "testval", "exp": 0}
 		},
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return "", true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return "", false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return "", ErrFailedAuthentication
 		},
 		Authorizator: func(userId string, c *gin.Context) bool {
 			return true
@@ -346,12 +387,19 @@ func TestParseToken(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return userId, false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return userId, ErrFailedAuthentication
 		},
 	}
 
@@ -402,12 +450,19 @@ func TestParseTokenRS256(t *testing.T) {
 		SigningAlgorithm: "RS256",
 		PrivKeyFile:      "testdata/jwtRS256.key",
 		PubKeyFile:       "testdata/jwtRS256.key.pub",
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return userId, false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return userId, ErrFailedAuthentication
 		},
 	}
 
@@ -458,12 +513,19 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		SigningAlgorithm: "RS256",
 		PrivKeyFile:      "testdata/jwtRS256.key",
 		PubKeyFile:       "testdata/jwtRS256.key.pub",
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return userId, false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return userId, ErrFailedAuthentication
 		},
 	}
 
@@ -509,12 +571,19 @@ func TestRefreshHandler(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return userId, false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return userId, ErrFailedAuthentication
 		},
 	}
 
@@ -553,12 +622,19 @@ func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 		Realm:   "test zone",
 		Key:     key,
 		Timeout: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return userId, false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return userId, ErrFailedAuthentication
 		},
 	}
 
@@ -589,11 +665,18 @@ func TestAuthorizator(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
-			return userId, false
+
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+			return userId, ErrFailedAuthentication
 		},
 		Authorizator: func(userId string, c *gin.Context) bool {
 			if userId != "admin" {
@@ -643,16 +726,23 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 			// Set custom claim, to be checked in Authorizator method
 			return map[string]interface{}{"testkey": testkey, "exp": 0}
 		},
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
+			}
+
+			userId := loginVals.Username
+			password := loginVals.Password
 			if userId == "admin" && password == "admin" {
-				return "", true
+				return userId, nil
 			}
 
 			if userId == "test" && password == "test" {
-				return "Administrator", true
+				return userId, nil
 			}
 
-			return userId, false
+			return userId, ErrFailedAuthentication
 		},
 		Authorizator: func(userId string, c *gin.Context) bool {
 			jwtClaims := ExtractClaims(c)
@@ -661,7 +751,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 				return true
 			}
 
-			if jwtClaims["testkey"] == "5678" && jwtClaims["id"] == "Administrator" {
+			if jwtClaims["testkey"] == "5678" && jwtClaims["id"] == "test" {
 				return true
 			}
 
@@ -735,16 +825,23 @@ func TestEmptyClaims(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
+			}
+
+			userId := loginVals.Username
+			password := loginVals.Password
 			if userId == "admin" && password == "admin" {
-				return "", true
+				return userId, nil
 			}
 
 			if userId == "test" && password == "test" {
-				return "Administrator", true
+				return userId, nil
 			}
 
-			return userId, false
+			return userId, ErrFailedAuthentication
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			jwtClaims = ExtractClaims(c)
@@ -773,11 +870,18 @@ func TestUnauthorized(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
-			return userId, false
+
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+			return userId, ErrFailedAuthentication
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.String(code, message)
@@ -804,11 +908,18 @@ func TestTokenExpire(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: -time.Second,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
-			return userId, false
+
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+			return userId, ErrFailedAuthentication
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.String(code, message)
@@ -836,11 +947,18 @@ func TestTokenFromQueryString(t *testing.T) {
 		Realm:   "test zone",
 		Key:     key,
 		Timeout: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
-			return userId, false
+
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+			return userId, ErrFailedAuthentication
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.String(code, message)
@@ -877,11 +995,18 @@ func TestTokenFromCookieString(t *testing.T) {
 		Realm:   "test zone",
 		Key:     key,
 		Timeout: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
-			return userId, false
+
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+			return userId, ErrFailedAuthentication
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.String(code, message)
@@ -919,11 +1044,18 @@ func TestDefineTokenHeadName(t *testing.T) {
 		Key:           key,
 		Timeout:       time.Hour,
 		TokenHeadName: "JWTTOKEN       ",
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return userId, true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
-			return userId, false
+
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+			return userId, ErrFailedAuthentication
 		},
 	}
 
@@ -957,12 +1089,19 @@ func TestHTTPStatusMessageFunc(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if userId == "admin" && password == "admin" {
-				return "", true
+		Authenticator: func(c *gin.Context) (string, error) {
+			var loginVals Login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", ErrMissingLoginValues
 			}
 
-			return "", false
+			userId := loginVals.Username
+			password := loginVals.Password
+			if userId == "admin" && password == "admin" {
+				return userId, nil
+			}
+
+			return userId, ErrFailedAuthentication
 		},
 
 		HTTPStatusMessageFunc: func(e error, c *gin.Context) string {

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"gopkg.in/dgrijalva/jwt-go.v3"
 )
 
@@ -38,10 +37,10 @@ type GinJWTMiddleware struct {
 	// Optional, defaults to 0 meaning not refreshable.
 	MaxRefresh time.Duration
 
-	// Callback function that should perform the authentication of the user based on userID and
-	// password. Must return true on success, false on failure. Required.
-	// Option return user id, if so, user id will be stored in Claim Array.
-	Authenticator func(userID string, password string, c *gin.Context) (string, bool)
+	// Callback function that should perform the authentication of the user based on login info.
+	// Must return user id (or user name) as user identifier, it will be stored in Claim Array. Required.
+	// Check error (e) to determine the appropriate error message.
+	Authenticator func(c *gin.Context) (string, error)
 
 	// Callback function that should perform the authorization of the authenticated user. Called
 	// only after an authentication success. Must return true on success, false on failure.
@@ -146,12 +145,6 @@ var (
 	// ErrInvalidPubKey indicates the the given public key is invalid
 	ErrInvalidPubKey = errors.New("public key invalid")
 )
-
-// Login form structure.
-type Login struct {
-	Username string `form:"username" json:"username" binding:"required"`
-	Password string `form:"password" json:"password" binding:"required"`
-}
 
 func (mw *GinJWTMiddleware) readKeys() error {
 	err := mw.privateKey()
@@ -312,22 +305,15 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	var loginVals Login
-
-	if c.ShouldBindWith(&loginVals, binding.JSON) != nil {
-		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingLoginValues, c))
-		return
-	}
-
 	if mw.Authenticator == nil {
 		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingAuthenticatorFunc, c))
 		return
 	}
 
-	userID, ok := mw.Authenticator(loginVals.Username, loginVals.Password, c)
+	userID, error := mw.Authenticator(c)
 
-	if !ok {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedAuthentication, c))
+	if error != nil {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(error, c))
 		return
 	}
 
@@ -336,13 +322,9 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	claims := token.Claims.(jwt.MapClaims)
 
 	if mw.PayloadFunc != nil {
-		for key, value := range mw.PayloadFunc(loginVals.Username) {
+		for key, value := range mw.PayloadFunc(userID) {
 			claims[key] = value
 		}
-	}
-
-	if userID == "" {
-		userID = loginVals.Username
 	}
 
 	expire := mw.TimeFunc().Add(mw.Timeout)
