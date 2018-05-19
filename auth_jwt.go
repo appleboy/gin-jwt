@@ -361,13 +361,14 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
+	maxage := int(expire.Unix())
 	if mw.SendCookie == true {
 		cookie := http.Cookie{
 			Name:     "token",
 			Value:    tokenString,
 			Path:     "/",
 			Expires:  expire,
-			MaxAge:   86400,
+			MaxAge:   maxage,
 			HttpOnly: true,
 			Secure:   mw.SecureCookie,
 			// No support for SameSite yet https://golang.org/src/net/http/cookie.go
@@ -429,13 +430,14 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 		return
 	}
 
+	maxage := int(expire.Unix())
 	if mw.SendCookie == true {
 		cookie := http.Cookie{
-			Name:     "auth",
+			Name:     "token",
 			Value:    tokenString,
 			Path:     "/",
 			Expires:  expire,
-			MaxAge:   86400,
+			MaxAge:   maxage,
 			HttpOnly: true,
 			Secure:   mw.SecureCookie,
 			// No support for SameSite yet https://golang.org/src/net/http/cookie.go
