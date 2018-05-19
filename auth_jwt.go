@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/binding"
 	"gopkg.in/dgrijalva/jwt-go.v3"
 )
 
@@ -19,6 +18,10 @@ import (
 // Users can get a token by posting a json request to LoginHandler. The token then needs to be passed in
 // the Authentication header. Example: Authorization:Bearer XXX_TOKEN_XXX
 type GinJWTMiddleware struct {
+	//
+	// Optionally return the token as a cookie
+	SendCookie bool
+
 	// Realm name to display to the user. Required.
 	Realm string
 
@@ -314,7 +317,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	var loginVals Login
 
-	if c.ShouldBindWith(&loginVals, binding.JSON) != nil {
+	if c.ShouldBind(&loginVals) != nil {
 		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingLoginValues, c))
 		return
 	}
@@ -356,11 +359,28 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":   http.StatusOK,
-		"token":  tokenString,
-		"expire": expire.Format(time.RFC3339),
-	})
+	if mw.SendCookie == true {
+		cookie := http.Cookie{
+			Name:     "auth",
+			Value:    tokenString,
+			Path:     "/",
+			Expires:  expire,
+			MaxAge:   86400,
+			HttpOnly: true,
+			// Secure:   true,
+			// No support for SameSite yet https://golang.org/src/net/http/cookie.go
+		}
+		http.SetCookie(c.Writer, &cookie)
+		c.JSON(http.StatusOK, gin.H{
+			"code": http.StatusOK,
+		})
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"code":   http.StatusOK,
+			"token":  tokenString,
+			"expire": expire.Format(time.RFC3339),
+		})
+	}
 }
 
 func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
@@ -407,11 +427,28 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":   http.StatusOK,
-		"token":  tokenString,
-		"expire": expire.Format(time.RFC3339),
-	})
+	if mw.SendCookie == true {
+		cookie := http.Cookie{
+			Name:     "auth",
+			Value:    tokenString,
+			Path:     "/",
+			Expires:  expire,
+			MaxAge:   86400,
+			HttpOnly: true,
+			// Secure:   true,
+			// No support for SameSite yet https://golang.org/src/net/http/cookie.go
+		}
+		http.SetCookie(c.Writer, &cookie)
+		c.JSON(http.StatusOK, gin.H{
+			"code": http.StatusOK,
+		})
+	} else {
+		c.JSON(http.StatusOK, gin.H{
+			"code":   http.StatusOK,
+			"token":  tokenString,
+			"expire": expire.Format(time.RFC3339),
+		})
+	}
 }
 
 // ExtractClaims help to extract the JWT claims
