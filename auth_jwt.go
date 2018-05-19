@@ -361,7 +361,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	maxage := int(expire.Unix())
+	maxage := int(expire.Unix() - time.Now().Unix())
 	if mw.SendCookie == true {
 		cookie := http.Cookie{
 			Name:     "token",
@@ -430,7 +430,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	maxage := int(expire.Unix())
+	maxage := int(expire.Unix() - time.Now().Unix())
 	if mw.SendCookie == true {
 		cookie := http.Cookie{
 			Name:     "token",
