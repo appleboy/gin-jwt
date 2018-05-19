@@ -18,9 +18,11 @@ import (
 // Users can get a token by posting a json request to LoginHandler. The token then needs to be passed in
 // the Authentication header. Example: Authorization:Bearer XXX_TOKEN_XXX
 type GinJWTMiddleware struct {
-	//
+
 	// Optionally return the token as a cookie
 	SendCookie bool
+	// Allow insecure cookies for development over http
+	SecureCookie bool
 
 	// Realm name to display to the user. Required.
 	Realm string
@@ -361,13 +363,13 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	if mw.SendCookie == true {
 		cookie := http.Cookie{
-			Name:     "auth",
+			Name:     "token",
 			Value:    tokenString,
 			Path:     "/",
 			Expires:  expire,
 			MaxAge:   86400,
 			HttpOnly: true,
-			// Secure:   true,
+			Secure:   mw.SecureCookie,
 			// No support for SameSite yet https://golang.org/src/net/http/cookie.go
 		}
 		http.SetCookie(c.Writer, &cookie)
@@ -435,7 +437,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 			Expires:  expire,
 			MaxAge:   86400,
 			HttpOnly: true,
-			// Secure:   true,
+			Secure:   mw.SecureCookie,
 			// No support for SameSite yet https://golang.org/src/net/http/cookie.go
 		}
 		http.SetCookie(c.Writer, &cookie)
