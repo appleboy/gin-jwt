@@ -41,7 +41,7 @@ type GinJWTMiddleware struct {
 	// Callback function that should perform the authentication of the user based on userID and
 	// password. Must return true on success, false on failure. Required.
 	// Option return user id, if so, user id will be stored in Claim Array.
-	Authenticator func(userID string, password string, c *gin.Context) (string, bool)
+	Authenticator func(userID string, password string, c *gin.Context) (map[string]interface{}, bool)
 
 	// Callback function that should perform the authorization of the authenticated user. Called
 	// only after an authentication success. Must return true on success, false on failure.
@@ -54,7 +54,7 @@ type GinJWTMiddleware struct {
 	// Note that the payload is not encrypted.
 	// The attributes mentioned on jwt.io can't be used as keys for the map.
 	// Optional, by default no additional data will be set.
-	PayloadFunc func(userID interface{}) map[string]interface{}
+	PayloadFunc func(userData map[string]interface{}) map[string]interface{}
 
 	// User can define own Unauthorized func.
 	Unauthorized func(*gin.Context, int, string)
@@ -324,7 +324,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	userID, ok := mw.Authenticator(loginVals.Username, loginVals.Password, c)
+	userData, ok := mw.Authenticator(loginVals.Username, loginVals.Password, c)
 
 	if !ok {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedAuthentication, c))
@@ -336,19 +336,20 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	claims := token.Claims.(jwt.MapClaims)
 
 	if mw.PayloadFunc != nil {
-		for key, value := range mw.PayloadFunc(loginVals.Username) {
+		for key, value := range mw.PayloadFunc(userData) {
 			claims[key] = value
 		}
 	}
 
-	if userID == "" {
-		userID = loginVals.Username
-	}
-
 	expire := mw.TimeFunc().Add(mw.Timeout)
-	claims["id"] = userID
+	if userData["id"] == nil {
+		claims["id"] = loginVals.Username
+	} else {
+		claims["id"] = userData["id"]
+	}
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
+
 	tokenString, err := mw.signedString(token)
 
 	if err != nil {
@@ -426,18 +427,17 @@ func ExtractClaims(c *gin.Context) jwt.MapClaims {
 }
 
 // TokenGenerator method that clients can use to get a jwt token.
-func (mw *GinJWTMiddleware) TokenGenerator(userID string) (string, time.Time, error) {
+func (mw *GinJWTMiddleware) TokenGenerator(userData map[string]interface{}) (string, time.Time, error) {
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
 
 	if mw.PayloadFunc != nil {
-		for key, value := range mw.PayloadFunc(userID) {
+		for key, value := range mw.PayloadFunc(userData) {
 			claims[key] = value
 		}
 	}
 
 	expire := mw.TimeFunc().UTC().Add(mw.Timeout)
-	claims["id"] = userID
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(token)
