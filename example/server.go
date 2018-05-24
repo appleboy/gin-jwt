@@ -33,15 +33,15 @@ func main() {
 		Key:        []byte("secret key"),
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
-			if (userId == "admin" && password == "admin") || (userId == "test" && password == "test") {
+		Authenticator: func(userId interface{}, password string, c *gin.Context) (interface{}, bool) {
+			if (userId.(string) == "admin" && password == "admin") || (userId.(string) == "test" && password == "test") {
 				return userId, true
 			}
 
 			return userId, false
 		},
-		Authorizator: func(userId string, c *gin.Context) bool {
-			if userId == "admin" {
+		Authorizator: func(userId interface{}, c *gin.Context) bool {
+			if userId.(string) == "admin" {
 				return true
 			}
 
