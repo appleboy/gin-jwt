@@ -79,8 +79,8 @@ func main() {
 
 			return nil, false
 		},
-		Authorizator: func(userId string, c *gin.Context) bool {
-			if userId == "admin" {
+		Authorizator: func(user interface{}, c *gin.Context) bool {
+			if user.(string) == "admin" {
 				return true
 			}
 
