@@ -279,7 +279,7 @@ func TestLoginHandler(t *testing.T) {
 
 			return "", false
 		},
-		Authorizator: func(userId string, c *gin.Context) bool {
+		Authorizator: func(user interface{}, c *gin.Context) bool {
 			return true
 		},
 	}
@@ -595,8 +595,8 @@ func TestAuthorizator(t *testing.T) {
 			}
 			return userId, false
 		},
-		Authorizator: func(userId string, c *gin.Context) bool {
-			if userId != "admin" {
+		Authorizator: func(user interface{}, c *gin.Context) bool {
+			if user.(string) != "admin" {
 				return false
 			}
 
@@ -656,7 +656,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 
 			return "Guest", false
 		},
-		Authorizator: func(userId string, c *gin.Context) bool {
+		Authorizator: func(user interface{}, c *gin.Context) bool {
 			jwtClaims := ExtractClaims(c)
 
 			if jwtClaims["id"] == "administrator" {

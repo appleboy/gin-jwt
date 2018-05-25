@@ -46,7 +46,7 @@ type GinJWTMiddleware struct {
 	// Callback function that should perform the authorization of the authenticated user. Called
 	// only after an authentication success. Must return true on success, false on failure.
 	// Optional, default to success.
-	Authorizator func(userID string, c *gin.Context) bool
+	Authorizator func(data interface{}, c *gin.Context) bool
 
 	// Callback function that will be called during login.
 	// Using this function it is possible to add additional payload data to the webtoken.
@@ -60,7 +60,7 @@ type GinJWTMiddleware struct {
 	Unauthorized func(*gin.Context, int, string)
 
 	// Set the identity handler function
-	IdentityHandler func(jwt.MapClaims) string
+	IdentityHandler func(jwt.MapClaims) interface{}
 
 	// TokenLookup is a string in the form of "<source>:<name>" that is used
 	// to extract token from the request.
@@ -224,7 +224,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.Authorizator == nil {
-		mw.Authorizator = func(userID string, c *gin.Context) bool {
+		mw.Authorizator = func(data interface{}, c *gin.Context) bool {
 			return true
 		}
 	}
@@ -239,11 +239,8 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.IdentityHandler == nil {
-		mw.IdentityHandler = func(claims jwt.MapClaims) string {
-			if v, ok := claims["id"].(string); ok {
-				return v
-			}
-			return ""
+		mw.IdentityHandler = func(claims jwt.MapClaims) interface{} {
+			return claims["id"]
 		}
 	}
 
