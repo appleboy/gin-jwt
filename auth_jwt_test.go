@@ -47,7 +47,7 @@ func TestMissingRealm(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return "", true
 			}
@@ -68,7 +68,7 @@ func TestMissingKey(t *testing.T) {
 		Realm:      "test zone",
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return "", true
 			}
@@ -135,7 +135,7 @@ func TestMissingTimeOut(t *testing.T) {
 	authMiddleware := &GinJWTMiddleware{
 		Realm: "test zone",
 		Key:   key,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return "", true
 			}
@@ -154,7 +154,7 @@ func TestMissingTokenLookup(t *testing.T) {
 	authMiddleware := &GinJWTMiddleware{
 		Realm: "test zone",
 		Key:   key,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return "", true
 			}
@@ -272,7 +272,7 @@ func TestLoginHandler(t *testing.T) {
 			// Set custom claim, to be checked in Authorizator method
 			return map[string]interface{}{"testkey": "testval", "exp": 0}
 		},
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return "", true
 			}
@@ -346,7 +346,7 @@ func TestParseToken(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -402,7 +402,7 @@ func TestParseTokenRS256(t *testing.T) {
 		SigningAlgorithm: "RS256",
 		PrivKeyFile:      "testdata/jwtRS256.key",
 		PubKeyFile:       "testdata/jwtRS256.key.pub",
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -458,7 +458,7 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		SigningAlgorithm: "RS256",
 		PrivKeyFile:      "testdata/jwtRS256.key",
 		PubKeyFile:       "testdata/jwtRS256.key.pub",
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -509,7 +509,7 @@ func TestRefreshHandler(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -553,7 +553,7 @@ func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 		Realm:   "test zone",
 		Key:     key,
 		Timeout: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -589,7 +589,7 @@ func TestAuthorizator(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -632,36 +632,42 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		PayloadFunc: func(userId interface{}) map[string]interface{} {
+		PayloadFunc: func(data interface{}) map[string]interface{} {
 			var testkey string
-			switch userId {
-			case "admin":
+			switch data {
+			case "Administrator":
 				testkey = "1234"
-			case "test":
+			case "User":
 				testkey = "5678"
+			case "Guest":
+				testkey = ""
 			}
 			// Set custom claim, to be checked in Authorizator method
 			return map[string]interface{}{"testkey": testkey, "exp": 0}
 		},
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
-				return "", true
-			}
-
-			if userId == "test" && password == "test" {
 				return "Administrator", true
 			}
 
-			return userId, false
+			if userId == "test" && password == "test" {
+				return "User", true
+			}
+
+			return "Guest", false
 		},
 		Authorizator: func(userId string, c *gin.Context) bool {
 			jwtClaims := ExtractClaims(c)
+
+			if jwtClaims["id"] == "administrator" {
+				return true
+			}
 
 			if jwtClaims["testkey"] == "1234" && jwtClaims["id"] == "admin" {
 				return true
 			}
 
-			if jwtClaims["testkey"] == "5678" && jwtClaims["id"] == "Administrator" {
+			if jwtClaims["testkey"] == "5678" && jwtClaims["id"] == "test" {
 				return true
 			}
 
@@ -672,7 +678,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 	r := gofight.New()
 	handler := ginHandler(authMiddleware)
 
-	userToken, _, _ := authMiddleware.TokenGenerator("admin")
+	userToken, _, _ := authMiddleware.TokenGenerator("administrator")
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
@@ -735,7 +741,7 @@ func TestEmptyClaims(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return "", true
 			}
@@ -773,7 +779,7 @@ func TestUnauthorized(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -804,7 +810,7 @@ func TestTokenExpire(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: -time.Second,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -836,7 +842,7 @@ func TestTokenFromQueryString(t *testing.T) {
 		Realm:   "test zone",
 		Key:     key,
 		Timeout: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -877,7 +883,7 @@ func TestTokenFromCookieString(t *testing.T) {
 		Realm:   "test zone",
 		Key:     key,
 		Timeout: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -919,7 +925,7 @@ func TestDefineTokenHeadName(t *testing.T) {
 		Key:           key,
 		Timeout:       time.Hour,
 		TokenHeadName: "JWTTOKEN       ",
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return userId, true
 			}
@@ -957,7 +963,7 @@ func TestHTTPStatusMessageFunc(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if userId == "admin" && password == "admin" {
 				return "", true
 			}

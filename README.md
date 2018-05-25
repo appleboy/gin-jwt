@@ -45,6 +45,13 @@ func helloHandler(c *gin.Context) {
 	})
 }
 
+// User demo
+type User struct {
+	UserName  string
+	FirstName string
+	LastName  string
+}
+
 func main() {
 	port := os.Getenv("PORT")
 	r := gin.New()
@@ -61,12 +68,16 @@ func main() {
 		Key:        []byte("secret key"),
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (string, bool) {
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
 			if (userId == "admin" && password == "admin") || (userId == "test" && password == "test") {
-				return userId, true
+				return &User{
+					UserName:  userId,
+					LastName:  "Bo-Yi",
+					FirstName: "Wu",
+				}, true
 			}
 
-			return userId, false
+			return nil, false
 		},
 		Authorizator: func(userId string, c *gin.Context) bool {
 			if userId == "admin" {
