@@ -341,7 +341,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		}
 	}
 
-	if claims["id"] == nil || claims["id"] == "" {
+	if claims["id"] == nil {
 		claims["id"] = loginVals.Username
 	}
 
