@@ -22,7 +22,7 @@ import "github.com/appleboy/gin-jwt"
 
 ## Example
 
-Please see [the example file](example/server.go) and you can use `ExtractClaims` to fetch user ID.
+Please see [the example file](example/server.go) and you can use `ExtractClaims` to fetch user data.
 
 [embedmd]:# (example/server.go go)
 ```go
