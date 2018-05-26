@@ -3,12 +3,6 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "04/l8Ja5DKlD0jqo6EicecWFtz0=",
-			"path": "github.com/buger/jsonparser",
-			"revision": "5b691c8ebc4af5191baa426561d62f1b5115d6e5",
-			"revisionTime": "2017-01-30T12:10:44Z"
-		},
-		{
 			"checksumSHA1": "dvabztWVQX8f6oMLRyv4dLH+TGY=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "346938d642f2ec3594ed81d874461961cd0faa76",
@@ -85,6 +79,18 @@
 			"path": "github.com/stretchr/testify/assert",
 			"revision": "4d4bfba8f1d1027c4fdbe371823030df51419987",
 			"revisionTime": "2017-01-30T11:31:45Z"
+		},
+		{
+			"checksumSHA1": "D/bVMue9dwO1EkdkUumqbWDjZNY=",
+			"path": "github.com/tidwall/gjson",
+			"revision": "3cd3a1192327ac5e24f7e87824be578b0b07c604",
+			"revisionTime": "2018-04-29T15:13:28Z"
+		},
+		{
+			"checksumSHA1": "Tk+aXpWRuTQhURlO79bd7YogcU0=",
+			"path": "github.com/tidwall/match",
+			"revision": "1731857f09b1f38450e2c12409748407822dc6be",
+			"revisionTime": "2017-10-02T07:59:45Z"
 		},
 		{
 			"checksumSHA1": "9Zw986fuQM/hCoVd8vmHoSM+8sU=",

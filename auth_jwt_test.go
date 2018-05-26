@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/buger/jsonparser"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
 	"gopkg.in/appleboy/gofight.v2"
 	"gopkg.in/dgrijalva/jwt-go.v3"
 )
@@ -200,11 +200,9 @@ func TestInternalServerError(t *testing.T) {
 
 	r.GET("/auth/hello").
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			data := []byte(r.Body.String())
+			message := gjson.Get(r.Body.String(), "message")
 
-			message, _ := jsonparser.GetString(data, "message")
-
-			assert.Equal(t, ErrMissingRealm.Error(), message)
+			assert.Equal(t, ErrMissingRealm.Error(), message.String())
 			assert.Equal(t, http.StatusInternalServerError, r.Code)
 		})
 }
@@ -228,10 +226,9 @@ func TestErrMissingSecretKeyForLoginHandler(t *testing.T) {
 			"password": "admin",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			data := []byte(r.Body.String())
-			message, _ := jsonparser.GetString(data, "message")
+			message := gjson.Get(r.Body.String(), "message")
 
-			assert.Equal(t, ErrMissingSecretKey.Error(), message)
+			assert.Equal(t, ErrMissingSecretKey.Error(), message.String())
 			assert.Equal(t, http.StatusInternalServerError, r.Code)
 		})
 }
@@ -254,10 +251,9 @@ func TestMissingAuthenticatorForLoginHandler(t *testing.T) {
 			"password": "admin",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			data := []byte(r.Body.String())
-			message, _ := jsonparser.GetString(data, "message")
+			message := gjson.Get(r.Body.String(), "message")
 
-			assert.Equal(t, ErrMissingAuthenticatorFunc.Error(), message)
+			assert.Equal(t, ErrMissingAuthenticatorFunc.Error(), message.String())
 			assert.Equal(t, http.StatusInternalServerError, r.Code)
 		})
 }
@@ -293,11 +289,9 @@ func TestLoginHandler(t *testing.T) {
 			"username": "admin",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			data := []byte(r.Body.String())
+			message := gjson.Get(r.Body.String(), "message")
 
-			message, _ := jsonparser.GetString(data, "message")
-
-			assert.Equal(t, ErrMissingLoginValues.Error(), message)
+			assert.Equal(t, ErrMissingLoginValues.Error(), message.String())
 			assert.Equal(t, http.StatusBadRequest, r.Code)
 			assert.Equal(t, "application/json; charset=utf-8", r.HeaderMap.Get("Content-Type"))
 		})
@@ -308,11 +302,9 @@ func TestLoginHandler(t *testing.T) {
 			"password": "test",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			data := []byte(r.Body.String())
+			message := gjson.Get(r.Body.String(), "message")
 
-			message, _ := jsonparser.GetString(data, "message")
-
-			assert.Equal(t, ErrFailedAuthentication.Error(), message)
+			assert.Equal(t, ErrFailedAuthentication.Error(), message.String())
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
@@ -694,10 +686,8 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 			"password": "admin",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			data := []byte(r.Body.String())
-
-			token, _ := jsonparser.GetString(data, "token")
-			userToken = token
+			token := gjson.Get(r.Body.String(), "token")
+			userToken = token.String()
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
 
@@ -715,10 +705,8 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 			"password": "test",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			data := []byte(r.Body.String())
-
-			token, _ := jsonparser.GetString(data, "token")
-			userToken = token
+			token := gjson.Get(r.Body.String(), "token")
+			userToken = token.String()
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
 
