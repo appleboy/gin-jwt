@@ -58,6 +58,12 @@ type GinJWTMiddleware struct {
 	// User can define own Unauthorized func.
 	Unauthorized func(*gin.Context, int, string)
 
+	// User can define own LoginResponse func.
+	LoginResponse func(*gin.Context, int, string, time.Time)
+
+	// User can define own RefreshResponse func.
+	RefreshResponse func(*gin.Context, int, string, time.Time)
+
 	// Set the identity handler function
 	IdentityHandler func(jwt.MapClaims) interface{}
 
@@ -237,6 +243,26 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		}
 	}
 
+	if mw.LoginResponse == nil {
+		mw.LoginResponse = func(c *gin.Context, code int, token string, expire time.Time) {
+			c.JSON(http.StatusOK, gin.H{
+				"code":   http.StatusOK,
+				"token":  token,
+				"expire": expire.Format(time.RFC3339),
+			})
+		}
+	}
+
+	if mw.RefreshResponse == nil {
+		mw.RefreshResponse = func(c *gin.Context, code int, token string, expire time.Time) {
+			c.JSON(http.StatusOK, gin.H{
+				"code":   http.StatusOK,
+				"token":  token,
+				"expire": expire.Format(time.RFC3339),
+			})
+		}
+	}
+
 	if mw.IdentityHandler == nil {
 		mw.IdentityHandler = func(claims jwt.MapClaims) interface{} {
 			return claims["id"]
@@ -354,11 +380,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":   http.StatusOK,
-		"token":  tokenString,
-		"expire": expire.Format(time.RFC3339),
-	})
+	mw.LoginResponse(c, http.StatusOK, tokenString, expire)
 }
 
 func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
@@ -405,11 +427,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"code":   http.StatusOK,
-		"token":  tokenString,
-		"expire": expire.Format(time.RFC3339),
-	})
+	mw.RefreshResponse(c, http.StatusOK, tokenString, expire)
 }
 
 // ExtractClaims help to extract the JWT claims

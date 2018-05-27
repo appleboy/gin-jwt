@@ -278,6 +278,14 @@ func TestLoginHandler(t *testing.T) {
 		Authorizator: func(user interface{}, c *gin.Context) bool {
 			return true
 		},
+		LoginResponse: func(c *gin.Context, code int, token string, t time.Time) {
+			c.JSON(http.StatusOK, gin.H{
+				"code":    http.StatusOK,
+				"token":   token,
+				"expire":  t.Format(time.RFC3339),
+				"message": "login successfully",
+			})
+		},
 	}
 
 	handler := ginHandler(authMiddleware)
@@ -303,7 +311,6 @@ func TestLoginHandler(t *testing.T) {
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
-
 			assert.Equal(t, ErrFailedAuthentication.Error(), message.String())
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
@@ -314,6 +321,8 @@ func TestLoginHandler(t *testing.T) {
 			"password": "admin",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			message := gjson.Get(r.Body.String(), "message")
+			assert.Equal(t, "login successfully", message.String())
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
 }
@@ -457,6 +466,14 @@ func TestRefreshHandlerRS256(t *testing.T) {
 
 			return userId, false
 		},
+		RefreshResponse: func(c *gin.Context, code int, token string, t time.Time) {
+			c.JSON(http.StatusOK, gin.H{
+				"code":    http.StatusOK,
+				"token":   token,
+				"expire":  t.Format(time.RFC3339),
+				"message": "refresh successfully",
+			})
+		},
 	}
 
 	handler := ginHandler(authMiddleware)
@@ -490,6 +507,8 @@ func TestRefreshHandlerRS256(t *testing.T) {
 			"Authorization": "Bearer " + makeTokenString("RS256", "admin"),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			message := gjson.Get(r.Body.String(), "message")
+			assert.Equal(t, "refresh successfully", message.String())
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
 }
