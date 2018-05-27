@@ -294,13 +294,11 @@ func (mw *GinJWTMiddleware) MiddlewareFunc() gin.HandlerFunc {
 	if err := mw.MiddlewareInit(); err != nil {
 		return func(c *gin.Context) {
 			mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, nil))
-			return
 		}
 	}
 
 	return func(c *gin.Context) {
 		mw.middlewareImpl(c)
-		return
 	}
 }
 
@@ -538,6 +536,4 @@ func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message strin
 	c.Abort()
 
 	mw.Unauthorized(c, code, message)
-
-	return
 }

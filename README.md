@@ -29,6 +29,7 @@ Please see [the example file](example/server.go) and you can use `ExtractClaims`
 package main
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -80,7 +81,7 @@ func main() {
 			return nil, false
 		},
 		Authorizator: func(user interface{}, c *gin.Context) bool {
-			if user.(string) == "admin" {
+			if v, ok := user.(string); ok && v == "admin" {
 				return true
 			}
 
@@ -119,7 +120,9 @@ func main() {
 		auth.GET("/refresh_token", authMiddleware.RefreshHandler)
 	}
 
-	http.ListenAndServe(":"+port, r)
+	if err := http.ListenAndServe(":"+port, r); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 

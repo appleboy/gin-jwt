@@ -4,11 +4,17 @@ GOFMT ?= gofmt "-s"
 PACKAGES ?= $(shell go list ./... | grep -v /vendor/)
 GOFILES := find . -name "*.go" -type f -not -path "./vendor/*"
 
-embedmd:
+embedmd-check:
 	@hash embedmd > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
 		go get -u github.com/campoy/embedmd; \
 	fi
 	embedmd -d *.md
+
+embedmd:
+	@hash embedmd > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
+		go get -u github.com/campoy/embedmd; \
+	fi
+	embedmd -w *.md
 
 fmt:
 	$(GOFILES) | xargs $(GOFMT) -w

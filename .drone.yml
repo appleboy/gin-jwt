@@ -6,7 +6,7 @@ pipeline:
   build:
     image: appleboy/golang-testing:${GO_VERSION}
     commands:
-      - make embedmd
+      - make embedmd-check
       - make vet
       - make lint
       - make fmt-check
