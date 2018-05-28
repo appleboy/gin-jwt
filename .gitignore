@@ -27,3 +27,5 @@ gin-bin
 .cover
 .vscode
 coverage.txt
+vendor/*
+!vendor/vendor.json
