@@ -12,6 +12,10 @@ import (
 	"gopkg.in/dgrijalva/jwt-go.v3"
 )
 
+// MapClaims type that uses the map[string]interface{} for JSON decoding
+// This is the default claims type if you don't supply one
+type MapClaims map[string]interface{}
+
 // GinJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response
 // is returned. On success, the wrapped middleware is called, and the userID is made available as
 // c.Get("userID").(string).
@@ -53,7 +57,7 @@ type GinJWTMiddleware struct {
 	// Note that the payload is not encrypted.
 	// The attributes mentioned on jwt.io can't be used as keys for the map.
 	// Optional, by default no additional data will be set.
-	PayloadFunc func(data interface{}) map[string]interface{}
+	PayloadFunc func(data interface{}) MapClaims
 
 	// User can define own Unauthorized func.
 	Unauthorized func(*gin.Context, int, string)
@@ -430,7 +434,6 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 
 // ExtractClaims help to extract the JWT claims
 func ExtractClaims(c *gin.Context) jwt.MapClaims {
-
 	claims, exists := c.Get("JWT_PAYLOAD")
 	if !exists {
 		return make(jwt.MapClaims)
@@ -440,12 +443,12 @@ func ExtractClaims(c *gin.Context) jwt.MapClaims {
 }
 
 // TokenGenerator method that clients can use to get a jwt token.
-func (mw *GinJWTMiddleware) TokenGenerator(userID string) (string, time.Time, error) {
+func (mw *GinJWTMiddleware) TokenGenerator(userID string, data MapClaims) (string, time.Time, error) {
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
 
 	if mw.PayloadFunc != nil {
-		for key, value := range mw.PayloadFunc(userID) {
+		for key, value := range mw.PayloadFunc(data) {
 			claims[key] = value
 		}
 	}
