@@ -18,7 +18,13 @@ pipeline:
       - make vet
       - make lint
       - make fmt-check
-      - make unit-test-coverage
+
+  lint:
+    image: golang:1.10
+    pull: true
+    group: testing
+    commands:
+      - make lint
 
   coverage:
     image: golang:1.10
