@@ -1,5 +1,6 @@
 .PHONY: test
 
+GO ?= go
 GOFMT ?= gofmt "-s"
 PACKAGES ?= $(shell go list ./... | grep -v /vendor/)
 GOFILES := find . -name "*.go" -type f -not -path "./vendor/*"
@@ -60,6 +61,17 @@ unconvert:
 		go get -u github.com/mdempsky/unconvert; \
 	fi
 	for PKG in $(PACKAGES); do unconvert -v $$PKG || exit 1; done;
+
+.PHONY: unit-test-coverage
+unit-test-coverage:
+	for PKG in $(PACKAGES); do $(GO) test -cover -coverprofile $$GOPATH/src/$$PKG/coverage.out $$PKG || exit 1; done;
+
+.PHONY: coverage
+coverage:
+	@hash gocovmerge > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
+		$(GO) get -u github.com/wadey/gocovmerge; \
+	fi
+	gocovmerge $(shell find . -type f -name "coverage.out") > coverage.all;\
 
 clean:
 	rm -rf .cover

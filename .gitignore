@@ -26,6 +26,6 @@ _testmain.go
 gin-bin
 .cover
 .vscode
-coverage.txt
+coverage.out
 vendor/*
 !vendor/vendor.json

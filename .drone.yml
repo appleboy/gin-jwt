@@ -3,21 +3,43 @@ workspace:
   path: github.com/appleboy/gin-jwt
 
 pipeline:
-  build:
-    image: appleboy/golang-testing:${GO_VERSION}
+  vendor:
+    image: golang:1.10
+    pull: true
     commands:
       - make install
+
+  build:
+    image: golang:1.10
+    pull: true
+    group: testing
+    commands:
       - make embedmd-check
       - make vet
       - make lint
       - make fmt-check
-      - coverage all
+      - make unit-test-coverage
+
+  coverage:
+    image: golang:1.10
+    pull: true
+    group: testing
+    commands:
+      - make unit-test-coverage
+
+  generate-coverage:
+    image: golang:1.10
+    pull: true
+    commands:
+      - make coverage
+    when:
+      event: [ push, pull_request ]
 
   codecov:
     image: robertstettner/drone-codecov
     secrets: [ codecov_token ]
     files:
-      - .cover/coverage.txt
+      - coverage.all
     when:
       event: [ push, pull_request ]
 
@@ -27,8 +49,3 @@ pipeline:
     secrets: [ discord_webhook_id, discord_webhook_token ]
     when:
       status: [ success, failure ]
-
-matrix:
-  GO_VERSION:
-    - 1.8.4
-    - 1.9.1
