@@ -16,7 +16,6 @@ pipeline:
     commands:
       - make embedmd-check
       - make vet
-      - make lint
       - make fmt-check
 
   lint:
