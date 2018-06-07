@@ -29,3 +29,5 @@ gin-bin
 coverage.out
 vendor/*
 !vendor/vendor.json
+Gopkg.*
+_vendor*

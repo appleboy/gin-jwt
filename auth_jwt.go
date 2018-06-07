@@ -518,6 +518,11 @@ func (mw *GinJWTMiddleware) parseToken(c *gin.Context) (*jwt.Token, error) {
 		return nil, err
 	}
 
+	//Gets the token string requested by the user and gives it to the context.
+	//I may store the last valid token in the cache,
+	//and when the token is refreshed, I can invalidate the remaining token (probably not expired).
+	c.Set("tokenString", token)
+
 	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if jwt.GetSigningMethod(mw.SigningAlgorithm) != token.Method {
 			return nil, ErrInvalidSigningAlgorithm
