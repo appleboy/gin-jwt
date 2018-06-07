@@ -432,16 +432,6 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	mw.RefreshResponse(c, http.StatusOK, tokenString, expire)
 }
 
-// ExtractClaims help to extract the JWT claims
-func ExtractClaims(c *gin.Context) jwt.MapClaims {
-	claims, exists := c.Get("JWT_PAYLOAD")
-	if !exists {
-		return make(jwt.MapClaims)
-	}
-
-	return claims.(jwt.MapClaims)
-}
-
 // TokenGenerator method that clients can use to get a jwt token.
 func (mw *GinJWTMiddleware) TokenGenerator(userID string, data MapClaims) (string, time.Time, error) {
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
@@ -518,13 +508,17 @@ func (mw *GinJWTMiddleware) parseToken(c *gin.Context) (*jwt.Token, error) {
 		return nil, err
 	}
 
-	return jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
-		if jwt.GetSigningMethod(mw.SigningAlgorithm) != token.Method {
+	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		if jwt.GetSigningMethod(mw.SigningAlgorithm) != t.Method {
 			return nil, ErrInvalidSigningAlgorithm
 		}
 		if mw.usingPublicKeyAlgo() {
 			return mw.pubKey, nil
 		}
+
+		// save token string if vaild
+		c.Set("JWT_TOKEN", token)
+
 		return mw.Key, nil
 	})
 }
@@ -539,4 +533,24 @@ func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message strin
 	c.Abort()
 
 	mw.Unauthorized(c, code, message)
+}
+
+// ExtractClaims help to extract the JWT claims
+func ExtractClaims(c *gin.Context) jwt.MapClaims {
+	claims, exists := c.Get("JWT_PAYLOAD")
+	if !exists {
+		return make(jwt.MapClaims)
+	}
+
+	return claims.(jwt.MapClaims)
+}
+
+// GetToken help to get the JWT token string
+func GetToken(c *gin.Context) string {
+	token, exists := c.Get("JWT_TOKEN")
+	if !exists {
+		return ""
+	}
+
+	return token.(string)
 }

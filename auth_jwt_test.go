@@ -170,7 +170,8 @@ func TestMissingTokenLookup(t *testing.T) {
 
 func helloHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"text": "Hello World.",
+		"text":  "Hello World.",
+		"token": GetToken(c),
 	})
 }
 
@@ -916,12 +917,32 @@ func TestTokenFromCookieString(t *testing.T) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + userToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			token := gjson.Get(r.Body.String(), "token")
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+			assert.Equal(t, "", token.String())
+		})
+
 	r.GET("/auth/refresh_token").
 		SetCookie(gofight.H{
 			"token": userToken,
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetCookie(gofight.H{
+			"token": userToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			token := gjson.Get(r.Body.String(), "token")
+			assert.Equal(t, http.StatusOK, r.Code)
+			assert.Equal(t, userToken, token.String())
 		})
 }
 
