@@ -101,6 +101,12 @@ type GinJWTMiddleware struct {
 
 	// Public key
 	pubKey *rsa.PublicKey
+
+	// Optionally return the token as a cookie
+	SendCookie bool
+
+	// Allow insecure cookies for development over http
+	SecureCookie bool
 }
 
 var (
@@ -382,6 +388,20 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
+	// set cookie
+	if mw.SendCookie {
+		maxage := int(expire.Unix() - time.Now().Unix())
+		c.SetCookie(
+			"JWTToken",
+			tokenString,
+			maxage,
+			"/",
+			"",
+			mw.SecureCookie,
+			true,
+		)
+	}
+
 	mw.LoginResponse(c, http.StatusOK, tokenString, expire)
 }
 
@@ -427,6 +447,20 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
 		return
+	}
+
+	// set cookie
+	if mw.SendCookie {
+		maxage := int(expire.Unix() - time.Now().Unix())
+		c.SetCookie(
+			"JWTToken",
+			tokenString,
+			maxage,
+			"/",
+			"",
+			mw.SecureCookie,
+			true,
+		)
 	}
 
 	mw.RefreshResponse(c, http.StatusOK, tokenString, expire)
