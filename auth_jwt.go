@@ -420,6 +420,13 @@ func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
 // Shall be put under an endpoint that is using the GinJWTMiddleware.
 // Reply will be of the form {"token": "TOKEN"}.
 func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
+
+	// Initial middleware default setting.
+	if err := mw.MiddlewareInit(); err != nil {
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
+		return
+	}
+
 	token, _ := mw.parseToken(c)
 	claims := token.Claims.(jwt.MapClaims)
 
