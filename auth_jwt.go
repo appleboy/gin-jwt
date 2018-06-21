@@ -441,7 +441,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	expire := mw.TimeFunc().Add(mw.Timeout)
 	newClaims["id"] = claims["id"]
 	newClaims["exp"] = expire.Unix()
-	newClaims["orig_iat"] = origIat
+	newClaims["orig_iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(newToken)
 
 	if err != nil {
