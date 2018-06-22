@@ -1,7 +1,6 @@
 package jwt
 
 import (
-	"crypto/rsa"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -25,7 +24,7 @@ type GinJWTMiddleware struct {
 	// Realm name to display to the user. Required.
 	Realm string
 
-	// signing algorithm - possible values are HS256, HS384, HS512
+	// signing algorithm - possible values are HS256, HS384, HS512, RS256, RS384, RS512
 	// Optional, default is HS256.
 	SigningAlgorithm string
 
@@ -96,11 +95,14 @@ type GinJWTMiddleware struct {
 	// Public key file for asymmetric algorithms
 	PubKeyFile string
 
+	// no privKey
+	NoPrivKey bool
+
 	// Private key
-	privKey *rsa.PrivateKey
+	privKey interface{}
 
 	// Public key
-	pubKey *rsa.PublicKey
+	pubKey interface{}
 
 	// Optionally return the token as a cookie
 	SendCookie bool
@@ -169,11 +171,13 @@ type Login struct {
 }
 
 func (mw *GinJWTMiddleware) readKeys() error {
-	err := mw.privateKey()
-	if err != nil {
-		return err
+	if !mw.NoPrivKey {
+		err := mw.privateKey()
+		if err != nil {
+			return err
+		}
 	}
-	err = mw.publicKey()
+	err := mw.publicKey()
 	if err != nil {
 		return err
 	}
@@ -185,10 +189,22 @@ func (mw *GinJWTMiddleware) privateKey() error {
 	if err != nil {
 		return ErrNoPrivKeyFile
 	}
-	key, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
-	if err != nil {
-		return ErrInvalidPrivKey
+	var key interface{}
+	switch mw.SigningAlgorithm {
+	case "RS256", "RS512", "RS384":
+		key, err = jwt.ParseRSAPrivateKeyFromPEM(keyData)
+		if err != nil {
+			return ErrInvalidPrivKey
+		}
+		break
+	case "ES256", "ES384", "ES512":
+		key, err = jwt.ParseECPrivateKeyFromPEM(keyData)
+		if err != nil {
+			return ErrInvalidPrivKey
+		}
+		break
 	}
+
 	mw.privKey = key
 	return nil
 }
@@ -198,7 +214,16 @@ func (mw *GinJWTMiddleware) publicKey() error {
 	if err != nil {
 		return ErrNoPubKeyFile
 	}
-	key, err := jwt.ParseRSAPublicKeyFromPEM(keyData)
+	var key interface{}
+	switch mw.SigningAlgorithm {
+	case "RS256", "RS512", "RS384":
+		key, err = jwt.ParseRSAPublicKeyFromPEM(keyData)
+		break
+	case "ES256", "ES384", "ES512":
+		key, err = jwt.ParseECPublicKeyFromPEM(keyData)
+		break
+	}
+
 	if err != nil {
 		return ErrInvalidPubKey
 	}
@@ -208,7 +233,7 @@ func (mw *GinJWTMiddleware) publicKey() error {
 
 func (mw *GinJWTMiddleware) usingPublicKeyAlgo() bool {
 	switch mw.SigningAlgorithm {
-	case "RS256", "RS512", "RS384":
+	case "RS256", "RS512", "RS384", "ES256", "ES384", "ES512":
 		return true
 	}
 	return false
@@ -321,6 +346,13 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
+
+	// check if the token has expired.
+	// Go think the exp is a float64, just cast it
+	if int64(claims["exp"].(float64)) <= mw.TimeFunc().Unix() {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
+		return
+	}
 
 	id := mw.IdentityHandler(claims)
 	c.Set("JWT_PAYLOAD", claims)

@@ -35,6 +35,10 @@ func makeTokenString(SigningAlgorithm string, username string) string {
 		keyData, _ := ioutil.ReadFile("testdata/jwtRS256.key")
 		signKey, _ := jwt.ParseRSAPrivateKeyFromPEM(keyData)
 		tokenString, _ = token.SignedString(signKey)
+	} else if SigningAlgorithm == "ES512" {
+		keyData, _ := ioutil.ReadFile("testdata/jwtES512.key")
+		signKey, _ := jwt.ParseECPrivateKeyFromPEM(keyData)
+		tokenString, _ = token.SignedString(signKey)
 	} else {
 		tokenString, _ = token.SignedString(key)
 	}
@@ -93,6 +97,18 @@ func TestMissingPrivKey(t *testing.T) {
 	err := authMiddleware.MiddlewareInit()
 	assert.Error(t, err)
 	assert.Equal(t, ErrNoPrivKeyFile, err)
+}
+
+func TestAllowForMissingPrivKey(t *testing.T) {
+	authMiddleware := &GinJWTMiddleware{
+		Realm:            "zone",
+		SigningAlgorithm: "RS256",
+		PrivKeyFile:      "nonexisting",
+		PubKeyFile:       "testdata/jwtRS256.key.pub",
+		NoPrivKey:        true,
+	}
+	err := authMiddleware.MiddlewareInit()
+	assert.Equal(t, nil, err)
 }
 
 func TestMissingPubKey(t *testing.T) {
@@ -539,6 +555,70 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		})
 }
 
+func TestParseTokenES512(t *testing.T) {
+	// the middleware to test
+	authMiddleware := &GinJWTMiddleware{
+		Realm:            "test zone",
+		Key:              key,
+		Timeout:          time.Hour,
+		MaxRefresh:       time.Hour * 24,
+		SigningAlgorithm: "ES512",
+		PrivKeyFile:      "testdata/jwtES512.key",
+		PubKeyFile:       "testdata/jwtES512.key.pub",
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
+			if userId == "admin" && password == "admin" {
+				return userId, true
+			}
+
+			return userId, false
+		},
+	}
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Test 1234",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("HS384", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("RS256", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("ES512", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
+}
+
 func TestRefreshHandler(t *testing.T) {
 	// the middleware to test
 	authMiddleware := &GinJWTMiddleware{
@@ -581,6 +661,41 @@ func TestRefreshHandler(t *testing.T) {
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
+		})
+}
+
+func TestExpiredTokenOnAuth(t *testing.T) {
+	// the middleware to test
+	authMiddleware := &GinJWTMiddleware{
+		Realm:   "test zone",
+		Key:     key,
+		Timeout: time.Hour,
+		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
+			if userId == "admin" && password == "admin" {
+				return userId, true
+			}
+
+			return userId, false
+		},
+	}
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	token := jwt.New(jwt.GetSigningMethod("HS256"))
+	claims := token.Claims.(jwt.MapClaims)
+	claims["id"] = "admin"
+	claims["exp"] = time.Now().Add(-time.Minute).Unix()
+	claims["orig_iat"] = time.Now().Add(-time.Hour * 2).Unix()
+	tokenString, _ := token.SignedString(key)
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + tokenString,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 }
 
