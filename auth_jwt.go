@@ -530,22 +530,19 @@ func (mw *GinJWTMiddleware) parseToken(c *gin.Context) (*jwt.Token, error) {
 
 	methods := strings.Split(mw.TokenLookup, ",")
 	for _, method := range methods {
+		if len(token) > 0 {
+			break
+		}
 		parts := strings.Split(strings.TrimSpace(method), ":")
 		k := strings.TrimSpace(parts[0])
 		v := strings.TrimSpace(parts[1])
 		switch k {
 		case "header":
-			if len(token) == 0 {
-				token, err = mw.jwtFromHeader(c, v)
-			}
+			token, err = mw.jwtFromHeader(c, v)
 		case "query":
-			if len(token) == 0 {
-				token, err = mw.jwtFromQuery(c, v)
-			}
+			token, err = mw.jwtFromQuery(c, v)
 		case "cookie":
-			if len(token) == 0 {
-				token, err = mw.jwtFromCookie(c, v)
-			}
+			token, err = mw.jwtFromCookie(c, v)
 		}
 	}
 
