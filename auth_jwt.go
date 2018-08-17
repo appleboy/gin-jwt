@@ -467,7 +467,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 }
 
 // TokenGenerator method that clients can use to get a jwt token.
-func (mw *GinJWTMiddleware) TokenGenerator(userID string, data MapClaims) (string, time.Time, error) {
+func (mw *GinJWTMiddleware) TokenGenerator(userID string, data interface{}) (string, time.Time, error) {
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
 
