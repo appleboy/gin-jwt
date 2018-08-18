@@ -60,7 +60,7 @@ type GinJWTMiddleware struct {
 	PayloadFunc func(data interface{}) MapClaims
 
 	// User can define own Unauthorized func.
-	Unauthorized func(*gin.Context, int, string)
+	Unauthorized func(*gin.Context, int, string, interface{})
 
 	// User can define own LoginResponse func.
 	LoginResponse func(*gin.Context, int, string, time.Time)
@@ -245,7 +245,11 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.Unauthorized == nil {
-		mw.Unauthorized = func(c *gin.Context, code int, message string) {
+		mw.Unauthorized = func(c *gin.Context, code int, message string, data interface{}) {
+			if data != nil{
+				c.JSON(code, data)
+				return
+			}
 			c.JSON(code, gin.H{
 				"code":    code,
 				"message": message,
@@ -303,7 +307,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 func (mw *GinJWTMiddleware) MiddlewareFunc() gin.HandlerFunc {
 	if err := mw.MiddlewareInit(); err != nil {
 		return func(c *gin.Context) {
-			mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, nil))
+			mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, nil), nil)
 		}
 	}
 
@@ -316,7 +320,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	token, err := mw.parseToken(c)
 
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c), nil)
 		return
 	}
 
@@ -327,7 +331,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	c.Set("userID", id)
 
 	if !mw.Authorizator(id, c) {
-		mw.unauthorized(c, http.StatusForbidden, mw.HTTPStatusMessageFunc(ErrForbidden, c))
+		mw.unauthorized(c, http.StatusForbidden, mw.HTTPStatusMessageFunc(ErrForbidden, c), nil)
 		return
 	}
 
@@ -341,26 +345,26 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	// Initial middleware default setting.
 	if err := mw.MiddlewareInit(); err != nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c), nil)
 		return
 	}
 
 	var loginVals Login
 
 	if c.ShouldBind(&loginVals) != nil {
-		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingLoginValues, c))
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingLoginValues, c), nil)
 		return
 	}
 
 	if mw.Authenticator == nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingAuthenticatorFunc, c))
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingAuthenticatorFunc, c), nil)
 		return
 	}
 
 	data, ok := mw.Authenticator(loginVals.Username, loginVals.Password, c)
 
 	if !ok {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedAuthentication, c))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedAuthentication, c), data)
 		return
 	}
 
@@ -384,7 +388,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	tokenString, err := mw.signedString(token)
 
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c), nil)
 		return
 	}
 
@@ -426,7 +430,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	origIat := int64(claims["orig_iat"].(float64))
 
 	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c), nil)
 		return
 	}
 
@@ -445,7 +449,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	tokenString, err := mw.signedString(newToken)
 
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c), nil)
 		return
 	}
 
