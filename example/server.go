@@ -10,6 +10,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type login struct {
+	Username string `form:"username" json:"username" binding:"required"`
+	Password string `form:"password" json:"password" binding:"required"`
+}
+
 func helloHandler(c *gin.Context) {
 	claims := jwt.ExtractClaims(c)
 	c.JSON(200, gin.H{
@@ -41,19 +46,34 @@ func main() {
 		Key:        []byte("secret key"),
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour,
-		Authenticator: func(userId string, password string, c *gin.Context) (interface{}, bool) {
-			if (userId == "admin" && password == "admin") || (userId == "test" && password == "test") {
+		PayloadFunc: func(data interface{}) jwt.MapClaims {
+			if v, ok := data.(*User); ok {
+				return jwt.MapClaims{
+					"id": v.UserName,
+				}
+			}
+			return jwt.MapClaims{}
+		},
+		Authenticator: func(c *gin.Context) (interface{}, error) {
+			var loginVals login
+			if binderr := c.Bind(&loginVals); binderr != nil {
+				return "", jwt.ErrMissingLoginValues
+			}
+			userID := loginVals.Username
+			password := loginVals.Password
+
+			if (userID == "admin" && password == "admin") || (userID == "test" && password == "test") {
 				return &User{
-					UserName:  userId,
+					UserName:  userID,
 					LastName:  "Bo-Yi",
 					FirstName: "Wu",
-				}, true
+				}, nil
 			}
 
-			return nil, false
+			return nil, jwt.ErrFailedAuthentication
 		},
-		Authorizator: func(user interface{}, c *gin.Context) bool {
-			if v, ok := user.(string); ok && v == "admin" {
+		Authorizator: func(data interface{}, c *gin.Context) bool {
+			if v, ok := data.(string); ok && v == "admin" {
 				return true
 			}
 

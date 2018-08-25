@@ -259,7 +259,7 @@ func TestLoginHandler(t *testing.T) {
 	authMiddleware := &GinJWTMiddleware{
 		Realm: "test zone",
 		Key:   key,
-		PayloadFunc: func(userId interface{}) MapClaims {
+		PayloadFunc: func(data interface{}) MapClaims {
 			// Set custom claim, to be checked in Authorizator method
 			return MapClaims{"testkey": "testval", "exp": 0}
 		},
