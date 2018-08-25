@@ -41,10 +41,10 @@ type GinJWTMiddleware struct {
 	// Optional, defaults to 0 meaning not refreshable.
 	MaxRefresh time.Duration
 
-	// Callback function that should perform the authentication of the user based on userID and
-	// password. Must return true on success, false on failure. Required.
-	// Option return user data, if so, user data will be stored in Claim Array.
-	Authenticator func(userID string, password string, c *gin.Context) (interface{}, bool)
+	// Callback function that should perform the authentication of the user based on login info.
+	// Must return user data as user identifier, it will be stored in Claim Array. Required.
+	// Check error (e) to determine the appropriate error message.
+	Authenticator func(c *gin.Context) (interface{}, error)
 
 	// Callback function that should perform the authorization of the authenticated user. Called
 	// only after an authentication success. Must return true on success, false on failure.
@@ -161,12 +161,6 @@ var (
 	// ErrInvalidPubKey indicates the the given public key is invalid
 	ErrInvalidPubKey = errors.New("public key invalid")
 )
-
-// Login form structure.
-type Login struct {
-	Username string `form:"username" json:"username" binding:"required"`
-	Password string `form:"password" json:"password" binding:"required"`
-}
 
 func (mw *GinJWTMiddleware) readKeys() error {
 	err := mw.privateKey()
@@ -345,22 +339,15 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	var loginVals Login
-
-	if c.ShouldBind(&loginVals) != nil {
-		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingLoginValues, c))
-		return
-	}
-
 	if mw.Authenticator == nil {
 		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingAuthenticatorFunc, c))
 		return
 	}
 
-	data, ok := mw.Authenticator(loginVals.Username, loginVals.Password, c)
+	data, error := mw.Authenticator(c)
 
-	if !ok {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedAuthentication, c))
+	if error != nil {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(error, c))
 		return
 	}
 
@@ -372,10 +359,6 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		for key, value := range mw.PayloadFunc(data) {
 			claims[key] = value
 		}
-	}
-
-	if claims["id"] == nil {
-		claims["id"] = loginVals.Username
 	}
 
 	expire := mw.TimeFunc().Add(mw.Timeout)
