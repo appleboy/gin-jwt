@@ -110,6 +110,9 @@ type GinJWTMiddleware struct {
 
 	// SendAuthorization allow return authorization header for every request
 	SendAuthorization bool
+
+	// Disable abort() of context.
+	DisabledAbort bool
 }
 
 var (
@@ -564,7 +567,9 @@ func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message strin
 	}
 
 	c.Header("WWW-Authenticate", "JWT realm="+mw.Realm)
-	c.Abort()
+	if !mw.DisabledAbort {
+		c.Abort()
+	}
 
 	mw.Unauthorized(c, code, message)
 }
