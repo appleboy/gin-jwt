@@ -297,7 +297,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 }
 
 // MiddlewareFunc makes GinJWTMiddleware implement the Middleware interface.
-func (mw *GinJWTMiddleware) MiddlewareFunc() gin.HandlerFunc {
+func (mw *GinJWTMiddleware) MiddlewareFunc(authArgs ... interface{}) gin.HandlerFunc {
 	if err := mw.MiddlewareInit(); err != nil {
 		return func(c *gin.Context) {
 			mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, nil))
@@ -305,6 +305,7 @@ func (mw *GinJWTMiddleware) MiddlewareFunc() gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
+		c.Set("authArgs", authArgs)
 		mw.middlewareImpl(c)
 	}
 }
