@@ -595,12 +595,8 @@ func TestAuthorizator(t *testing.T) {
 		Timeout:       time.Hour,
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
-		Authorizator: func(user interface{}, c *gin.Context) bool {
-			if user.(string) != "admin" {
-				return false
-			}
-
-			return true
+		Authorizator: func(data interface{}, c *gin.Context) bool {
+			return data.(string) != "admin"
 		},
 	}
 
@@ -999,12 +995,8 @@ func TestSendAuthorizationBool(t *testing.T) {
 		MaxRefresh:        time.Hour * 24,
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
-		Authorizator: func(user interface{}, c *gin.Context) bool {
-			if user.(string) != "admin" {
-				return false
-			}
-
-			return true
+		Authorizator: func(data interface{}, c *gin.Context) bool {
+			return data.(string) != "admin"
 		},
 	}
 
