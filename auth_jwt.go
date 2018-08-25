@@ -107,6 +107,9 @@ type GinJWTMiddleware struct {
 
 	// Allow insecure cookies for development over http
 	SecureCookie bool
+
+	// SendAuthorization allow return authorization header for every request
+	SendAuthorization bool
 }
 
 var (
@@ -312,6 +315,12 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
 		return
+	}
+
+	if mw.SendAuthorization {
+		if v, ok := c.Get("JWT_TOKEN"); ok {
+			c.Header("Authorization", mw.TokenHeadName+" "+v.(string))
+		}
 	}
 
 	claims := token.Claims.(jwt.MapClaims)

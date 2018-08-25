@@ -989,3 +989,44 @@ func TestHTTPStatusMessageFunc(t *testing.T) {
 	assert.Equal(t, successMessage, successString)
 	assert.NotEqual(t, successMessage, failedString)
 }
+
+func TestSendAuthorizationBool(t *testing.T) {
+	// the middleware to test
+	authMiddleware := &GinJWTMiddleware{
+		Realm:             "test zone",
+		Key:               key,
+		Timeout:           time.Hour,
+		MaxRefresh:        time.Hour * 24,
+		Authenticator:     defaultAuthenticator,
+		SendAuthorization: true,
+		Authorizator: func(user interface{}, c *gin.Context) bool {
+			if user.(string) != "admin" {
+				return false
+			}
+
+			return true
+		},
+	}
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("HS256", "test"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusForbidden, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			token := r.HeaderMap.Get("Authorization")
+			assert.Equal(t, "Bearer "+makeTokenString("HS256", "admin"), token)
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
+}
