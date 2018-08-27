@@ -265,7 +265,7 @@ func TestLoginHandler(t *testing.T) {
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
 			var loginVals Login
-			if binderr := c.Bind(&loginVals); binderr != nil {
+			if binderr := c.ShouldBind(&loginVals); binderr != nil {
 				return "", ErrMissingLoginValues
 			}
 			userID := loginVals.Username
@@ -307,7 +307,7 @@ func TestLoginHandler(t *testing.T) {
 			message := gjson.Get(r.Body.String(), "message")
 
 			assert.Equal(t, ErrMissingLoginValues.Error(), message.String())
-			assert.Equal(t, http.StatusBadRequest, r.Code)
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
 			assert.Equal(t, "application/json; charset=utf-8", r.HeaderMap.Get("Content-Type"))
 		})
 
