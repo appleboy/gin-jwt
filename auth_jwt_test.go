@@ -596,7 +596,8 @@ func TestAuthorizator(t *testing.T) {
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
 		Authorizator: func(data interface{}, c *gin.Context) bool {
-			return data.(string) == "admin"
+			claims := data.(jwt.MapClaims)
+			return claims["id"] == "admin"
 		},
 	}
 
@@ -688,7 +689,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 	r := gofight.New()
 	handler := ginHandler(authMiddleware)
 
-	userToken, _, _ := authMiddleware.TokenGenerator("administrator", MapClaims{})
+	userToken, _, _ := authMiddleware.TokenGenerator("administrator")
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
@@ -825,7 +826,7 @@ func TestTokenExpire(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator("admin", MapClaims{})
+	userToken, _, _ := authMiddleware.TokenGenerator("admin")
 
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
@@ -853,7 +854,7 @@ func TestTokenFromQueryString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator("admin", MapClaims{})
+	userToken, _, _ := authMiddleware.TokenGenerator("admin")
 
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
@@ -889,7 +890,7 @@ func TestTokenFromCookieString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator("admin", MapClaims{})
+	userToken, _, _ := authMiddleware.TokenGenerator("admin")
 
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
@@ -996,7 +997,8 @@ func TestSendAuthorizationBool(t *testing.T) {
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
 		Authorizator: func(data interface{}, c *gin.Context) bool {
-			return data.(string) == "admin"
+			claims := data.(jwt.MapClaims)
+			return claims["id"] == "admin"
 		},
 	}
 
