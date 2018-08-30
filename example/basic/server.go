@@ -73,7 +73,7 @@ func main() {
 			return nil, jwt.ErrFailedAuthentication
 		},
 		Authorizator: func(data interface{}, c *gin.Context) bool {
-			if v, ok := data.(string); ok && v == "admin" {
+			if v, ok := data.(jwt.MapClaims); ok && v["id"] == "admin" {
 				return true
 			}
 
