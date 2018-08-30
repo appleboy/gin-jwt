@@ -45,7 +45,7 @@ func makeTokenString(SigningAlgorithm string, username string) string {
 
 	token := jwt.New(jwt.GetSigningMethod(SigningAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
-	claims["id"] = username
+	claims["identity"] = username
 	claims["exp"] = time.Now().Add(time.Hour).Unix()
 	claims["orig_iat"] = time.Now().Unix()
 	var tokenString string
@@ -573,7 +573,7 @@ func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 
 	token := jwt.New(jwt.GetSigningMethod("HS256"))
 	claims := token.Claims.(jwt.MapClaims)
-	claims["id"] = "admin"
+	claims["identity"] = "admin"
 	claims["exp"] = time.Now().Add(time.Hour).Unix()
 	claims["orig_iat"] = 0
 	tokenString, _ := token.SignedString(key)
@@ -629,6 +629,9 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
 		PayloadFunc: func(data interface{}) MapClaims {
+			if v, ok := data.(MapClaims); ok {
+				return v
+			}
 
 			if reflect.TypeOf(data).String() != "string" {
 				return MapClaims{}
@@ -644,7 +647,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 				testkey = ""
 			}
 			// Set custom claim, to be checked in Authorizator method
-			return MapClaims{"id": data.(string), "testkey": testkey, "exp": 0}
+			return MapClaims{"identity": data.(string), "testkey": testkey, "exp": 0}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
 			var loginVals Login
@@ -669,15 +672,15 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		Authorizator: func(user interface{}, c *gin.Context) bool {
 			jwtClaims := ExtractClaims(c)
 
-			if jwtClaims["id"] == "administrator" {
+			if jwtClaims["identity"] == "administrator" {
 				return true
 			}
 
-			if jwtClaims["testkey"] == "1234" && jwtClaims["id"] == "admin" {
+			if jwtClaims["testkey"] == "1234" && jwtClaims["identity"] == "admin" {
 				return true
 			}
 
-			if jwtClaims["testkey"] == "5678" && jwtClaims["id"] == "test" {
+			if jwtClaims["testkey"] == "5678" && jwtClaims["identity"] == "test" {
 				return true
 			}
 
@@ -688,7 +691,9 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 	r := gofight.New()
 	handler := ginHandler(authMiddleware)
 
-	userToken, _, _ := authMiddleware.TokenGenerator("administrator", MapClaims{})
+	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
+		"identity": "administrator",
+	})
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
@@ -825,7 +830,9 @@ func TestTokenExpire(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator("admin", MapClaims{})
+	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
+		"identity": "admin",
+	})
 
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
@@ -853,7 +860,9 @@ func TestTokenFromQueryString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator("admin", MapClaims{})
+	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
+		"identity": "admin",
+	})
 
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
@@ -889,7 +898,9 @@ func TestTokenFromCookieString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator("admin", MapClaims{})
+	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
+		"identity": "admin",
+	})
 
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
