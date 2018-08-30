@@ -119,9 +119,6 @@ type GinJWTMiddleware struct {
 }
 
 var (
-	// ErrMissingRealm indicates Realm name is required
-	ErrMissingRealm = errors.New("realm is missing")
-
 	// ErrMissingSecretKey indicates Secret key is required
 	ErrMissingSecretKey = errors.New("secret key is required")
 
@@ -170,6 +167,15 @@ var (
 	// ErrInvalidPubKey indicates the the given public key is invalid
 	ErrInvalidPubKey = errors.New("public key invalid")
 )
+
+// New for check error with GinJWTMiddleware
+func New(m *GinJWTMiddleware) (*GinJWTMiddleware, error) {
+	if err := m.MiddlewareInit(); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
 
 func (mw *GinJWTMiddleware) readKeys() error {
 	err := mw.privateKey()
@@ -293,7 +299,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.Realm == "" {
-		return ErrMissingRealm
+		mw.Realm = "gin jwt"
 	}
 
 	if mw.usingPublicKeyAlgo() {
@@ -308,12 +314,6 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 
 // MiddlewareFunc makes GinJWTMiddleware implement the Middleware interface.
 func (mw *GinJWTMiddleware) MiddlewareFunc() gin.HandlerFunc {
-	if err := mw.MiddlewareInit(); err != nil {
-		return func(c *gin.Context) {
-			mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, nil))
-		}
-	}
-
 	return func(c *gin.Context) {
 		mw.middlewareImpl(c)
 	}
@@ -353,13 +353,6 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 // Payload needs to be json in the form of {"username": "USERNAME", "password": "PASSWORD"}.
 // Reply will be of the form {"token": "TOKEN"}.
 func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
-
-	// Initial middleware default setting.
-	if err := mw.MiddlewareInit(); err != nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
-		return
-	}
-
 	if mw.Authenticator == nil {
 		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingAuthenticatorFunc, c))
 		return
@@ -568,11 +561,6 @@ func (mw *GinJWTMiddleware) parseToken(c *gin.Context) (*jwt.Token, error) {
 }
 
 func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message string) {
-
-	if mw.Realm == "" {
-		mw.Realm = "gin jwt"
-	}
-
 	c.Header("WWW-Authenticate", "JWT realm="+mw.Realm)
 	if !mw.DisabledAbort {
 		c.Abort()
