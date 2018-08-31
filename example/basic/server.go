@@ -15,11 +15,15 @@ type login struct {
 	Password string `form:"password" json:"password" binding:"required"`
 }
 
+var identityKey = "id"
+
 func helloHandler(c *gin.Context) {
 	claims := jwt.ExtractClaims(c)
+	user, _ := c.Get(identityKey)
 	c.JSON(200, gin.H{
-		"userID": claims["id"],
-		"text":   "Hello World.",
+		"userID":   claims["id"],
+		"userName": user.(*User).UserName,
+		"text":     "Hello World.",
 	})
 }
 
@@ -46,14 +50,20 @@ func main() {
 		Key:         []byte("secret key"),
 		Timeout:     time.Hour,
 		MaxRefresh:  time.Hour,
-		IdentityKey: "id",
+		IdentityKey: identityKey,
 		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			if v, ok := data.(*User); ok {
 				return jwt.MapClaims{
-					"id": v.UserName,
+					identityKey: v.UserName,
 				}
 			}
 			return jwt.MapClaims{}
+		},
+		IdentityHandler: func(c *gin.Context) interface{} {
+			claims := jwt.ExtractClaims(c)
+			return &User{
+				UserName: claims["id"].(string),
+			}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
 			var loginVals login
@@ -74,7 +84,7 @@ func main() {
 			return nil, jwt.ErrFailedAuthentication
 		},
 		Authorizator: func(data interface{}, c *gin.Context) bool {
-			if v, ok := data.(string); ok && v == "admin" {
+			if v, ok := data.(*User); ok && v.UserName == "admin" {
 				return true
 			}
 

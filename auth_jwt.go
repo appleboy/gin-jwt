@@ -69,7 +69,7 @@ type GinJWTMiddleware struct {
 	RefreshResponse func(*gin.Context, int, string, time.Time)
 
 	// Set the identity handler function
-	IdentityHandler func(jwt.MapClaims) interface{}
+	IdentityHandler func(*gin.Context) interface{}
 
 	// Set the identity key
 	IdentityKey string
@@ -166,6 +166,9 @@ var (
 
 	// ErrInvalidPubKey indicates the the given public key is invalid
 	ErrInvalidPubKey = errors.New("public key invalid")
+
+	// IdentityKey default identity key
+	IdentityKey = "identity"
 )
 
 // New for check error with GinJWTMiddleware
@@ -283,11 +286,12 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.IdentityKey == "" {
-		mw.IdentityKey = "identity"
+		mw.IdentityKey = IdentityKey
 	}
 
 	if mw.IdentityHandler == nil {
-		mw.IdentityHandler = func(claims jwt.MapClaims) interface{} {
+		mw.IdentityHandler = func(c *gin.Context) interface{} {
+			claims := ExtractClaims(c)
 			return claims[mw.IdentityKey]
 		}
 	}
@@ -334,9 +338,9 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
-
-	identity := mw.IdentityHandler(claims)
 	c.Set("JWT_PAYLOAD", claims)
+	identity := mw.IdentityHandler(c)
+
 	if identity != nil {
 		c.Set(mw.IdentityKey, identity)
 	}
