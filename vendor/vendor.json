@@ -3,10 +3,26 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "3ypLR3701dbqyt9WGTomk7P+/uo=",
+			"path": "github.com/appleboy/gofight",
+			"revision": "beadc315fb676177c07a89c34159b9ca4e1aafd9",
+			"revisionTime": "2016-11-16T08:12:57Z",
+			"version": "v2.0.0",
+			"versionExact": "v2.0.0"
+		},
+		{
 			"checksumSHA1": "dvabztWVQX8f6oMLRyv4dLH+TGY=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "346938d642f2ec3594ed81d874461961cd0faa76",
 			"revisionTime": "2016-10-29T20:57:26Z"
+		},
+		{
+			"checksumSHA1": "4772zXrOaPVeDeSgdiV7Vp4KEjk=",
+			"path": "github.com/dgrijalva/jwt-go",
+			"revision": "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e",
+			"revisionTime": "2018-03-08T23:13:08Z",
+			"version": "v3.2.0",
+			"versionExact": "v3.2.0"
 		},
 		{
 			"checksumSHA1": "QeKwBtN2df+j+4stw3bQJ6yO4EY=",
@@ -109,18 +125,6 @@
 			"path": "golang.org/x/sys/unix",
 			"revision": "99f16d856c9836c42d24e7ab64ea72916925fa97",
 			"revisionTime": "2017-03-08T15:04:45Z"
-		},
-		{
-			"checksumSHA1": "mfhIuSne6nmZ2FhQRBp+TboDxTo=",
-			"path": "gopkg.in/appleboy/gofight.v2",
-			"revision": "beadc315fb676177c07a89c34159b9ca4e1aafd9",
-			"revisionTime": "2016-11-16T08:12:57Z"
-		},
-		{
-			"checksumSHA1": "9QENMGpz4ELXL4R4DI69TzGHulw=",
-			"path": "gopkg.in/dgrijalva/jwt-go.v3",
-			"revision": "d2709f9f1f31ebcda9651b03077758c1f3a0018c",
-			"revisionTime": "2016-06-16T19:15:56Z"
 		},
 		{
 			"checksumSHA1": "39V1idWER42Lmcmg2Uy40wMzOlo=",

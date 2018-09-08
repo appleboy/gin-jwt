@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/dgrijalva/jwt-go.v3"
 )
 
 // MapClaims type that uses the map[string]interface{} for JSON decoding

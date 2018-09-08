@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/appleboy/gofight"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
-	"gopkg.in/appleboy/gofight.v2"
-	"gopkg.in/dgrijalva/jwt-go.v3"
 )
 
 // Login form structure.
