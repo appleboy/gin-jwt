@@ -330,7 +330,12 @@ func (mw *GinJWTMiddleware) MiddlewareFunc() gin.HandlerFunc {
 }
 
 func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
-	claims, _ := mw.GetClaimsFromJWT(c)
+	claims, err := mw.GetClaimsFromJWT(c)
+	if err != nil {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
+		return
+	}
+
 	c.Set("JWT_PAYLOAD", claims)
 	identity := mw.IdentityHandler(c)
 
@@ -351,7 +356,6 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, err
 	token, err := mw.ParseToken(c)
 
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
 		return nil, err
 	}
 
