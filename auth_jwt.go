@@ -347,7 +347,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 }
 
 // GetClaimsFromJWT get claims from JWT token
-func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (*jwt.MapClaims, error) {
+func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, error) {
 	token, err := mw.ParseToken(c)
 
 	if err != nil {
@@ -363,7 +363,7 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (*jwt.MapClaims, er
 
 	claims := token.Claims.(jwt.MapClaims)
 
-	return &claims, nil
+	return claims, nil
 }
 
 // LoginHandler can be used by clients to get a jwt token.
