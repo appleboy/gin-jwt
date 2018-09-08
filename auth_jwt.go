@@ -111,6 +111,12 @@ type GinJWTMiddleware struct {
 	// Allow insecure cookies for development over http
 	SecureCookie bool
 
+	// Allow cookies to be accessed client side for development
+	CookieHTTPOnly bool
+
+	// Allow cookie domain change for development
+	CookieDomain string
+
 	// SendAuthorization allow return authorization header for every request
 	SendAuthorization bool
 
@@ -324,20 +330,7 @@ func (mw *GinJWTMiddleware) MiddlewareFunc() gin.HandlerFunc {
 }
 
 func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
-	token, err := mw.parseToken(c)
-
-	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
-		return
-	}
-
-	if mw.SendAuthorization {
-		if v, ok := c.Get("JWT_TOKEN"); ok {
-			c.Header("Authorization", mw.TokenHeadName+" "+v.(string))
-		}
-	}
-
-	claims := token.Claims.(jwt.MapClaims)
+	claims, _ := mw.GetClaimsFromJWT(c)
 	c.Set("JWT_PAYLOAD", claims)
 	identity := mw.IdentityHandler(c)
 
@@ -351,6 +344,26 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	}
 
 	c.Next()
+}
+
+// GetClaimsFromJWT get claims from JWT token
+func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (*jwt.MapClaims, error) {
+	token, err := mw.ParseToken(c)
+
+	if err != nil {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
+		return nil, err
+	}
+
+	if mw.SendAuthorization {
+		if v, ok := c.Get("JWT_TOKEN"); ok {
+			c.Header("Authorization", mw.TokenHeadName+" "+v.(string))
+		}
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+
+	return &claims, nil
 }
 
 // LoginHandler can be used by clients to get a jwt token.
@@ -397,9 +410,9 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 			tokenString,
 			maxage,
 			"/",
-			"",
+			mw.CookieDomain,
 			mw.SecureCookie,
-			true,
+			mw.CookieHTTPOnly,
 		)
 	}
 
@@ -421,7 +434,7 @@ func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
 // Shall be put under an endpoint that is using the GinJWTMiddleware.
 // Reply will be of the form {"token": "TOKEN"}.
 func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
-	token, _ := mw.parseToken(c)
+	token, _ := mw.ParseToken(c)
 	claims := token.Claims.(jwt.MapClaims)
 
 	origIat := int64(claims["orig_iat"].(float64))
@@ -457,9 +470,9 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 			tokenString,
 			maxage,
 			"/",
-			"",
+			mw.CookieDomain,
 			mw.SecureCookie,
-			true,
+			mw.CookieHTTPOnly,
 		)
 	}
 
@@ -523,7 +536,8 @@ func (mw *GinJWTMiddleware) jwtFromCookie(c *gin.Context, key string) (string, e
 	return cookie, nil
 }
 
-func (mw *GinJWTMiddleware) parseToken(c *gin.Context) (*jwt.Token, error) {
+// ParseToken parse jwt token
+func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 	var token string
 	var err error
 
