@@ -420,6 +420,8 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		)
 	}
 
+	c.Set("JWT_PAYLOAD", claims)
+
 	mw.LoginResponse(c, http.StatusOK, tokenString, expire)
 }
 
