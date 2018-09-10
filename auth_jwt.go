@@ -438,19 +438,20 @@ func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
 // Shall be put under an endpoint that is using the GinJWTMiddleware.
 // Reply will be of the form {"token": "TOKEN"}.
 func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
-	token, err := mw.ParseToken(c)
+	tokenString, expire, err := mw.RefreshToken(c)
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
 		return
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
+	mw.RefreshResponse(c, http.StatusOK, tokenString, expire)
+}
 
-	origIat := int64(claims["orig_iat"].(float64))
-
-	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
-		return
+// RefreshToken refresh token and check if token is expired
+func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, error) {
+	claims, err := mw.CheckIfTokenExpire(c)
+	if err != nil {
+		return "", time.Now(), ErrExpiredToken
 	}
 
 	// Create the token
@@ -467,8 +468,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	tokenString, err := mw.signedString(newToken)
 
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
-		return
+		return "", time.Now(), err
 	}
 
 	// set cookie
@@ -485,7 +485,25 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 		)
 	}
 
-	mw.RefreshResponse(c, http.StatusOK, tokenString, expire)
+	return tokenString, expire, nil
+}
+
+// CheckIfTokenExpire check if token expire
+func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, error) {
+	token, err := mw.ParseToken(c)
+	if err != nil {
+		return nil, err
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+
+	origIat := int64(claims["orig_iat"].(float64))
+
+	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
+		return nil, ErrExpiredToken
+	}
+
+	return claims, nil
 }
 
 // TokenGenerator method that clients can use to get a jwt token.
