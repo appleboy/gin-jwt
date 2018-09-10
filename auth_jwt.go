@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	jwt "gopkg.in/dgrijalva/jwt-go.v3"
 )
 
 // MapClaims type that uses the map[string]interface{} for JSON decoding
@@ -145,6 +145,9 @@ var (
 
 	// ErrExpiredToken indicates JWT token has expired. Can't refresh.
 	ErrExpiredToken = errors.New("token is expired")
+
+	// ErrNoToken indicates empty JWT token empty.
+	ErrNoToken = errors.New("No token in request")
 
 	// ErrEmptyAuthHeader can be thrown if authing with a HTTP header, the Auth header needs to be set
 	ErrEmptyAuthHeader = errors.New("auth header is empty")
@@ -439,6 +442,11 @@ func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
 // Reply will be of the form {"token": "TOKEN"}.
 func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	token, _ := mw.ParseToken(c)
+	if token == nil {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrNoToken, c))
+		return
+	}
+
 	claims := token.Claims.(jwt.MapClaims)
 
 	origIat := int64(claims["orig_iat"].(float64))
