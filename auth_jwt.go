@@ -146,9 +146,6 @@ var (
 	// ErrExpiredToken indicates JWT token has expired. Can't refresh.
 	ErrExpiredToken = errors.New("token is expired")
 
-	// ErrNoToken indicates empty JWT token empty.
-	ErrNoToken = errors.New("No token in request")
-
 	// ErrEmptyAuthHeader can be thrown if authing with a HTTP header, the Auth header needs to be set
 	ErrEmptyAuthHeader = errors.New("auth header is empty")
 
@@ -441,9 +438,9 @@ func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
 // Shall be put under an endpoint that is using the GinJWTMiddleware.
 // Reply will be of the form {"token": "TOKEN"}.
 func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
-	token, _ := mw.ParseToken(c)
-	if token == nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrNoToken, c))
+	token, err := mw.ParseToken(c)
+	if err != nil {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
 		return
 	}
 
