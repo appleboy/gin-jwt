@@ -352,7 +352,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 }
 
 // GetClaimsFromJWT get claims from JWT token
-func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, error) {
+func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (MapClaims, error) {
 	token, err := mw.ParseToken(c)
 
 	if err != nil {
@@ -365,7 +365,10 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, err
 		}
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
+	claims := MapClaims{}
+	for key, value := range token.Claims.(jwt.MapClaims) {
+		claims[key] = value
+	}
 
 	return claims, nil
 }
@@ -592,13 +595,13 @@ func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message strin
 }
 
 // ExtractClaims help to extract the JWT claims
-func ExtractClaims(c *gin.Context) jwt.MapClaims {
+func ExtractClaims(c *gin.Context) MapClaims {
 	claims, exists := c.Get("JWT_PAYLOAD")
 	if !exists {
-		return make(jwt.MapClaims)
+		return make(MapClaims)
 	}
 
-	return claims.(jwt.MapClaims)
+	return claims.(MapClaims)
 }
 
 // GetToken help to get the JWT token string

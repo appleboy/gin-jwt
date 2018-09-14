@@ -683,9 +683,13 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		})
 }
 
+func ConvertClaims(claims MapClaims) map[string]interface{} {
+	return map[string]interface{}{}
+}
+
 func TestEmptyClaims(t *testing.T) {
 
-	var jwtClaims jwt.MapClaims
+	var jwtClaims MapClaims
 
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
@@ -709,7 +713,8 @@ func TestEmptyClaims(t *testing.T) {
 			return userID, ErrFailedAuthentication
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
-			jwtClaims = ExtractClaims(c)
+			assert.Empty(t, ExtractClaims(c))
+			assert.Empty(t, ConvertClaims(ExtractClaims(c)))
 			c.String(code, message)
 		},
 	})
