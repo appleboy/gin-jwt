@@ -502,11 +502,15 @@ func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, e
 	if err != nil {
 		return nil, err
 	}
+
 	claims := token.Claims.(jwt.MapClaims)
+
 	origIat := int64(claims["orig_iat"].(float64))
+
 	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
 		return nil, ErrExpiredToken
 	}
+
 	return claims, nil
 }
 
