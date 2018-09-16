@@ -37,7 +37,7 @@ type GinJWTMiddleware struct {
 
 	// This field allows clients to refresh their token until MaxRefresh has passed.
 	// Note that clients can refresh their token in the last moment of MaxRefresh.
-	// This means that the maximum validity timespan for a token is TokenTime + MaxRefresh
+	// This means that the maximum validity timespan for a token is TokenTime + MaxRefresh.
 	// Optional, defaults to 0 meaning not refreshable.
 	MaxRefresh time.Duration
 
