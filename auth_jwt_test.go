@@ -1009,3 +1009,25 @@ func TestExpiredTokenOnAuth(t *testing.T) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 }
+
+func TestBadTokenOnRefreshHandler(t *testing.T) {
+	// the middleware to test
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:         "test zone",
+		Key:           key,
+		Timeout:       time.Hour,
+		Authenticator: defaultAuthenticator,
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	r.GET("/auth/refresh_token").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + "BadToken",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+}
