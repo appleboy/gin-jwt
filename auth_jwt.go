@@ -336,6 +336,11 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 		return
 	}
 
+	if mw.isClaimsExpired(claims) {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
+		return
+	}
+
 	c.Set("JWT_PAYLOAD", claims)
 	identity := mw.IdentityHandler(c)
 
@@ -452,8 +457,13 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 
 // RefreshToken refresh token and check if token is expired
 func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, error) {
-	claims, err := mw.CheckIfTokenExpire(c)
+	token, err := mw.ParseToken(c)
 	if err != nil {
+		return "", time.Now(), err
+	}
+
+	claims := MapClaims(token.Claims.(jwt.MapClaims))
+	if mw.isClaimsExpired(claims) {
 		return "", time.Now(), ErrExpiredToken
 	}
 
@@ -491,22 +501,10 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 	return tokenString, expire, nil
 }
 
-// CheckIfTokenExpire check if token expire
-func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, error) {
-	token, err := mw.ParseToken(c)
-	if err != nil {
-		return nil, err
-	}
-
-	claims := token.Claims.(jwt.MapClaims)
-
-	origIat := int64(claims["orig_iat"].(float64))
-
-	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
-		return nil, ErrExpiredToken
-	}
-
-	return claims, nil
+// isClaimsExpired check if Claims expire
+func (mw *GinJWTMiddleware) isClaimsExpired(claims MapClaims) bool {
+	expireTime := int64(claims["exp"].(float64))
+	return expireTime < mw.TimeFunc().Unix()
 }
 
 // TokenGenerator method that clients can use to get a jwt token.
