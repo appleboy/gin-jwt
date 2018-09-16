@@ -515,8 +515,8 @@ func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 	token := jwt.New(jwt.GetSigningMethod("HS256"))
 	claims := token.Claims.(jwt.MapClaims)
 	claims["identity"] = "admin"
-	claims["exp"] = time.Now().Add(time.Hour).Unix()
-	claims["orig_iat"] = 0
+	claims["exp"] = time.Now().Add(-time.Hour).Unix()
+	claims["orig_iat"] = time.Now().Add(-2 * time.Hour).Unix()
 	tokenString, _ := token.SignedString(key)
 
 	r.GET("/auth/refresh_token").
@@ -982,23 +982,28 @@ func TestSendAuthorizationBool(t *testing.T) {
 
 func TestExpiredTokenOnAuth(t *testing.T) {
 	// the middleware to test
-	authMiddleware := &GinJWTMiddleware{
-		Realm:         "test zone",
-		Key:           key,
-		Timeout:       time.Hour,
-		Authenticator: defaultAuthenticator,
-	}
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:             "test zone",
+		Key:               key,
+		Timeout:           time.Hour,
+		MaxRefresh:        time.Hour * 24,
+		Authenticator:     defaultAuthenticator,
+		SendAuthorization: true,
+		Authorizator: func(data interface{}, c *gin.Context) bool {
+			return data.(string) == "admin"
+		},
+		TimeFunc: func() time.Time {
+			return time.Now().AddDate(0, 0, 1)
+		},
+	})
+
 	handler := ginHandler(authMiddleware)
+
 	r := gofight.New()
-	token := jwt.New(jwt.GetSigningMethod("HS256"))
-	claims := token.Claims.(jwt.MapClaims)
-	claims["id"] = "admin"
-	claims["exp"] = time.Now().Add(-time.Minute).Unix()
-	claims["orig_iat"] = time.Now().Add(-time.Hour * 2).Unix()
-	tokenString, _ := token.SignedString(key)
+
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + tokenString,
+			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)

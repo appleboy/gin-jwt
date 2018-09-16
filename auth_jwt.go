@@ -467,6 +467,11 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 		return "", time.Now(), ErrExpiredToken
 	}
 
+	// Exceed refresh time
+	if int64(claims["orig_iat"].(float64)) < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
+		return "", time.Now(), ErrExpiredToken
+	}
+
 	// Create the token
 	newToken := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
 	newClaims := newToken.Claims.(jwt.MapClaims)
