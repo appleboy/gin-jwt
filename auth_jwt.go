@@ -457,16 +457,9 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 
 // RefreshToken refresh token and check if token is expired
 func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, error) {
-	token, err := mw.ParseToken(c)
+	claims, err := mw.CheckIfTokenExpire(c)
 	if err != nil {
 		return "", time.Now(), err
-	}
-
-	claims := token.Claims.(jwt.MapClaims)
-
-	tokenRefreshTimeEnd := int64(claims["orig_iat"].(float64) + mw.MaxRefresh.Seconds())
-	if tokenRefreshTimeEnd < mw.TimeFunc().Unix() {
-		return "", time.Now(), ErrExpiredToken
 	}
 
 	// Create the token
@@ -501,6 +494,20 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 	}
 
 	return tokenString, expire, nil
+}
+
+// CheckIfTokenExpire check if token expire
+func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, error) {
+	token, err := mw.ParseToken(c)
+	if err != nil {
+		return nil, err
+	}
+	claims := token.Claims.(jwt.MapClaims)
+	origIat := int64(claims["orig_iat"].(float64))
+	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
+		return nil, ErrExpiredToken
+	}
+	return claims, nil
 }
 
 // TokenGenerator method that clients can use to get a jwt token.
