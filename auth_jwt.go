@@ -502,12 +502,6 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 	return tokenString, expire, nil
 }
 
-// isClaimsExpired check if Claims expire
-func (mw *GinJWTMiddleware) isClaimsExpired(claims MapClaims) bool {
-	expireTime := int64(claims["exp"].(float64))
-	return expireTime < mw.TimeFunc().Unix()
-}
-
 // TokenGenerator method that clients can use to get a jwt token.
 func (mw *GinJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time, error) {
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
