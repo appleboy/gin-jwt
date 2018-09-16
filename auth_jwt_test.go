@@ -983,9 +983,9 @@ func TestSendAuthorizationBool(t *testing.T) {
 func TestExpiredTokenOnAuth(t *testing.T) {
 	// the middleware to test
 	authMiddleware := &GinJWTMiddleware{
-		Realm:   "test zone",
-		Key:     key,
-		Timeout: time.Hour,
+		Realm:         "test zone",
+		Key:           key,
+		Timeout:       time.Hour,
 		Authenticator: defaultAuthenticator,
 	}
 	handler := ginHandler(authMiddleware)
@@ -998,9 +998,9 @@ func TestExpiredTokenOnAuth(t *testing.T) {
 	tokenString, _ := token.SignedString(key)
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-		"Authorization": "Bearer " + tokenString,
-	}).
+			"Authorization": "Bearer " + tokenString,
+		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-		assert.Equal(t, http.StatusUnauthorized, r.Code)
-	})
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
 }
