@@ -336,7 +336,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 		return
 	}
 
-	if mw.isClaimsExpired(claims) {
+	if int64(claims["exp"].(float64)) < mw.TimeFunc().Unix() {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
 		return
 	}
@@ -462,12 +462,8 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 		return "", time.Now(), err
 	}
 
-	claims := MapClaims(token.Claims.(jwt.MapClaims))
-	if mw.isClaimsExpired(claims) {
-		return "", time.Now(), ErrExpiredToken
-	}
+	claims := token.Claims.(jwt.MapClaims)
 
-	// Exceed refresh time
 	if int64(claims["orig_iat"].(float64)) < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
 		return "", time.Now(), ErrExpiredToken
 	}
