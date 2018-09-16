@@ -155,10 +155,11 @@ func main() {
 	})
 
 	auth := r.Group("/auth")
+	// Refresh time can be longer than token timeout
+	auth.GET("/refresh_token", authMiddleware.RefreshHandler)
 	auth.Use(authMiddleware.MiddlewareFunc())
 	{
 		auth.GET("/hello", helloHandler)
-		auth.GET("/refresh_token", authMiddleware.RefreshHandler)
 	}
 
 	if err := http.ListenAndServe(":"+port, r); err != nil {

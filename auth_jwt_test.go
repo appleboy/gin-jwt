@@ -156,10 +156,11 @@ func ginHandler(auth *GinJWTMiddleware) *gin.Engine {
 	r.POST("/login", auth.LoginHandler)
 
 	group := r.Group("/auth")
+	// Refresh time can be longer than token timeout
+	group.GET("/refresh_token", auth.RefreshHandler)
 	group.Use(auth.MiddlewareFunc())
 	{
 		group.GET("/hello", helloHandler)
-		group.GET("/refresh_token", auth.RefreshHandler)
 	}
 
 	return r
