@@ -154,6 +154,8 @@ func ginHandler(auth *GinJWTMiddleware) *gin.Engine {
 	r := gin.New()
 
 	r.POST("/login", auth.LoginHandler)
+	// test token in path
+	r.GET("/g/:token/refresh_token", auth.RefreshHandler)
 
 	group := r.Group("/auth")
 	// Refresh time can be longer than token timeout
@@ -823,6 +825,41 @@ func TestTokenFromQueryString(t *testing.T) {
 		SetHeader(gofight.H{
 			"Authorization": "Bearer " + userToken,
 		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
+}
+
+func TestTokenFromParamPath(t *testing.T) {
+	// the middleware to test
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:         "test zone",
+		Key:           key,
+		Timeout:       time.Hour,
+		Authenticator: defaultAuthenticator,
+		Unauthorized: func(c *gin.Context, code int, message string) {
+			c.String(code, message)
+		},
+		TokenLookup: "param:token",
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
+		"identity": "admin",
+	})
+
+	r.GET("/auth/refresh_token").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + userToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+
+	r.GET("/g/"+userToken+"/refresh_token").
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
 		})

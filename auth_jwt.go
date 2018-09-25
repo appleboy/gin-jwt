@@ -158,6 +158,9 @@ var (
 	// ErrEmptyCookieToken can be thrown if authing with a cookie, the token cokie is empty
 	ErrEmptyCookieToken = errors.New("cookie token is empty")
 
+	// ErrEmptyParamToken can be thrown if authing with parameter in path, the parameter in path is empty
+	ErrEmptyParamToken = errors.New("parameter token is empty")
+
 	// ErrInvalidSigningAlgorithm indicates signing algorithm is invalid, needs to be HS256, HS384, HS512, RS256, RS384 or RS512
 	ErrInvalidSigningAlgorithm = errors.New("invalid signing algorithm")
 
@@ -571,6 +574,16 @@ func (mw *GinJWTMiddleware) jwtFromCookie(c *gin.Context, key string) (string, e
 	return cookie, nil
 }
 
+func (mw *GinJWTMiddleware) jwtFromParam(c *gin.Context, key string) (string, error) {
+	token := c.Param(key)
+
+	if token == "" {
+		return "", ErrEmptyParamToken
+	}
+
+	return token, nil
+}
+
 // ParseToken parse jwt token
 func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 	var token string
@@ -591,6 +604,8 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 			token, err = mw.jwtFromQuery(c, v)
 		case "cookie":
 			token, err = mw.jwtFromCookie(c, v)
+		case "param":
+			token, err = mw.jwtFromParam(c, v)
 		}
 	}
 

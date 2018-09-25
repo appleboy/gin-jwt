@@ -103,6 +103,7 @@ func main() {
 		// - "header:<name>"
 		// - "query:<name>"
 		// - "cookie:<name>"
+		// - "param:<name>"
 		TokenLookup: "header: Authorization, query: token, cookie: jwt",
 		// TokenLookup: "query:token",
 		// TokenLookup: "cookie:token",
