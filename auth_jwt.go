@@ -122,6 +122,9 @@ type GinJWTMiddleware struct {
 
 	// Disable abort() of context.
 	DisabledAbort bool
+
+	// Allow cookie domain change for development
+	CookieName string
 }
 
 var (
@@ -315,6 +318,10 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		mw.Realm = "gin jwt"
 	}
 
+	if mw.CookieName == "" {
+		mw.CookieName = "jwt"
+	}
+
 	if mw.usingPublicKeyAlgo() {
 		return mw.readKeys()
 	}
@@ -421,7 +428,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	if mw.SendCookie {
 		maxage := int(expire.Unix() - time.Now().Unix())
 		c.SetCookie(
-			"JWTToken",
+			mw.CookieName,
 			tokenString,
 			maxage,
 			"/",
@@ -486,7 +493,7 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 	if mw.SendCookie {
 		maxage := int(expire.Unix() - time.Now().Unix())
 		c.SetCookie(
-			"JWTToken",
+			mw.CookieName,
 			tokenString,
 			maxage,
 			"/",
