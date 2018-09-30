@@ -221,7 +221,7 @@ func TestLoginHandler(t *testing.T) {
 			return true
 		},
 		LoginResponse: func(c *gin.Context, code int, token string, t time.Time) {
-			cookie, err := c.Cookie("JWTToken")
+			cookie, err := c.Cookie("jwt")
 			if err != nil {
 				log.Println(err)
 			}
@@ -268,7 +268,7 @@ func TestLoginHandler(t *testing.T) {
 
 	r.POST("/login").
 		SetCookie(gofight.H{
-			"JWTToken": "JWTToken",
+			"jwt": "jwt",
 		}).
 		SetJSON(gofight.D{
 			"username": "admin",
@@ -279,7 +279,7 @@ func TestLoginHandler(t *testing.T) {
 			cookie := gjson.Get(r.Body.String(), "cookie")
 			assert.Equal(t, "login successfully", message.String())
 			assert.Equal(t, http.StatusOK, r.Code)
-			assert.Equal(t, "JWTToken", cookie.String())
+			assert.Equal(t, "jwt", cookie.String())
 		})
 }
 
@@ -404,9 +404,10 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		PrivKeyFile:      "testdata/jwtRS256.key",
 		PubKeyFile:       "testdata/jwtRS256.key.pub",
 		SendCookie:       true,
+		CookieName:       "jwt",
 		Authenticator:    defaultAuthenticator,
 		RefreshResponse: func(c *gin.Context, code int, token string, t time.Time) {
-			cookie, err := c.Cookie("JWTToken")
+			cookie, err := c.Cookie("jwt")
 			if err != nil {
 				log.Println(err)
 			}
@@ -452,7 +453,7 @@ func TestRefreshHandlerRS256(t *testing.T) {
 			"Authorization": "Bearer " + makeTokenString("RS256", "admin"),
 		}).
 		SetCookie(gofight.H{
-			"JWTToken": makeTokenString("RS256", "admin"),
+			"jwt": makeTokenString("RS256", "admin"),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
