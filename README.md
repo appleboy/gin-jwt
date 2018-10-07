@@ -243,3 +243,26 @@ Www-Authenticate: JWT realm=test zone
   "message": "You don't have permission to access."
 }
 ```
+
+### Cookie Token
+Use these options for setting the JWT in a cookie. See the Mozilla [documentation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#Secure_and_HttpOnly_cookies) for more information on these options. 
+
+```go
+	SendCookie:       true,
+	SecureCookie:     false, //non HTTPS dev environments
+	CookieHTTPOnly:   true,  // JS can't modify
+	CookieDomain:     "localhost:8080",
+	CookieName:       "token", // default jwt
+	TokenLookup: "cookie:token",
+```
+
+### Login Flow 
+1. Authenticator: handles the login logic. On success LoginResponse is called, on failure Unauthorized is called. 
+2. LoginResponse: optional, allows setting a custom response such as a redirect.
+
+
+### JWT Flow 
+1. PayloadFunc: maps the claims in the JWT. 
+2. IdentityHandler: extracts identity from claims. 
+3. Authorizator: receives identity and handles authorization logic.
+4. Unauthorized: handles unauthorized logic.
