@@ -3,11 +3,21 @@ workspace:
   path: github.com/appleboy/gin-jwt
 
 pipeline:
-  vendor:
+  vendor-install:
     image: golang:1.11
     pull: true
+    group: install
     commands:
       - make install
+
+  module-install:
+    image: golang:1.11
+    pull: true
+    group: install
+    environment:
+      - GO111MODULE=on
+    commands:
+      - make install-module
 
   build:
     image: golang:1.11

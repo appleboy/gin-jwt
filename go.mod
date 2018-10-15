@@ -5,7 +5,7 @@ require (
 	github.com/davecgh/go-spew v1.1.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-contrib/sse v0.0.0-20170109093832-22d885f9ecc7
-	github.com/gin-gonic/gin v0.0.0-20180512030042-bf7803815b0b
+	github.com/gin-gonic/gin v1.3.0
 	github.com/golang/protobuf v0.0.0-20170307001533-c9c7427a2a70
 	github.com/json-iterator/go v0.0.0-20170804232253-1cfa233923ea
 	github.com/manucorporat/sse v0.0.0-20160126180136-ee05b128a739
