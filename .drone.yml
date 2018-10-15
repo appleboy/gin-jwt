@@ -32,6 +32,15 @@ pipeline:
     commands:
       - make unit-test-coverage
 
+  module:
+    image: golang:1.11
+    pull: true
+    group: testing
+    environment:
+      - GO111MODULE=on
+    commands:
+      - make unit-test-coverage
+
   generate-coverage:
     image: golang:1.11
     pull: true
