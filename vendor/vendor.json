@@ -45,16 +45,22 @@
 			"revisionTime": "2018-05-12T03:00:42Z"
 		},
 		{
+			"path": "github.com/gin-gonic/gin/internal/json",
+			"revision": "b869fe1415e4b9eb52f247441830d502aece2d4d",
+			"version": "v1.3.0",
+			"versionExact": "v1.3.0"
+		},
+		{
 			"checksumSHA1": "YOwO5bkv3ei+GTVZqeEVB30kXDM=",
 			"path": "github.com/gin-gonic/gin/json",
 			"revision": "81007d2ce0176f7a9ce52dd12e56edd7ef40e72c",
 			"revisionTime": "2017-08-04T05:45:59Z"
 		},
 		{
-			"checksumSHA1": "DGs8sdsCkNHsU9+fQMM9XHb+ZCE=",
+			"checksumSHA1": "afLqBfX9SeIP6eeTZb3WwdTFaOo=",
 			"path": "github.com/gin-gonic/gin/render",
-			"revision": "bf7803815b0baa22ff7a10457932882dfbf09925",
-			"revisionTime": "2018-05-12T03:00:42Z"
+			"revision": "01ca2530d4b6c44c718b00c06f0e1d092572d49e",
+			"revisionTime": "2018-10-14T04:39:16Z"
 		},
 		{
 			"checksumSHA1": "kBeNcaKk56FguvPSUCEaH6AxpRc=",
