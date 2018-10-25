@@ -508,10 +508,7 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 
 // CheckIfTokenExpire check if token expire
 func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, error) {
-	token, err := mw.ParseToken(c)
-	if err != nil {
-		return nil, err
-	}
+	token, _ := mw.ParseToken(c)
 
 	claims := token.Claims.(jwt.MapClaims)
 
