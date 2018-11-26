@@ -509,7 +509,10 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 // CheckIfTokenExpire check if token expire
 func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, error) {
 	token, err := mw.ParseToken(c)
-	if err != nil {
+
+	// issue: Cannot refresh expired token, even if within MaxRefresh time
+	// see https://github.com/appleboy/gin-jwt/issues/176
+	if token == nil {
 		return nil, err
 	}
 

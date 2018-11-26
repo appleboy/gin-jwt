@@ -443,13 +443,6 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		})
 	r.GET("/auth/refresh_token").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
-		}).
-		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			assert.Equal(t, http.StatusUnauthorized, r.Code)
-		})
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
 			"Authorization": "Bearer " + makeTokenString("RS256", "admin"),
 		}).
 		SetCookie(gofight.H{
