@@ -346,6 +346,16 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 		return
 	}
 
+	if claims["exp"] == nil {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrInvalidAuthHeader, c))
+		return
+	}
+
+	if _, ok := claims["exp"].(float64); !ok {
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrInvalidAuthHeader, c))
+		return
+	}
+
 	if int64(claims["exp"].(float64)) < mw.TimeFunc().Unix() {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
 		return
