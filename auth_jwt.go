@@ -152,6 +152,12 @@ var (
 	// ErrEmptyAuthHeader can be thrown if authing with a HTTP header, the Auth header needs to be set
 	ErrEmptyAuthHeader = errors.New("auth header is empty")
 
+	// ErrMissingExpField missing exp field in token
+	ErrMissingExpField = errors.New("missing exp field")
+
+	// ErrMissingExpField missing exp field in token
+	ErrWrongFormatOfExp = errors.New("exp must be flot64 format")
+
 	// ErrInvalidAuthHeader indicates auth header is invalid, could for example have the wrong Realm name
 	ErrInvalidAuthHeader = errors.New("auth header is invalid")
 
@@ -343,6 +349,16 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	claims, err := mw.GetClaimsFromJWT(c)
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
+		return
+	}
+
+	if claims["exp"] == nil {
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
+		return
+	}
+
+	if _, ok := claims["exp"].(float64); !ok {
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, c))
 		return
 	}
 
