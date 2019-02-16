@@ -155,8 +155,8 @@ var (
 	// ErrMissingExpField missing exp field in token
 	ErrMissingExpField = errors.New("missing exp field")
 
-	// ErrMissingExpField missing exp field in token
-	ErrWrongFormatOfExp = errors.New("exp must be flot64 format")
+	// ErrWrongFormatOfExp field must be float64 format
+	ErrWrongFormatOfExp = errors.New("exp must be float64 format")
 
 	// ErrInvalidAuthHeader indicates auth header is invalid, could for example have the wrong Realm name
 	ErrInvalidAuthHeader = errors.New("auth header is invalid")
