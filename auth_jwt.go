@@ -693,6 +693,20 @@ func ExtractClaims(c *gin.Context) MapClaims {
 	return claims.(MapClaims)
 }
 
+// ExtractClaimsFromToken help to extract the JWT claims from token
+func ExtractClaimsFromToken(token *jwt.Token) MapClaims {
+	if token == nil {
+		return make(MapClaims)
+	}
+
+	claims := MapClaims{}
+	for key, value := range token.Claims.(jwt.MapClaims) {
+		claims[key] = value
+	}
+
+	return claims
+}
+
 // GetToken help to get the JWT token string
 func GetToken(c *gin.Context) string {
 	token, exists := c.Get("JWT_TOKEN")

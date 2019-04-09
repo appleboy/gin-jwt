@@ -1151,6 +1151,13 @@ func TestCheckTokenString(t *testing.T) {
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.String(code, message)
 		},
+		PayloadFunc: func(data interface{}) MapClaims {
+			if v, ok := data.(MapClaims); ok {
+				return v
+			}
+
+			return nil
+		},
 	})
 
 	handler := ginHandler(authMiddleware)
@@ -1169,6 +1176,11 @@ func TestCheckTokenString(t *testing.T) {
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
 
+	token, err := authMiddleware.ParseTokenString(userToken)
+	assert.NoError(t, err)
+	claims := ExtractClaimsFromToken(token)
+	assert.Equal(t, "admin", claims["identity"])
+
 	time.Sleep(2 * time.Second)
 
 	r.GET("/auth/hello").
@@ -1179,6 +1191,7 @@ func TestCheckTokenString(t *testing.T) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
-	_, err := authMiddleware.ParseTokenString(userToken)
+	_, err = authMiddleware.ParseTokenString(userToken)
 	assert.Error(t, err)
+	assert.Equal(t, MapClaims{}, ExtractClaimsFromToken(nil))
 }
