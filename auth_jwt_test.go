@@ -1178,4 +1178,7 @@ func TestCheckTokenString(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
+
+	_, err := authMiddleware.ParseTokenString(userToken)
+	assert.Error(t, err)
 }
