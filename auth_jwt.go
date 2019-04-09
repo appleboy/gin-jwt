@@ -616,7 +616,7 @@ func (mw *GinJWTMiddleware) jwtFromParam(c *gin.Context, key string) (string, er
 	return token, nil
 }
 
-// ParseToken parse jwt token
+// ParseToken parse jwt token from gin context
 func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 	var token string
 	var err error
@@ -655,6 +655,20 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 
 		// save token string if vaild
 		c.Set("JWT_TOKEN", token)
+
+		return mw.Key, nil
+	})
+}
+
+// ParseToken parse jwt token string
+func (mw *GinJWTMiddleware) ParseTokenString(token string) (*jwt.Token, error) {
+	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
+		if jwt.GetSigningMethod(mw.SigningAlgorithm) != t.Method {
+			return nil, ErrInvalidSigningAlgorithm
+		}
+		if mw.usingPublicKeyAlgo() {
+			return mw.pubKey, nil
+		}
 
 		return mw.Key, nil
 	})

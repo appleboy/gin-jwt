@@ -1140,3 +1140,42 @@ func TestExpiredField(t *testing.T) {
 			assert.Equal(t, http.StatusBadRequest, r.Code)
 		})
 }
+
+func TestCheckTokenString(t *testing.T) {
+	// the middleware to test
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:         "test zone",
+		Key:           key,
+		Timeout:       1 * time.Second,
+		Authenticator: defaultAuthenticator,
+		Unauthorized: func(c *gin.Context, code int, message string) {
+			c.String(code, message)
+		},
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
+		"identity": "admin",
+	})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + userToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
+
+	time.Sleep(2 * time.Second)
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + userToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+}
