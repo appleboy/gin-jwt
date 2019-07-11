@@ -14,9 +14,10 @@ It uses [jwt-go](https://github.com/dgrijalva/jwt-go) to provide a jwt authentic
 
 ## Usage
 
-Download and install it:
+Download and install using [go module](https://blog.golang.org/using-go-modules):
 
 ```sh
+$ export GO111MODULE=on
 $ go get github.com/appleboy/gin-jwt/v2
 ```
 
@@ -24,6 +25,18 @@ Import it in your code:
 
 ```go
 import "github.com/appleboy/gin-jwt/v2"
+```
+
+Download and install without using [go module](https://blog.golang.org/using-go-modules):
+
+```sh
+$ go get github.com/appleboy/gin-jwt
+```
+
+Import it in your code:
+
+```go
+import "github.com/appleboy/gin-jwt"
 ```
 
 ## Example
