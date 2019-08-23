@@ -68,7 +68,7 @@ func helloHandler(c *gin.Context) {
 	claims := jwt.ExtractClaims(c)
 	user, _ := c.Get(identityKey)
 	c.JSON(200, gin.H{
-		"userID":   claims["id"],
+		"userID":   claims[identityKey],
 		"userName": user.(*User).UserName,
 		"text":     "Hello World.",
 	})
@@ -109,7 +109,7 @@ func main() {
 		IdentityHandler: func(c *gin.Context) interface{} {
 			claims := jwt.ExtractClaims(c)
 			return &User{
-				UserName: claims["id"].(string),
+				UserName: claims[identityKey].(string),
 			}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
