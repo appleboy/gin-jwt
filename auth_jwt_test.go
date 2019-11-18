@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -154,6 +155,7 @@ func ginHandler(auth *GinJWTMiddleware) *gin.Engine {
 	r := gin.New()
 
 	r.POST("/login", auth.LoginHandler)
+	r.POST("/logout", auth.LogoutHandler)
 	// test token in path
 	r.GET("/g/:token/refresh_token", auth.RefreshHandler)
 
@@ -1194,4 +1196,29 @@ func TestCheckTokenString(t *testing.T) {
 	_, err = authMiddleware.ParseTokenString(userToken)
 	assert.Error(t, err)
 	assert.Equal(t, MapClaims{}, ExtractClaimsFromToken(nil))
+}
+
+func TestLogout(t *testing.T) {
+	cookieName := "jwt"
+	cookieDomain := "example.com"
+	// the middleware to test
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:         "test zone",
+		Key:           key,
+		Timeout:       time.Hour,
+		Authenticator: defaultAuthenticator,
+		SendCookie:    true,
+		CookieName:    cookieName,
+		CookieDomain:  cookieDomain,
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	r.POST("/logout").
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+			assert.Equal(t, fmt.Sprintf("%s=; Path=/; Domain=%s; Max-Age=0", cookieName, cookieDomain), r.HeaderMap.Get("Set-Cookie"))
+		})
 }
