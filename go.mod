@@ -1,4 +1,4 @@
-module github.com/appleboy/gin-jwt
+module github.com/sarovin/gin-jwt
 
 require (
 	github.com/appleboy/gofight v2.0.0+incompatible
