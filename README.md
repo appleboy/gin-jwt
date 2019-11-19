@@ -264,7 +264,7 @@ Www-Authenticate: JWT realm=test zone
 ```
 
 ### Cookie Token
-Use these options for setting the JWT in a cookie. See the Mozilla [documentation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#Secure_and_HttpOnly_cookies) for more information on these options. 
+Use these options for setting the JWT in a cookie. See the Mozilla [documentation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#Secure_and_HttpOnly_cookies) for more information on these options.
 
 ```go
 	SendCookie:       true,
@@ -275,13 +275,15 @@ Use these options for setting the JWT in a cookie. See the Mozilla [documentatio
 	TokenLookup:      "cookie:token",
 ```
 
-### Login Flow 
-1. Authenticator: handles the login logic. On success LoginResponse is called, on failure Unauthorized is called. 
+Adding a route to the `LogoutHandler` route will the deletion of the auth cookie, effectively logging the user out. The `LoginResponse` object can optionally be set to customize the response of this endpoint.
+
+### Login Flow
+1. Authenticator: handles the login logic. On success LoginResponse is called, on failure Unauthorized is called.
 2. LoginResponse: optional, allows setting a custom response such as a redirect.
 
 
-### JWT Flow 
-1. PayloadFunc: maps the claims in the JWT. 
-2. IdentityHandler: extracts identity from claims. 
+### JWT Flow
+1. PayloadFunc: maps the claims in the JWT.
+2. IdentityHandler: extracts identity from claims.
 3. Authorizator: receives identity and handles authorization logic.
 4. Unauthorized: handles unauthorized logic.
