@@ -43,7 +43,8 @@ import "github.com/appleboy/gin-jwt"
 
 Please see [the example file](example/basic/server.go) and you can use `ExtractClaims` to fetch user data.
 
-[embedmd]:# (example/basic/server.go go)
+[embedmd]: # "example/basic/server.go go"
+
 ```go
 package main
 
@@ -136,6 +137,14 @@ func main() {
 			}
 
 			return false
+		},
+		LoginResponse: func(c *gin.Context, code int, token string, expire time.Time, claims map[string]interface{}) {
+			c.JSON(http.StatusOK, gin.H{
+       				 "code":   http.StatusOK,
+       				 "token":  token,
+       				 "expire": expire.Format(time.RFC3339),
+       				 identityKey: claims[identityKey],
+      			})
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.JSON(code, gin.H{
