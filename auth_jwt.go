@@ -167,7 +167,7 @@ var (
 	// ErrEmptyQueryToken can be thrown if authing with URL Query, the query token variable is empty
 	ErrEmptyQueryToken = errors.New("query token is empty")
 
-	// ErrEmptyCookieToken can be thrown if authing with a cookie, the token cokie is empty
+	// ErrEmptyCookieToken can be thrown if authing with a cookie, the token cookie is empty
 	ErrEmptyCookieToken = errors.New("cookie token is empty")
 
 	// ErrEmptyParamToken can be thrown if authing with parameter in path, the parameter in path is empty
