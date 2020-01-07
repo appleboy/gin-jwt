@@ -2,7 +2,6 @@
 
 GO ?= go
 GOFMT ?= gofmt "-s"
-PACKAGES ?= $(shell $(GO) list ./...)
 GOFILES := $(shell find . -name "*.go" -type f)
 
 install-embedmd:
@@ -30,10 +29,10 @@ fmt-check:
 	fi;
 
 test: fmt-check
-	@$(GO) test -v -cover -coverprofile coverage.txt $(PACKAGES) && echo "\n==>\033[32m Ok\033[m\n" || exit 1
+	@$(GO) test -v -cover -coverprofile coverage.txt ./... && echo "\n==>\033[32m Ok\033[m\n" || exit 1
 
 vet:
-	$(GO) vet $(PACKAGES)
+	$(GO) vet ./...
 
 lint:
 	@hash revive > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
@@ -46,14 +45,14 @@ misspell-check:
 	@hash misspell > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
 		$(GO) get -u github.com/client9/misspell/cmd/misspell; \
 	fi
-	misspell -error $(GOFILES)
+	misspell -error ./...
 
 .PHONY: misspell
 misspell:
 	@hash misspell > /dev/null 2>&1; if [ $$? -ne 0 ]; then \
 		$(GO) get -u github.com/client9/misspell/cmd/misspell; \
 	fi
-	misspell -w $(GOFILES)
+	misspell -w ./...
 
 clean:
 	$(GO) clean -modcache -cache -i
