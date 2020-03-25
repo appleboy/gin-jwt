@@ -1200,6 +1200,7 @@ func TestCheckTokenString(t *testing.T) {
 
 func TestLogout(t *testing.T) {
 	cookieName := "jwt"
+	sameSite := http.SameSiteDefaultMode
 	cookieDomain := "example.com"
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
@@ -1210,6 +1211,7 @@ func TestLogout(t *testing.T) {
 		SendCookie:    true,
 		CookieName:    cookieName,
 		CookieDomain:  cookieDomain,
+		SameSite:      sameSite,
 	})
 
 	handler := ginHandler(authMiddleware)
@@ -1219,6 +1221,6 @@ func TestLogout(t *testing.T) {
 	r.POST("/logout").
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
-			assert.Equal(t, fmt.Sprintf("%s=; Path=/; Domain=%s; Max-Age=0", cookieName, cookieDomain), r.HeaderMap.Get("Set-Cookie"))
+			assert.Equal(t, fmt.Sprintf("%s=; Path=/; Domain=%s; Max-Age=0; SameSite", cookieName, cookieDomain), r.HeaderMap.Get("Set-Cookie"))
 		})
 }
