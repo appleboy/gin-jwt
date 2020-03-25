@@ -128,6 +128,9 @@ type GinJWTMiddleware struct {
 
 	// CookieName allow cookie name change for development
 	CookieName string
+
+	// SameSite allow define a cookie attribute to send this cookie along with cross-site request
+	SameSite http.SameSite
 }
 
 var (
@@ -339,6 +342,10 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		mw.CookieName = "jwt"
 	}
 
+	if mw.SameSite == 0 {
+		mw.SameSite = http.SameSiteDefaultMode
+	}
+
 	if mw.usingPublicKeyAlgo() {
 		return mw.readKeys()
 	}
@@ -460,6 +467,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 			maxage,
 			"/",
 			mw.CookieDomain,
+			mw.SameSite,
 			mw.SecureCookie,
 			mw.CookieHTTPOnly,
 		)
@@ -478,6 +486,7 @@ func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
 			-1,
 			"/",
 			mw.CookieDomain,
+			mw.SameSite,
 			mw.SecureCookie,
 			mw.CookieHTTPOnly,
 		)
@@ -543,6 +552,7 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 			maxage,
 			"/",
 			mw.CookieDomain,
+			mw.SameSite,
 			mw.SecureCookie,
 			mw.CookieHTTPOnly,
 		)
