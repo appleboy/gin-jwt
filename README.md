@@ -276,16 +276,61 @@ Use these options for setting the JWT in a cookie. See the Mozilla [documentatio
 	TokenLookup:      "cookie:token",
 ```
 
-Adding a route to the `LogoutHandler` route will the deletion of the auth cookie, effectively logging the user out. The `LoginResponse` object can optionally be set to customize the response of this endpoint.
+### Login request flow (using the LoginHandler)
 
-### Login Flow
+1. PROVIDED: `LoginHandler`
 
-1. Authenticator: handles the login logic. On success LoginResponse is called, on failure Unauthorized is called.
-2. LoginResponse: optional, allows setting a custom response such as a redirect.
+	This is a provided function to be called on any login endpoint, which will trigger the flow described below.
 
-### JWT Flow
+2. REQUIRED: `Authenticator`
+	This function should verify the user credentials given the gin context (i.e. password matches hashed password for a given user email, and any other authentication logic). Then the authenticator should return a struct or map that contains the user data that will be embedded in the jwt token. This might be something like an account id, role, is_verified, etc. After having successfully authenticated, the data returned from the authenticator is passed in as a parameter into the `PayloadFunc`, which is used to embed the user identifiers mentioned above into the jwt token. If an error is returned, the `Unauthorized` function is used (explained below).
 
-1. PayloadFunc: maps the claims in the JWT.
-2. IdentityHandler: extracts identity from claims.
-3. Authorizator: receives identity and handles authorization logic.
-4. Unauthorized: handles unauthorized logic.
+3. OPTIONAL: `PayloadFunc` 
+
+	This function is called after having successfully authenticated (logged in). It should take whatever was returned from `Authenticator` and convert it into `MapClaims` (i.e. map[string]interface{}). A typical use case of this function is for when `Authenticator` returns a struct which holds the user identifiers, and that struct needs to be converted into a map. `MapClaims` should include one element that is [`IdentityKey` (default is "identity"): some_user_identity]. The elements of `MapClaims` returned in `PayloadFunc` will be embedded within the jwt token (as token claims). When users pass in their token on subsequent requests, you can get back these claims by using `ExtractClaims`.
+
+4. OPTIONAL: `LoginResponse`
+
+	After having successfully authenticated with `Authenticator`, created the jwt token using the identifiers from map returned from `PayloadFunc`, and set it as a cookie if `SendCookie` is enabled, this function is called. It is used to handle any post-login logic. This might look something like using the gin context to return a JSON of the token back to the user.
+
+### Subsequent requests on endpoints requiring jwt token (using MiddlewareFunc).
+
+1. PROVIDED: `MiddlewareFunc`
+
+	This is gin middleware that should be used within any endpoints that require the jwt token to be present. This middleware will parse the request headers for the token if it exists, and check that the jwt token is valid (not expired, correct signature). Then it will call `IdentityHandler` followed by `Authorizator`. If `Authorizator` passes and all of the previous token validity checks passed, the middleware will continue the request. If any of these checks fail, the `Unauthorized` function is used (explained below).
+
+2. OPTIONAL: `IdentityHandler`
+
+	The default of this function is likely sufficient for your needs. The purpose of this function is to fetch the user identity from claims embedded within the jwt token, and pass this identity value to `Authorizator`. This function assummes [`IdentityKey`: some_user_identity] is one of the attributes embedded within the claims of the jwt token (determined by `PayloadFunc`).
+
+3. OPTIONAL: `Authorizator`
+
+	Given the user identity value (`data` parameter) and the gin context, this function should check if the user is authorized to be reaching this endpoint (on the endpoints where the `MiddlewareFunc` applies). This function should likely use `ExtractClaims` to check if the user has the sufficient permissions to reach this endpoint, as opposed to hitting the database on every request. This function should return true if the user is authorized to continue through with the request, or false if they are not authorized (where `Unauthorized` will be called).
+
+### Logout Request flow (using LogoutHandler)
+
+1. PROVIDED: `LogoutHandler`
+
+	This is a provided function to be called on any logout endpoint, which will clear any cookies if `SendCookie` is set, and then call `LogoutResponse`.
+
+2. OPTIONAL: `LogoutResposne`
+
+	This should likely just return back to the user the http status code, if logout was successful or not.
+
+### Refresh Request flow (using RefreshHandler)
+
+1. PROVIDED: `RefreshHandler`:
+
+	This is a provided function to be called on any refresh token endpoint. If the token passed in is was issued within the `MaxRefreshTime` time frame, then this handler will create/set a new token similar to the `LoginHandler`, and pass this token into `RefreshResponse`
+
+2. OPTIONAL: `RefreshResposne`:
+
+	This should likely return a JSON of the token back to the user, similar to `LoginResponse`
+
+
+### Faliures with logging in, bad tokens, or lacking privileges
+
+1. OPTIONAL `Unauthorized`: 
+
+	On any error logging in, authorizing the user, or when there was no token or a invalid token passed in with the request, the following will happen. The gin context will be aborted depending on `DisabledAbort`, then `HTTPStatusMessageFunc` is called which by default converts the error into a string. Finally the `Unauthorized` function will be called. This function should likely return a JSON containing the http error code and error message to the user.
+	
