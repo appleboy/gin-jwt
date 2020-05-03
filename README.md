@@ -328,7 +328,7 @@ Use these options for setting the JWT in a cookie. See the Mozilla [documentatio
 	This should likely return a JSON of the token back to the user, similar to `LoginResponse`
 
 
-### Faliures with logging in, bad tokens, or lacking privileges
+### Failures with logging in, bad tokens, or lacking privileges
 
 1. OPTIONAL `Unauthorized`: 
 
