@@ -111,6 +111,9 @@ type GinJWTMiddleware struct {
 	// Optionally return the token as a cookie
 	SendCookie bool
 
+	// Duration that a cookie is valid. Optional, by default equals to Timeout value.
+	CookieMaxAge time.Duration
+
 	// Allow insecure cookies for development over http
 	SecureCookie bool
 
@@ -335,6 +338,10 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		mw.Realm = "gin jwt"
 	}
 
+	if mw.CookieMaxAge == 0 {
+		mw.CookieMaxAge = mw.Timeout
+	}
+
 	if mw.CookieName == "" {
 		mw.CookieName = "jwt"
 	}
@@ -453,7 +460,8 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	// set cookie
 	if mw.SendCookie {
-		maxage := int(expire.Unix() - time.Now().Unix())
+		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
+		maxage := int(expireCookie.Unix() - time.Now().Unix())
 		c.SetCookie(
 			mw.CookieName,
 			tokenString,
@@ -536,7 +544,8 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 
 	// set cookie
 	if mw.SendCookie {
-		maxage := int(expire.Unix() - time.Now().Unix())
+		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
+		maxage := int(expireCookie.Unix() - time.Now().Unix())
 		c.SetCookie(
 			mw.CookieName,
 			tokenString,
