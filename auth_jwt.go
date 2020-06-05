@@ -461,7 +461,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	// set cookie
 	if mw.SendCookie {
 		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-		maxage := int(expireCookie.Unix() - time.Now().Unix())
+		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
 		c.SetCookie(
 			mw.CookieName,
 			tokenString,
