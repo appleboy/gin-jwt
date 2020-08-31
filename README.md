@@ -166,7 +166,7 @@ func main() {
 		log.Fatal("JWT Error:" + err.Error())
 	}
   
-  errInit := authMiddleware.MiddlewareInit()
+	errInit := authMiddleware.MiddlewareInit()
   
 	if errInit != nil {
 		log.Fatal("authMiddleware.MiddlewareInit() Error:" + errInit.Error())
