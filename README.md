@@ -166,6 +166,7 @@ func main() {
 		log.Fatal("JWT Error:" + err.Error())
 	}
 
+  // When you use jwt.New(), the function is already automatically called for checking, which means you don't need to call it again.
 	errInit := authMiddleware.MiddlewareInit()
 
 	if errInit != nil {
