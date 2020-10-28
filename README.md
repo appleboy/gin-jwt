@@ -321,7 +321,7 @@ Use these options for setting the JWT in a cookie. See the Mozilla [documentatio
 
 	This is a provided function to be called on any logout endpoint, which will clear any cookies if `SendCookie` is set, and then call `LogoutResponse`.
 
-2. OPTIONAL: `LogoutResposne`
+2. OPTIONAL: `LogoutResponse`
 
 	This should likely just return back to the user the http status code, if logout was successful or not.
 
