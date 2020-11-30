@@ -26,7 +26,7 @@ type GinJWTMiddleware struct {
 	Realm string
 
 	// signing algorithm - possible values are HS256, HS384, HS512, RS256, RS384 or RS512
-	// Optional, default is HS256.
+	// Optional, default is RS256.
 	SigningAlgorithm string
 
 	// Secret key used for signing. Required.
@@ -261,7 +261,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.SigningAlgorithm == "" {
-		mw.SigningAlgorithm = "HS256"
+		mw.SigningAlgorithm = "RS256"
 	}
 
 	if mw.Timeout == 0 {
