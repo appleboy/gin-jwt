@@ -12,6 +12,10 @@ This is a middleware for [Gin](https://github.com/gin-gonic/gin) framework.
 
 It uses [jwt-go](https://github.com/dgrijalva/jwt-go) to provide a jwt authentication middleware. It provides additional handler functions to provide the `login` api that will generate the token and an additional `refresh` handler that can be used to refresh tokens.
 
+## Security Issue
+
+Simple HS256 JWT token brute force cracker. Effective only to crack JWT tokens with weak secrets. **Recommendation**: Use strong long secrets or `RS256` tokens. See the [jwt-cracker reoisitory](https://github.com/lmammino/jwt-cracker).
+
 ## Usage
 
 Download and install using [go module](https://blog.golang.org/using-go-modules):
