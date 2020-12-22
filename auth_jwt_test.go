@@ -110,12 +110,36 @@ func TestInvalidPrivKey(t *testing.T) {
 	assert.Equal(t, ErrInvalidPrivKey, err)
 }
 
+func TestInvalidPrivKeyBytes(t *testing.T) {
+	_, err := New(&GinJWTMiddleware{
+		Realm:            "zone",
+		SigningAlgorithm: "RS256",
+		PrivKeyBytes:     []byte("Invalid_Private_Key"),
+		PubKeyFile:       "testdata/jwtRS256.key.pub",
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, ErrInvalidPrivKey, err)
+}
+
 func TestInvalidPubKey(t *testing.T) {
 	_, err := New(&GinJWTMiddleware{
 		Realm:            "zone",
 		SigningAlgorithm: "RS256",
 		PrivKeyFile:      "testdata/jwtRS256.key",
 		PubKeyFile:       "testdata/invalidpubkey.key",
+	})
+
+	assert.Error(t, err)
+	assert.Equal(t, ErrInvalidPubKey, err)
+}
+
+func TestInvalidPubKeyBytes(t *testing.T) {
+	_, err := New(&GinJWTMiddleware{
+		Realm:            "zone",
+		SigningAlgorithm: "RS256",
+		PrivKeyFile:      "testdata/jwtRS256.key",
+		PubKeyBytes:      []byte("Invalid_Private_Key"),
 	})
 
 	assert.Error(t, err)
