@@ -286,6 +286,7 @@ Use these options for setting the JWT in a cookie. See the Mozilla [documentatio
 	CookieDomain:     "localhost:8080",
 	CookieName:       "token", // default jwt
 	TokenLookup:      "cookie:token",
+	CookieSameSite:   http.SameSiteDefaultMode, //SameSiteDefaultMode, SameSiteLaxMode, SameSiteStrictMode, SameSiteNoneMode
 ```
 
 ### Login request flow (using the LoginHandler)
