@@ -60,16 +60,16 @@ type GinJWTMiddleware struct {
 	PayloadFunc func(data interface{}) MapClaims
 
 	// User can define own Unauthorized func.
-	Unauthorized func(*gin.Context, int, string)
+	Unauthorized func(c *gin.Context, code int, message string)
 
 	// User can define own LoginResponse func.
-	LoginResponse func(*gin.Context, int, string, time.Time)
+	LoginResponse func(c *gin.Context, code int, message string, time time.Time)
 
 	// User can define own LogoutResponse func.
-	LogoutResponse func(*gin.Context, int)
+	LogoutResponse func(c *gin.Context, code int)
 
 	// User can define own RefreshResponse func.
-	RefreshResponse func(*gin.Context, int, string, time.Time)
+	RefreshResponse func(c *gin.Context, code int, message string, time time.Time)
 
 	// Set the identity handler function
 	IdentityHandler func(*gin.Context) interface{}
