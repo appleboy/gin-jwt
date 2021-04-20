@@ -14,7 +14,7 @@ It uses [jwt-go](https://github.com/dgrijalva/jwt-go) to provide a jwt authentic
 
 ## Security Issue
 
-Simple HS256 JWT token brute force cracker. Effective only to crack JWT tokens with weak secrets. **Recommendation**: Use strong long secrets or `RS256` tokens. See the [jwt-cracker reoisitory](https://github.com/lmammino/jwt-cracker).
+Simple HS256 JWT token brute force cracker. Effective only to crack JWT tokens with weak secrets. **Recommendation**: Use strong long secrets or `RS256` tokens. See the [jwt-cracker repository](https://github.com/lmammino/jwt-cracker).
 
 ## Usage
 
