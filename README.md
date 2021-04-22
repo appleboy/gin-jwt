@@ -306,6 +306,10 @@ Use these options for setting the JWT in a cookie. See the Mozilla [documentatio
 
 	After having successfully authenticated with `Authenticator`, created the jwt token using the identifiers from map returned from `PayloadFunc`, and set it as a cookie if `SendCookie` is enabled, this function is called. It is used to handle any post-login logic. This might look something like using the gin context to return a JSON of the token back to the user.
 
+4. OPTIONAL: `LoginResponseWithClaims`
+
+	Same as the `LoginResponse` func but with a claims map passed into it. Called instead of `LoginResponse` if it's been set.
+
 ### Subsequent requests on endpoints requiring jwt token (using MiddlewareFunc).
 
 1. PROVIDED: `MiddlewareFunc`
