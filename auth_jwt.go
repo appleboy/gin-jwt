@@ -32,6 +32,10 @@ type GinJWTMiddleware struct {
 	// Secret key used for signing. Required.
 	Key []byte
 
+	// Callback to retrieve key used for signing. Setting KeyFunc will bypass
+	// all other key settings
+	KeyFunc func(token *jwt.Token) (interface{}, error)
+
 	// Duration that a jwt token is valid. Optional, defaults to one hour.
 	Timeout time.Duration
 
@@ -371,6 +375,11 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 
 	if mw.CookieName == "" {
 		mw.CookieName = "jwt"
+	}
+
+	// bypass other key settings if KeyFunc is set
+	if mw.KeyFunc != nil {
+		return nil
 	}
 
 	if mw.usingPublicKeyAlgo() {
@@ -724,6 +733,10 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 		return nil, err
 	}
 
+	if mw.KeyFunc != nil {
+		return jwt.Parse(token, mw.KeyFunc)
+	}
+
 	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		if jwt.GetSigningMethod(mw.SigningAlgorithm) != t.Method {
 			return nil, ErrInvalidSigningAlgorithm
@@ -741,6 +754,11 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 
 // ParseTokenString parse jwt token string
 func (mw *GinJWTMiddleware) ParseTokenString(token string) (*jwt.Token, error) {
+
+	if mw.KeyFunc != nil {
+		return jwt.Parse(token, mw.KeyFunc)
+	}
+
 	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
 		if jwt.GetSigningMethod(mw.SigningAlgorithm) != t.Method {
 			return nil, ErrInvalidSigningAlgorithm

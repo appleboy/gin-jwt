@@ -62,6 +62,14 @@ func makeTokenString(SigningAlgorithm string, username string) string {
 	return tokenString
 }
 
+func keyFunc(token *jwt.Token) (interface{}, error) {
+	cert, err := ioutil.ReadFile("testdata/jwtRS256.key.pub")
+	if err != nil {
+		return nil, err
+	}
+	return jwt.ParseRSAPublicKeyFromPEM(cert)
+}
+
 func TestMissingKey(t *testing.T) {
 
 	_, err := New(&GinJWTMiddleware{
@@ -383,6 +391,58 @@ func TestParseTokenRS256(t *testing.T) {
 		PrivKeyFile:      "testdata/jwtRS256.key",
 		PubKeyFile:       "testdata/jwtRS256.key.pub",
 		Authenticator:    defaultAuthenticator,
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Test 1234",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("HS384", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("RS256", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
+}
+
+func TestParseTokenKeyFunc(t *testing.T) {
+	// the middleware to test
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:         "test zone",
+		KeyFunc:       keyFunc,
+		Timeout:       time.Hour,
+		MaxRefresh:    time.Hour * 24,
+		Authenticator: defaultAuthenticator,
+		// make sure it skips these settings
+		Key:              []byte(""),
+		SigningAlgorithm: "RS256",
+		PrivKeyFile:      "",
+		PubKeyFile:       "",
 	})
 
 	handler := ginHandler(authMiddleware)
