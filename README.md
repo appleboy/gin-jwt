@@ -10,7 +10,7 @@
 
 This is a middleware for [Gin](https://github.com/gin-gonic/gin) framework.
 
-It uses [jwt-go](https://github.com/dgrijalva/jwt-go) to provide a jwt authentication middleware. It provides additional handler functions to provide the `login` api that will generate the token and an additional `refresh` handler that can be used to refresh tokens.
+It uses [jwt-go](https://github.com/golang-jwt/jwt) to provide a jwt authentication middleware. It provides additional handler functions to provide the `login` api that will generate the token and an additional `refresh` handler that can be used to refresh tokens.
 
 ## Security Issue
 
