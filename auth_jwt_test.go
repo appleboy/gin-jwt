@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/appleboy/gofight/v2"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 )
