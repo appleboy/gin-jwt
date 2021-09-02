@@ -60,7 +60,7 @@ type GinJWTMiddleware struct {
 	PayloadFunc func(data interface{}) MapClaims
 
 	// User can define own Unauthorized func.
-	Unauthorized func(c *gin.Context, code int, message string)
+	Unauthorized func(c *gin.Context, code int, err error)
 
 	// User can define own LoginResponse func.
 	LoginResponse func(c *gin.Context, code int, message string, time time.Time)
@@ -94,7 +94,7 @@ type GinJWTMiddleware struct {
 
 	// HTTP Status messages for when something in the JWT middleware fails.
 	// Check error (e) to determine the appropriate error message.
-	HTTPStatusMessageFunc func(e error, c *gin.Context) string
+	HTTPStatusMessageFunc func(e error, c *gin.Context) error
 
 	// Private key file for asymmetric algorithms
 	PrivKeyFile string
@@ -308,10 +308,10 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.Unauthorized == nil {
-		mw.Unauthorized = func(c *gin.Context, code int, message string) {
+		mw.Unauthorized = func(c *gin.Context, code int, err error) {
 			c.JSON(code, gin.H{
 				"code":    code,
-				"message": message,
+				"message": err.Error(),
 			})
 		}
 	}
@@ -356,8 +356,8 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.HTTPStatusMessageFunc == nil {
-		mw.HTTPStatusMessageFunc = func(e error, c *gin.Context) string {
-			return e.Error()
+		mw.HTTPStatusMessageFunc = func(e error, c *gin.Context) error {
+			return e
 		}
 	}
 
@@ -753,13 +753,13 @@ func (mw *GinJWTMiddleware) ParseTokenString(token string) (*jwt.Token, error) {
 	})
 }
 
-func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message string) {
+func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, err error) {
 	c.Header("WWW-Authenticate", "JWT realm="+mw.Realm)
 	if !mw.DisabledAbort {
 		c.Abort()
 	}
 
-	mw.Unauthorized(c, code, message)
+	mw.Unauthorized(c, code, err)
 }
 
 // ExtractClaims help to extract the JWT claims

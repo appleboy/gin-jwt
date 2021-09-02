@@ -769,10 +769,10 @@ func TestEmptyClaims(t *testing.T) {
 
 			return userID, ErrFailedAuthentication
 		},
-		Unauthorized: func(c *gin.Context, code int, message string) {
+		Unauthorized: func(c *gin.Context, code int, e error) {
 			assert.Empty(t, ExtractClaims(c))
 			assert.Empty(t, ConvertClaims(ExtractClaims(c)))
-			c.String(code, message)
+			c.String(code, e.Error())
 		},
 	})
 
@@ -798,8 +798,8 @@ func TestUnauthorized(t *testing.T) {
 		Timeout:       time.Hour,
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
-		Unauthorized: func(c *gin.Context, code int, message string) {
-			c.String(code, message)
+		Unauthorized: func(c *gin.Context, code int, e error) {
+			c.String(code, e.Error())
 		},
 	})
 
@@ -824,8 +824,8 @@ func TestTokenExpire(t *testing.T) {
 		Timeout:       time.Hour,
 		MaxRefresh:    -time.Second,
 		Authenticator: defaultAuthenticator,
-		Unauthorized: func(c *gin.Context, code int, message string) {
-			c.String(code, message)
+		Unauthorized: func(c *gin.Context, code int, e error) {
+			c.String(code, e.Error())
 		},
 	})
 
@@ -853,8 +853,8 @@ func TestTokenFromQueryString(t *testing.T) {
 		Key:           key,
 		Timeout:       time.Hour,
 		Authenticator: defaultAuthenticator,
-		Unauthorized: func(c *gin.Context, code int, message string) {
-			c.String(code, message)
+		Unauthorized: func(c *gin.Context, code int, e error) {
+			c.String(code, e.Error())
 		},
 		TokenLookup: "query:token",
 	})
@@ -891,8 +891,8 @@ func TestTokenFromParamPath(t *testing.T) {
 		Key:           key,
 		Timeout:       time.Hour,
 		Authenticator: defaultAuthenticator,
-		Unauthorized: func(c *gin.Context, code int, message string) {
-			c.String(code, message)
+		Unauthorized: func(c *gin.Context, code int, e error) {
+			c.String(code, e.Error())
 		},
 		TokenLookup: "param:token",
 	})
@@ -926,8 +926,8 @@ func TestTokenFromCookieString(t *testing.T) {
 		Key:           key,
 		Timeout:       time.Hour,
 		Authenticator: defaultAuthenticator,
-		Unauthorized: func(c *gin.Context, code int, message string) {
-			c.String(code, message)
+		Unauthorized: func(c *gin.Context, code int, e error) {
+			c.String(code, e.Error())
 		},
 		TokenLookup: "cookie:token",
 	})
@@ -1011,7 +1011,6 @@ func TestDefineTokenHeadName(t *testing.T) {
 func TestHTTPStatusMessageFunc(t *testing.T) {
 	var successError = errors.New("Successful test error")
 	var failedError = errors.New("Failed test error")
-	var successMessage = "Overwrite error message."
 
 	authMiddleware, _ := New(&GinJWTMiddleware{
 		Key:           key,
@@ -1019,20 +1018,20 @@ func TestHTTPStatusMessageFunc(t *testing.T) {
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
 
-		HTTPStatusMessageFunc: func(e error, c *gin.Context) string {
+		HTTPStatusMessageFunc: func(e error, c *gin.Context) error {
 			if e == successError {
-				return successMessage
+				return successError
 			}
 
-			return e.Error()
+			return nil
 		},
 	})
 
 	successString := authMiddleware.HTTPStatusMessageFunc(successError, nil)
 	failedString := authMiddleware.HTTPStatusMessageFunc(failedError, nil)
 
-	assert.Equal(t, successMessage, successString)
-	assert.NotEqual(t, successMessage, failedString)
+	assert.Equal(t, nil, successString)
+	assert.NotEqual(t, nil, failedString)
 }
 
 func TestSendAuthorizationBool(t *testing.T) {
@@ -1177,8 +1176,8 @@ func TestCheckTokenString(t *testing.T) {
 		Key:           key,
 		Timeout:       1 * time.Second,
 		Authenticator: defaultAuthenticator,
-		Unauthorized: func(c *gin.Context, code int, message string) {
-			c.String(code, message)
+		Unauthorized: func(c *gin.Context, code int, e error) {
+			c.String(code, e.Error())
 		},
 		PayloadFunc: func(data interface{}) MapClaims {
 			if v, ok := data.(MapClaims); ok {
