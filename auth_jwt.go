@@ -106,6 +106,9 @@ type GinJWTMiddleware struct {
 
 	// Public key file for asymmetric algorithms
 	PubKeyFile string
+	
+	// Private key passphrase
+	PrivateKeyPassphrase string
 
 	// Public key bytes for asymmetric algorithms.
 	//
@@ -114,9 +117,6 @@ type GinJWTMiddleware struct {
 
 	// Private key
 	privKey *rsa.PrivateKey
-	
-	// Private key passphrase
-	PrivateKeyPassphrase
 
 	// Public key
 	pubKey *rsa.PublicKey
