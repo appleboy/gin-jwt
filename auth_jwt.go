@@ -106,7 +106,7 @@ type GinJWTMiddleware struct {
 
 	// Public key file for asymmetric algorithms
 	PubKeyFile string
-	
+
 	// Private key passphrase
 	PrivateKeyPassphrase string
 
@@ -169,7 +169,7 @@ var (
 	ErrFailedTokenCreation = errors.New("failed to create JWT Token")
 
 	// ErrExpiredToken indicates JWT token has expired. Can't refresh.
-	ErrExpiredToken = errors.New("token is expired")
+	ErrExpiredToken = errors.New("token is expired") // in practice, this is generated from the jwt library not by us
 
 	// ErrEmptyAuthHeader can be thrown if authing with a HTTP header, the Auth header needs to be set
 	ErrEmptyAuthHeader = errors.New("auth header is empty")
@@ -243,7 +243,7 @@ func (mw *GinJWTMiddleware) privateKey() error {
 		}
 		keyData = filecontent
 	}
-	
+
 	if mw.PrivateKeyPassphrase != "" {
 		key, err := jwt.ParseRSAPrivateKeyFromPEMWithPassword(keyData, mw.PrivateKeyPassphrase)
 		if err != nil {
@@ -252,7 +252,6 @@ func (mw *GinJWTMiddleware) privateKey() error {
 		mw.privKey = key
 		return nil
 	}
-
 
 	key, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
 	if err != nil {

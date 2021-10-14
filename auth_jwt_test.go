@@ -1155,7 +1155,7 @@ func TestExpiredField(t *testing.T) {
 		})
 
 	// wrong format
-	claims["exp"] = "test"
+	claims["exp"] = "wrongFormatForExpiryIgnoredByJwtLibrary"
 	tokenString, _ = token.SignedString(key)
 
 	r.GET("/auth/hello").
@@ -1165,8 +1165,8 @@ func TestExpiredField(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
 
-			assert.Equal(t, ErrWrongFormatOfExp.Error(), message.String())
-			assert.Equal(t, http.StatusBadRequest, r.Code)
+			assert.Equal(t, ErrExpiredToken.Error(), strings.ToLower(message.String()))
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 }
 
