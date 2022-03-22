@@ -151,6 +151,32 @@ type GinJWTMiddleware struct {
 
 	// CookieSameSite allow use http.SameSite cookie param
 	CookieSameSite http.SameSite
+
+	// ParseOptions allow to modify jwt's parser methods
+	ParseOptions []jwt.ParserOption
+}
+
+// AddParseOptions adds the jwt.ParseOption before calling jwt.Parse method.
+//
+// It creates the jwt.ParseOption corresponding to optionName string and appends
+// into ParseOptions array of GinJWTMiddleware.
+//
+// optionName is a string which should be the ParseOption name else, it will return
+// notAValidParseOption error. It is case sensitive.
+//
+// validMethods is the array of methods string for passing into jwt.WithValidMethods
+func (mw *GinJWTMiddleware) AddParseOptions(optionName string, validMethods ...string) error {
+	switch optionName {
+	case "WithValidMethods":
+		mw.ParseOptions = append(mw.ParseOptions, jwt.WithValidMethods(validMethods))
+	case "WithJSONNumber":
+		mw.ParseOptions = append(mw.ParseOptions, jwt.WithJSONNumber())
+	case "WithoutClaimsValidation":
+		mw.ParseOptions = append(mw.ParseOptions, jwt.WithoutClaimsValidation())
+	default:
+		return errors.New("not a valid jwt ParseOption name string")
+	}
+	return nil
 }
 
 var (
@@ -741,7 +767,7 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 	}
 
 	if mw.KeyFunc != nil {
-		return jwt.Parse(token, mw.KeyFunc)
+		return jwt.Parse(token, mw.KeyFunc, mw.ParseOptions...)
 	}
 
 	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
@@ -756,13 +782,13 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 		c.Set("JWT_TOKEN", token)
 
 		return mw.Key, nil
-	})
+	}, mw.ParseOptions...)
 }
 
 // ParseTokenString parse jwt token string
 func (mw *GinJWTMiddleware) ParseTokenString(token string) (*jwt.Token, error) {
 	if mw.KeyFunc != nil {
-		return jwt.Parse(token, mw.KeyFunc)
+		return jwt.Parse(token, mw.KeyFunc, mw.ParseOptions...)
 	}
 
 	return jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
@@ -774,7 +800,7 @@ func (mw *GinJWTMiddleware) ParseTokenString(token string) (*jwt.Token, error) {
 		}
 
 		return mw.Key, nil
-	})
+	}, mw.ParseOptions...)
 }
 
 func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message string) {
