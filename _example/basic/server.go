@@ -36,9 +36,7 @@ type User struct {
 
 func main() {
 	port := os.Getenv("PORT")
-	r := gin.New()
-	r.Use(gin.Logger())
-	r.Use(gin.Recovery())
+	r := gin.Default()
 
 	if port == "" {
 		port = "8000"
