@@ -711,6 +711,16 @@ func (mw *GinJWTMiddleware) jwtFromParam(c *gin.Context, key string) (string, er
 	return token, nil
 }
 
+func (mw *GinJWTMiddleware) jwtFromForm(c *gin.Context, key string) (string, error) {
+	token := c.PostForm(key)
+
+	if token == "" {
+		return "", ErrEmptyParamToken
+	}
+
+	return token, nil
+}
+
 // ParseToken parse jwt token from gin context
 func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 	var token string
@@ -733,6 +743,8 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 			token, err = mw.jwtFromCookie(c, v)
 		case "param":
 			token, err = mw.jwtFromParam(c, v)
+		case "form":
+			token, err = mw.jwtFromForm(c, v)
 		}
 	}
 
