@@ -200,10 +200,10 @@ func main() {
 
 ## Demo
 
-Please run _example/server.go file and listen `8000` port.
+Please run _example/basic/server.go file and listen `8000` port.
 
 ```sh
-go run _example/server.go
+go run _example/basic/server.go
 ```
 
 Download and install [httpie](https://github.com/jkbrzt/httpie) CLI HTTP client.

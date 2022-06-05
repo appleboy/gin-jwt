@@ -752,7 +752,7 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 			return mw.pubKey, nil
 		}
 
-		// save token string if vaild
+		// save token string if valid
 		c.Set("JWT_TOKEN", token)
 
 		return mw.Key, nil
