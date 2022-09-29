@@ -2,6 +2,7 @@ package jwt
 
 import (
 	"crypto/rsa"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -422,18 +423,27 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 		return
 	}
 
-	if claims["exp"] == nil {
+	switch v := claims["exp"].(type) {
+	case nil:
 		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
 		return
-	}
-
-	if _, ok := claims["exp"].(float64); !ok {
+	case float64:
+		if int64(v) < mw.TimeFunc().Unix() {
+			mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
+			return
+		}
+	case json.Number:
+		n, err := v.Int64()
+		if err != nil {
+			mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, c))
+			return
+		}
+		if n < mw.TimeFunc().Unix() {
+			mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
+			return
+		}
+	default:
 		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, c))
-		return
-	}
-
-	if int64(claims["exp"].(float64)) < mw.TimeFunc().Unix() {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
 		return
 	}
 

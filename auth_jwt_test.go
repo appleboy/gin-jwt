@@ -665,6 +665,32 @@ func TestAuthorizator(t *testing.T) {
 		})
 }
 
+func TestParseTokenWithJsonNumber(t *testing.T) {
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:         "test zone",
+		Key:           key,
+		Timeout:       time.Hour,
+		MaxRefresh:    time.Hour * 24,
+		Authenticator: defaultAuthenticator,
+		Unauthorized: func(c *gin.Context, code int, message string) {
+			c.String(code, message)
+		},
+		ParseOptions: []jwt.ParserOption{jwt.WithJSONNumber()},
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
+}
+
 func TestClaimsDuringAuthorization(t *testing.T) {
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
