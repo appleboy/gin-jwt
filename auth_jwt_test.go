@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
@@ -1321,4 +1322,40 @@ func TestLogout(t *testing.T) {
 			//nolint:staticcheck
 			assert.Equal(t, fmt.Sprintf("%s=; Path=/; Domain=%s; Max-Age=0", cookieName, cookieDomain), r.HeaderMap.Get("Set-Cookie"))
 		})
+}
+
+func TestSetCookie(t *testing.T) {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	mw, _ := New(&GinJWTMiddleware{
+		Realm:          "test zone",
+		Key:            key,
+		Timeout:        time.Hour,
+		Authenticator:  defaultAuthenticator,
+		SendCookie:     true,
+		CookieName:     "jwt",
+		CookieMaxAge:   time.Hour,
+		CookieDomain:   "example.com",
+		SecureCookie:   false,
+		CookieHTTPOnly: true,
+		TimeFunc: func() time.Time {
+			return time.Now()
+		},
+	})
+
+	token := makeTokenString("HS384", "admin")
+
+	mw.SetCookie(c, token)
+
+	cookies := w.Result().Cookies()
+
+	assert.Len(t, cookies, 1)
+
+	cookie := cookies[0]
+	assert.Equal(t, "jwt", cookie.Name)
+	assert.Equal(t, token, cookie.Value)
+	assert.Equal(t, "/", cookie.Path)
+	assert.Equal(t, "example.com", cookie.Domain)
+	assert.Equal(t, true, cookie.HttpOnly)
 }
