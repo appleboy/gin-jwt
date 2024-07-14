@@ -517,25 +517,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// set cookie
-	if mw.SendCookie {
-		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
-
-		if mw.CookieSameSite != 0 {
-			c.SetSameSite(mw.CookieSameSite)
-		}
-
-		c.SetCookie(
-			mw.CookieName,
-			tokenString,
-			maxage,
-			"/",
-			mw.CookieDomain,
-			mw.SecureCookie,
-			mw.CookieHTTPOnly,
-		)
-	}
+	mw.SetCookie(c, tokenString)
 
 	mw.LoginResponse(c, http.StatusOK, tokenString, expire)
 }
@@ -609,25 +591,7 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 		return "", time.Now(), err
 	}
 
-	// set cookie
-	if mw.SendCookie {
-		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-		maxage := int(expireCookie.Unix() - time.Now().Unix())
-
-		if mw.CookieSameSite != 0 {
-			c.SetSameSite(mw.CookieSameSite)
-		}
-
-		c.SetCookie(
-			mw.CookieName,
-			tokenString,
-			maxage,
-			"/",
-			mw.CookieDomain,
-			mw.SecureCookie,
-			mw.CookieHTTPOnly,
-		)
-	}
+	mw.SetCookie(c, tokenString)
 
 	return tokenString, expire, nil
 }
@@ -844,4 +808,27 @@ func GetToken(c *gin.Context) string {
 	}
 
 	return token.(string)
+}
+
+// SetCookie help to set the token in the cookie
+func (mw *GinJWTMiddleware) SetCookie(c *gin.Context, token string) {
+	// set cookie
+	if mw.SendCookie {
+		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
+		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
+
+		if mw.CookieSameSite != 0 {
+			c.SetSameSite(mw.CookieSameSite)
+		}
+
+		c.SetCookie(
+			mw.CookieName,
+			token,
+			maxage,
+			"/",
+			mw.CookieDomain,
+			mw.SecureCookie,
+			mw.CookieHTTPOnly,
+		)
+	}
 }
