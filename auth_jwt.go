@@ -38,6 +38,8 @@ type GinJWTMiddleware struct {
 
 	// Duration that a jwt token is valid. Optional, defaults to one hour.
 	Timeout time.Duration
+	// Callback function that will override the default timeout duration.
+	TimeoutFunc func(data interface{}) time.Duration
 
 	// This field allows clients to refresh their token until MaxRefresh has passed.
 	// Note that clients can refresh their token in the last moment of MaxRefresh.
@@ -313,6 +315,12 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		mw.Timeout = time.Hour
 	}
 
+	if mw.TimeoutFunc == nil {
+		mw.TimeoutFunc = func(data interface{}) time.Duration {
+			return mw.Timeout
+		}
+	}
+
 	if mw.TimeFunc == nil {
 		mw.TimeFunc = time.Now
 	}
@@ -507,7 +515,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		}
 	}
 
-	expire := mw.TimeFunc().Add(mw.Timeout)
+	expire := mw.TimeFunc().Add(mw.TimeoutFunc(claims))
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(token)
@@ -516,25 +524,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// set cookie
-	if mw.SendCookie {
-		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
-
-		if mw.CookieSameSite != 0 {
-			c.SetSameSite(mw.CookieSameSite)
-		}
-
-		c.SetCookie(
-			mw.CookieName,
-			tokenString,
-			maxage,
-			"/",
-			mw.CookieDomain,
-			mw.SecureCookie,
-			mw.CookieHTTPOnly,
-		)
-	}
+	mw.SetCookie(c, tokenString)
 
 	mw.LoginResponse(c, http.StatusOK, tokenString, expire)
 }
@@ -600,7 +590,7 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 		newClaims[key] = claims[key]
 	}
 
-	expire := mw.TimeFunc().Add(mw.Timeout)
+	expire := mw.TimeFunc().Add(mw.TimeoutFunc(claims))
 	newClaims["exp"] = expire.Unix()
 	newClaims["orig_iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(newToken)
@@ -608,25 +598,7 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 		return "", time.Now(), err
 	}
 
-	// set cookie
-	if mw.SendCookie {
-		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
-		maxage := int(expireCookie.Unix() - time.Now().Unix())
-
-		if mw.CookieSameSite != 0 {
-			c.SetSameSite(mw.CookieSameSite)
-		}
-
-		c.SetCookie(
-			mw.CookieName,
-			tokenString,
-			maxage,
-			"/",
-			mw.CookieDomain,
-			mw.SecureCookie,
-			mw.CookieHTTPOnly,
-		)
-	}
+	mw.SetCookie(c, tokenString)
 
 	return tokenString, expire, nil
 }
@@ -665,7 +637,7 @@ func (mw *GinJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time,
 		}
 	}
 
-	expire := mw.TimeFunc().Add(mw.Timeout)
+	expire := mw.TimeFunc().Add(mw.TimeoutFunc(claims))
 	claims["exp"] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(token)
@@ -840,4 +812,27 @@ func GetToken(c *gin.Context) string {
 	}
 
 	return token.(string)
+}
+
+// SetCookie help to set the token in the cookie
+func (mw *GinJWTMiddleware) SetCookie(c *gin.Context, token string) {
+	// set cookie
+	if mw.SendCookie {
+		expireCookie := mw.TimeFunc().Add(mw.CookieMaxAge)
+		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
+
+		if mw.CookieSameSite != 0 {
+			c.SetSameSite(mw.CookieSameSite)
+		}
+
+		c.SetCookie(
+			mw.CookieName,
+			token,
+			maxage,
+			"/",
+			mw.CookieDomain,
+			mw.SecureCookie,
+			mw.CookieHTTPOnly,
+		)
+	}
 }
