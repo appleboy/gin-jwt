@@ -157,6 +157,9 @@ type GinJWTMiddleware struct {
 
 	// ParseOptions allow to modify jwt's parser methods
 	ParseOptions []jwt.ParserOption
+
+	// Default vaule is "exp"
+	ExpField string
 }
 
 var (
@@ -414,6 +417,11 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	if mw.Key == nil {
 		return ErrMissingSecretKey
 	}
+
+	if mw.ExpField == "" {
+		mw.ExpField = "exp"
+	}
+
 	return nil
 }
 
@@ -431,7 +439,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 		return
 	}
 
-	switch v := claims["exp"].(type) {
+	switch v := claims[mw.ExpField].(type) {
 	case nil:
 		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
 		return
@@ -517,7 +525,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	}
 
 	expire := mw.TimeFunc().Add(mw.TimeoutFunc(claims))
-	claims["exp"] = expire.Unix()
+	claims[mw.ExpField] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(token)
 	if err != nil {
@@ -592,7 +600,7 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 	}
 
 	expire := mw.TimeFunc().Add(mw.TimeoutFunc(claims))
-	newClaims["exp"] = expire.Unix()
+	newClaims[mw.ExpField] = expire.Unix()
 	newClaims["orig_iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(newToken)
 	if err != nil {
@@ -642,7 +650,7 @@ func (mw *GinJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time,
 	}
 
 	expire := mw.TimeFunc().Add(mw.TimeoutFunc(claims))
-	claims["exp"] = expire.Unix()
+	claims[mw.ExpField] = expire.Unix()
 	claims["orig_iat"] = mw.TimeFunc().Unix()
 	tokenString, err := mw.signedString(token)
 	if err != nil {
