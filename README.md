@@ -93,7 +93,7 @@ func main() {
   }
 
   // register middleware
-  engine.Use(handlerMiddleWare(authMiddleware))
+  engine.Use(handlerMiddleware(authMiddleware))
 
   // register route
   registerRoute(engine, authMiddleware)
@@ -113,7 +113,7 @@ func registerRoute(r *gin.Engine, handle *jwt.GinJWTMiddleware) {
   auth.GET("/hello", helloHandler)
 }
 
-func handlerMiddleWare(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc {
+func handlerMiddleware(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc {
   return func(context *gin.Context) {
     errInit := authMiddleware.MiddlewareInit()
     if errInit != nil {
