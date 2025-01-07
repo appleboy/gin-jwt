@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/youmark/pkcs8"
 )
 
 // MapClaims type that uses the map[string]interface{} for JSON decoding
@@ -248,10 +249,12 @@ func (mw *GinJWTMiddleware) readKeys() error {
 
 func (mw *GinJWTMiddleware) privateKey() error {
 	var keyData []byte
+	var err error
 	if mw.PrivKeyFile == "" {
 		keyData = mw.PrivKeyBytes
 	} else {
-		filecontent, err := os.ReadFile(mw.PrivKeyFile)
+		var filecontent []byte
+		filecontent, err = os.ReadFile(mw.PrivKeyFile)
 		if err != nil {
 			return ErrNoPrivKeyFile
 		}
@@ -259,16 +262,21 @@ func (mw *GinJWTMiddleware) privateKey() error {
 	}
 
 	if mw.PrivateKeyPassphrase != "" {
-		//nolint:staticcheck
-		key, err := jwt.ParseRSAPrivateKeyFromPEMWithPassword(keyData, mw.PrivateKeyPassphrase)
+		var key interface{}
+		key, err = pkcs8.ParsePKCS8PrivateKey(keyData, []byte(mw.PrivateKeyPassphrase))
 		if err != nil {
 			return ErrInvalidPrivKey
 		}
-		mw.privKey = key
+		rsaKey, ok := key.(*rsa.PrivateKey)
+		if !ok {
+			return ErrInvalidPrivKey
+		}
+		mw.privKey = rsaKey
 		return nil
 	}
 
-	key, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
+	var key *rsa.PrivateKey
+	key, err = jwt.ParseRSAPrivateKeyFromPEM(keyData)
 	if err != nil {
 		return ErrInvalidPrivKey
 	}

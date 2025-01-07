@@ -8,6 +8,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/stretchr/testify v1.9.0
 	github.com/tidwall/gjson v1.17.1
+	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78
 )
 
 require (
