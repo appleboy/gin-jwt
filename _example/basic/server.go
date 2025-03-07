@@ -8,6 +8,7 @@ import (
 
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
+	jwtV4 "github.com/golang-jwt/jwt/v4"
 )
 
 type login struct {
@@ -93,14 +94,14 @@ func initParams() *jwt.GinJWTMiddleware {
 	}
 }
 
-func payloadFunc() func(data interface{}) jwt.MapClaims {
-	return func(data interface{}) jwt.MapClaims {
+func payloadFunc() func(data interface{}) jwtV4.MapClaims {
+	return func(data interface{}) jwtV4.MapClaims {
 		if v, ok := data.(*User); ok {
-			return jwt.MapClaims{
+			return jwtV4.MapClaims{
 				identityKey: v.UserName,
 			}
 		}
-		return jwt.MapClaims{}
+		return jwtV4.MapClaims{}
 	}
 }
 
