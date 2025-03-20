@@ -235,9 +235,9 @@ func TestLoginHandler(t *testing.T) {
 	authMiddleware, err := New(&GinJWTMiddleware{
 		Realm: "test zone",
 		Key:   key,
-		PayloadFunc: func(data interface{}) jwt.MapClaims {
+		PayloadFunc: func(data interface{}) MapClaims {
 			// Set custom claim, to be checked in Authorizator method
-			return jwt.MapClaims{"testkey": "testval", "exp": 0}
+			return MapClaims{"testkey": "testval", "exp": 0}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
 			var loginVals Login
@@ -699,13 +699,13 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		PayloadFunc: func(data interface{}) jwt.MapClaims {
-			if v, ok := data.(jwt.MapClaims); ok {
+		PayloadFunc: func(data interface{}) MapClaims {
+			if v, ok := data.(MapClaims); ok {
 				return v
 			}
 
 			if reflect.TypeOf(data).String() != "string" {
-				return jwt.MapClaims{}
+				return MapClaims{}
 			}
 
 			var testkey string
@@ -718,7 +718,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 				testkey = ""
 			}
 			// Set custom claim, to be checked in Authorizator method
-			return jwt.MapClaims{"identity": data.(string), "testkey": testkey, "exp": 0}
+			return MapClaims{"identity": data.(string), "testkey": testkey, "exp": 0}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
 			var loginVals Login
@@ -813,7 +813,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		})
 }
 
-func ConvertClaims(claims jwt.MapClaims) map[string]interface{} {
+func ConvertClaims(claims MapClaims) map[string]interface{} {
 	return map[string]interface{}{}
 }
 
@@ -1253,8 +1253,8 @@ func TestCheckTokenString(t *testing.T) {
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.String(code, message)
 		},
-		PayloadFunc: func(data interface{}) jwt.MapClaims {
-			if v, ok := data.(jwt.MapClaims); ok {
+		PayloadFunc: func(data interface{}) MapClaims {
+			if v, ok := data.(MapClaims); ok {
 				return v
 			}
 
