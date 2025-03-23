@@ -762,7 +762,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 	r := gofight.New()
 	handler := ginHandler(authMiddleware)
 
-	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
+	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
 		"identity": "administrator",
 	})
 
@@ -818,8 +818,6 @@ func ConvertClaims(claims MapClaims) map[string]interface{} {
 }
 
 func TestEmptyClaims(t *testing.T) {
-	var jwtClaims jwt.MapClaims
-
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
 		Realm:      "test zone",
@@ -859,7 +857,7 @@ func TestEmptyClaims(t *testing.T) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
-	assert.Empty(t, jwtClaims)
+	assert.Empty(t, MapClaims{})
 }
 
 func TestUnauthorized(t *testing.T) {
@@ -1266,7 +1264,7 @@ func TestCheckTokenString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
+	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
 		"identity": "admin",
 	})
 
@@ -1295,7 +1293,7 @@ func TestCheckTokenString(t *testing.T) {
 
 	_, err = authMiddleware.ParseTokenString(userToken)
 	assert.Error(t, err)
-	assert.Equal(t, jwt.MapClaims{}, ExtractClaimsFromToken(nil))
+	assert.Equal(t, MapClaims{}, ExtractClaimsFromToken(nil))
 }
 
 func TestLogout(t *testing.T) {
