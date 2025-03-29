@@ -23,7 +23,7 @@ jobs:
           go-version-file: go.mod
           check-latest: true
       - name: Setup golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           args: --verbose
   test:
@@ -63,6 +63,6 @@ jobs:
           go test -v -covermode=atomic -coverprofile=coverage.out
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           flags: ${{ matrix.os }},go-${{ matrix.go }}
