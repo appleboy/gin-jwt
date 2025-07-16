@@ -357,9 +357,11 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	if mw.LoginResponse == nil {
 		mw.LoginResponse = func(c *gin.Context, code int, token string, expire time.Time) {
 			c.JSON(http.StatusOK, gin.H{
-				"code":   http.StatusOK,
-				"token":  token,
-				"expire": expire.Format(time.RFC3339),
+				"access_token":  token,
+				"token_type":    "Bearer",
+				"expires_in":    int(time.Until(expire).Seconds()),
+				"refresh_token": "",
+				"scope":         "create",
 			})
 		}
 	}
@@ -375,9 +377,11 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	if mw.RefreshResponse == nil {
 		mw.RefreshResponse = func(c *gin.Context, code int, token string, expire time.Time) {
 			c.JSON(http.StatusOK, gin.H{
-				"code":   http.StatusOK,
-				"token":  token,
-				"expire": expire.Format(time.RFC3339),
+				"access_token":  token,
+				"token_type":    "Bearer",
+				"expires_in":    int(time.Until(expire).Seconds()),
+				"refresh_token": "",
+				"scope":         "create",
 			})
 		}
 	}

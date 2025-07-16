@@ -527,9 +527,11 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
 			cookie := gjson.Get(r.Body.String(), "cookie")
+			refreshToken := gjson.Get(r.Body.String(), "refresh_token")
 			assert.Equal(t, "refresh successfully", message.String())
 			assert.Equal(t, http.StatusOK, r.Code)
 			assert.Equal(t, makeTokenString("RS256", "admin"), cookie.String())
+			assert.NotEmpty(t, refreshToken.String(), "refresh_token should not be empty")
 		})
 }
 
