@@ -1,4 +1,4 @@
-# JWT Middleware for Gin Framework
+# Gin JWT Middleware
 
 [![Run Tests](https://github.com/appleboy/gin-jwt/actions/workflows/go.yml/badge.svg)](https://github.com/appleboy/gin-jwt/actions/workflows/go.yml)
 [![GitHub tag](https://img.shields.io/github/tag/appleboy/gin-jwt.svg)](https://github.com/appleboy/gin-jwt/releases)
@@ -8,42 +8,80 @@
 [![codebeat badge](https://codebeat.co/badges/c4015f07-df23-4c7c-95ba-9193a12e14b1)](https://codebeat.co/projects/github-com-appleboy-gin-jwt)
 [![Sourcegraph](https://sourcegraph.com/github.com/appleboy/gin-jwt/-/badge.svg)](https://sourcegraph.com/github.com/appleboy/gin-jwt?badge)
 
-This is a middleware for [Gin](https://github.com/gin-gonic/gin) framework.
+A powerful and flexible JWT authentication middleware for the [Gin](https://github.com/gin-gonic/gin) web framework, built on top of [jwt-go](https://github.com/golang-jwt/jwt).
+Easily add login, token refresh, and authorization to your Gin applications.
 
-It uses [jwt-go](https://github.com/golang-jwt/jwt) to provide a jwt authentication middleware. It provides additional handler functions to provide the `login` api that will generate the token and an additional `refresh` handler that can be used to refresh tokens.
+---
 
-## Security Issue
+## Table of Contents
 
-Simple HS256 JWT token brute force cracker. Effective only to crack JWT tokens with weak secrets. **Recommendation**: Use strong long secrets or `RS256` tokens. See the [jwt-cracker repository](https://github.com/lmammino/jwt-cracker).
+- [Gin JWT Middleware](#gin-jwt-middleware)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Security Notice](#security-notice)
+  - [Installation](#installation)
+    - [Using Go Modules (Recommended)](#using-go-modules-recommended)
+    - [Without Go Modules](#without-go-modules)
+  - [Quick Start Example](#quick-start-example)
+  - [Demo](#demo)
+    - [Login](#login)
+    - [Refresh Token](#refresh-token)
+    - [Hello World](#hello-world)
+    - [Authorization Example](#authorization-example)
+  - [Cookie Token](#cookie-token)
+    - [Login request flow (using the LoginHandler)](#login-request-flow-using-the-loginhandler)
+    - [Subsequent requests on endpoints requiring jwt token (using MiddlewareFunc)](#subsequent-requests-on-endpoints-requiring-jwt-token-using-middlewarefunc)
+    - [Logout Request flow (using LogoutHandler)](#logout-request-flow-using-logouthandler)
+    - [Refresh Request flow (using RefreshHandler)](#refresh-request-flow-using-refreshhandler)
+    - [Failures with logging in, bad tokens, or lacking privileges](#failures-with-logging-in-bad-tokens-or-lacking-privileges)
 
-## Usage
+---
 
-Download and install using [go module](https://blog.golang.org/using-go-modules):
+## Features
+
+- 🔒 Simple JWT authentication for Gin
+- 🔁 Built-in login, refresh, and logout handlers
+- 🛡️ Customizable authentication, authorization, and claims
+- 🍪 Cookie and header token support
+- 📝 Easy integration and clear API
+
+---
+
+## Security Notice
+
+> **Warning:**
+> JWT tokens with weak secrets (e.g., short or simple passwords) are vulnerable to brute-force attacks.
+> **Recommendation:** Use strong, long secrets or `RS256` tokens.
+> See the [jwt-cracker repository](https://github.com/lmammino/jwt-cracker) for more information.
+
+---
+
+## Installation
+
+### Using Go Modules (Recommended)
 
 ```sh
 export GO111MODULE=on
 go get github.com/appleboy/gin-jwt/v2
 ```
 
-Import it in your code:
-
 ```go
 import "github.com/appleboy/gin-jwt/v2"
 ```
 
-Download and install without using [go module](https://blog.golang.org/using-go-modules):
+### Without Go Modules
 
 ```sh
 go get github.com/appleboy/gin-jwt
 ```
 
-Import it in your code:
-
 ```go
 import "github.com/appleboy/gin-jwt"
 ```
 
-## Example
+---
+
+## Quick Start Example
 
 Please see [the example file](_example/basic/server.go) and you can use `ExtractClaims` to fetch user data.
 
@@ -224,91 +262,78 @@ func helloHandler(c *gin.Context) {
 
 ## Demo
 
-Please run _example/basic/server.go file and listen `8000` port.
+Run the example server:
 
 ```sh
 go run _example/basic/server.go
 ```
 
-Download and install [httpie](https://github.com/jkbrzt/httpie) CLI HTTP client.
+Install [httpie](https://github.com/jkbrzt/httpie) for easy API testing.
 
-### Login API
+### Login
 
 ```sh
 http -v --json POST localhost:8000/login username=admin password=admin
 ```
 
-Output screenshot
+![Login screenshot](screenshot/login.png)
 
-![api screenshot](screenshot/login.png)
+### Refresh Token
 
-### Refresh token API
-
-```bash
+```sh
 http -v -f GET localhost:8000/auth/refresh_token "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
 ```
 
-Output screenshot
+![Refresh screenshot](screenshot/refresh_token.png)
 
-![api screenshot](screenshot/refresh_token.png)
+### Hello World
 
-### Hello world
+Login as `admin`/`admin` and call:
 
-Please login as `admin` and password as `admin`
-
-```bash
+```sh
 http -f GET localhost:8000/auth/hello "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
 ```
 
-Response message `200 OK`:
+**Response:**
 
-```sh
-HTTP/1.1 200 OK
-Content-Length: 24
-Content-Type: application/json; charset=utf-8
-Date: Sat, 19 Mar 2016 03:02:57 GMT
-
+```json
 {
   "text": "Hello World.",
   "userID": "admin"
 }
 ```
 
-### Authorization
+### Authorization Example
 
-Please login as `test` and password as `test`
+Login as `test`/`test` and call:
 
-```bash
+```sh
 http -f GET localhost:8000/auth/hello "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
 ```
 
-Response message `403 Forbidden`:
+**Response:**
 
-```sh
-HTTP/1.1 403 Forbidden
-Content-Length: 62
-Content-Type: application/json; charset=utf-8
-Date: Sat, 19 Mar 2016 03:05:40 GMT
-Www-Authenticate: JWT realm=test zone
-
+```json
 {
   "code": 403,
   "message": "You don't have permission to access."
 }
 ```
 
-### Cookie Token
+---
 
-Use these options for setting the JWT in a cookie. See the Mozilla [documentation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#Secure_and_HttpOnly_cookies) for more information on these options.
+## Cookie Token
+
+To set the JWT in a cookie, use these options (see [MDN docs](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#Secure_and_HttpOnly_cookies)):
 
 ```go
-  SendCookie:       true,
-  SecureCookie:     false, //non HTTPS dev environments
-  CookieHTTPOnly:   true,  // JS can't modify
-  CookieDomain:     "localhost:8080",
-  CookieName:       "token", // default jwt
-  TokenLookup:      "cookie:token",
-  CookieSameSite:   http.SameSiteDefaultMode, //SameSiteDefaultMode, SameSiteLaxMode, SameSiteStrictMode, SameSiteNoneMode
+SendCookie:       true,
+SecureCookie:     false, // for non-HTTPS dev environments
+CookieHTTPOnly:   true,  // JS can't modify
+CookieDomain:     "localhost:8080",
+CookieName:       "token", // default jwt
+TokenLookup:      "cookie:token",
+CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxMode, SameSiteStrictMode, SameSiteNoneMode
 ```
 
 ### Login request flow (using the LoginHandler)
