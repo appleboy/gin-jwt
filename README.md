@@ -21,7 +21,6 @@ Easily add login, token refresh, and authorization to your Gin applications.
   - [Security Notice](#security-notice)
   - [Installation](#installation)
     - [Using Go Modules (Recommended)](#using-go-modules-recommended)
-    - [Without Go Modules](#without-go-modules)
   - [Quick Start Example](#quick-start-example)
   - [Demo](#demo)
     - [Login](#login)
@@ -67,16 +66,6 @@ go get github.com/appleboy/gin-jwt/v2
 
 ```go
 import "github.com/appleboy/gin-jwt/v2"
-```
-
-### Without Go Modules
-
-```sh
-go get github.com/appleboy/gin-jwt
-```
-
-```go
-import "github.com/appleboy/gin-jwt"
 ```
 
 ---
