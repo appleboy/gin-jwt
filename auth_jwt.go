@@ -356,10 +356,20 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 
 	if mw.LoginResponse == nil {
 		mw.LoginResponse = func(c *gin.Context, code int, token string, expire time.Time) {
+			refreshToken, _, err := mw.RefreshToken(c)
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"code":    http.StatusUnauthorized,
+					"message": mw.HTTPStatusMessageFunc(err, c),
+				})
+				return
+			}
 			c.JSON(http.StatusOK, gin.H{
-				"code":   http.StatusOK,
-				"token":  token,
-				"expire": expire.Format(time.RFC3339),
+				"access_token":  token,
+				"token_type":    "Bearer",
+				"expires_in":    int(time.Until(expire).Seconds()),
+				"refresh_token": refreshToken,
+				"scope":         "create",
 			})
 		}
 	}
@@ -374,10 +384,20 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 
 	if mw.RefreshResponse == nil {
 		mw.RefreshResponse = func(c *gin.Context, code int, token string, expire time.Time) {
+			refreshToken, _, err := mw.RefreshToken(c)
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"code":    http.StatusUnauthorized,
+					"message": mw.HTTPStatusMessageFunc(err, c),
+				})
+				return
+			}
 			c.JSON(http.StatusOK, gin.H{
-				"code":   http.StatusOK,
-				"token":  token,
-				"expire": expire.Format(time.RFC3339),
+				"access_token":  token,
+				"token_type":    "Bearer",
+				"expires_in":    int(time.Until(expire).Seconds()),
+				"refresh_token": refreshToken,
+				"scope":         "create",
 			})
 		}
 	}
