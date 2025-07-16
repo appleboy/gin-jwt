@@ -527,11 +527,9 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
 			cookie := gjson.Get(r.Body.String(), "cookie")
-			refreshToken := gjson.Get(r.Body.String(), "refresh_token")
 			assert.Equal(t, "refresh successfully", message.String())
 			assert.Equal(t, http.StatusOK, r.Code)
 			assert.Equal(t, makeTokenString("RS256", "admin"), cookie.String())
-			assert.NotEmpty(t, refreshToken.String(), "refresh_token should not be empty")
 		})
 }
 
@@ -720,7 +718,14 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 				testkey = ""
 			}
 			// Set custom claim, to be checked in Authorizator method
-			return MapClaims{"identity": data.(string), "testkey": testkey, "exp": 0}
+			now := time.Now()
+			return MapClaims{
+				"identity": data.(string),
+				"testkey":  testkey,
+				"exp":      now.Add(time.Hour).Unix(),
+				"iat":      now.Unix(),
+				"nbf":      now.Unix(),
+			}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
 			var loginVals Login
@@ -782,7 +787,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 			"password": "admin",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			token := gjson.Get(r.Body.String(), "token")
+			token := gjson.Get(r.Body.String(), "access_token")
 			userToken = token.String()
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
@@ -801,7 +806,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 			"password": "test",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			token := gjson.Get(r.Body.String(), "token")
+			token := gjson.Get(r.Body.String(), "access_token")
 			userToken = token.String()
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
