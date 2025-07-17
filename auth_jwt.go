@@ -3,7 +3,6 @@ package jwt
 import (
 	"crypto/rsa"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -645,11 +644,6 @@ func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, e
 		// refresh the token if it's within the MaxRefresh time.
 		// (see https://github.com/appleboy/gin-jwt/issues/176)
 		if !errors.Is(err, jwt.ErrTokenExpired) {
-			return nil, err
-		}
-
-		if errors.Is(err, jwt.ErrTokenInvalidClaims) {
-			log.Println("Token has invalid claims, exp is invalid")
 			return nil, err
 		}
 	}
