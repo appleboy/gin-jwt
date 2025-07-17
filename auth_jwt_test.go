@@ -14,7 +14,7 @@ import (
 
 	"github.com/appleboy/gofight/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 )
@@ -589,7 +589,6 @@ func TestExpiredTokenWithinMaxRefreshOnRefreshHandler(t *testing.T) {
 	token := jwt.New(jwt.GetSigningMethod("HS256"))
 	claims := token.Claims.(jwt.MapClaims)
 	claims["identity"] = "admin"
-	claims["exp"] = time.Now().Add(-time.Minute).Unix()
 	claims["orig_iat"] = time.Now().Add(-time.Hour).Unix()
 	tokenString, _ := token.SignedString(key)
 
@@ -1243,7 +1242,7 @@ func TestExpiredField(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
 
-			assert.Equal(t, ErrExpiredToken.Error(), strings.ToLower(message.String()))
+			assert.Equal(t, "token has invalid claims: invalid type for claim: exp is invalid", strings.ToLower(message.String()))
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 }

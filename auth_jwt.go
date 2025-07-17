@@ -4,13 +4,14 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/youmark/pkcs8"
 )
 
@@ -645,8 +646,12 @@ func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, e
 		// If the error is just ValidationErrorExpired, we want to continue, as we can still
 		// refresh the token if it's within the MaxRefresh time.
 		// (see https://github.com/appleboy/gin-jwt/issues/176)
-		validationErr, ok := err.(*jwt.ValidationError)
-		if !ok || validationErr.Errors != jwt.ValidationErrorExpired {
+		if !errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, err
+		}
+
+		if errors.Is(err, jwt.ErrTokenInvalidClaims) {
+			log.Println("Token has invalid claims, exp is invalid")
 			return nil, err
 		}
 	}
