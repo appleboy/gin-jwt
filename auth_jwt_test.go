@@ -589,6 +589,7 @@ func TestExpiredTokenWithinMaxRefreshOnRefreshHandler(t *testing.T) {
 	token := jwt.New(jwt.GetSigningMethod("HS256"))
 	claims := token.Claims.(jwt.MapClaims)
 	claims["identity"] = "admin"
+	claims["exp"] = time.Now().Add(-time.Minute).Unix()
 	claims["orig_iat"] = time.Now().Add(-time.Hour).Unix()
 	tokenString, _ := token.SignedString(key)
 
