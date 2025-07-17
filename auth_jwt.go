@@ -2,7 +2,6 @@ package jwt
 
 import (
 	"crypto/rsa"
-	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -155,10 +154,11 @@ type GinJWTMiddleware struct {
 	// CookieSameSite allow use http.SameSite cookie param
 	CookieSameSite http.SameSite
 
-	// ParseOptions allow to modify jwt's parser methods
+	// ParseOptions allow to modify jwt's parser methods.
+	// WithTimeFunc is always added to ensure the TimeFunc is propagated to the validator
 	ParseOptions []jwt.ParserOption
 
-	// Default vaule is "exp"
+	// Default value is "exp"
 	ExpField string
 }
 
@@ -447,6 +447,11 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		return ErrMissingSecretKey
 	}
 
+	if len(mw.ParseOptions) == 0 {
+		mw.ParseOptions = []jwt.ParserOption{}
+	}
+	mw.ParseOptions = append(mw.ParseOptions, jwt.WithTimeFunc(mw.TimeFunc))
+
 	return nil
 }
 
@@ -460,31 +465,24 @@ func (mw *GinJWTMiddleware) MiddlewareFunc() gin.HandlerFunc {
 func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	claims, err := mw.GetClaimsFromJWT(c)
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
-		return
-	}
-
-	switch v := claims[mw.ExpField].(type) {
-	case nil:
-		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
-		return
-	case float64:
-		if int64(v) < mw.TimeFunc().Unix() {
+		if errors.Is(err, jwt.ErrTokenExpired) {
 			mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
 			return
-		}
-	case json.Number:
-		n, err := v.Int64()
-		if err != nil {
+		} else if errors.Is(err, jwt.ErrInvalidType) && strings.Contains(err.Error(), "exp is invalid") {
 			mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, c))
 			return
-		}
-		if n < mw.TimeFunc().Unix() {
-			mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
+		} else if errors.Is(err, jwt.ErrTokenRequiredClaimMissing) && strings.Contains(err.Error(), "exp claim is required") {
+			mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
+			return
+		} else {
+			mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
 			return
 		}
-	default:
-		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, c))
+	}
+
+	// For backwards compatibility since technically exp is not required in the spec but has been in gin-jwt
+	if claims["exp"] == nil {
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
 		return
 	}
 
