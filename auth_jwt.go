@@ -369,7 +369,6 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 				"token_type":    "Bearer",
 				"expires_in":    int(time.Until(expire).Seconds()),
 				"refresh_token": refreshToken,
-				"scope":         "create",
 			})
 		}
 	}
@@ -397,7 +396,6 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 				"token_type":    "Bearer",
 				"expires_in":    int(time.Until(expire).Seconds()),
 				"refresh_token": refreshToken,
-				"scope":         "create",
 			})
 		}
 	}
