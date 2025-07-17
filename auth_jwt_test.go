@@ -235,9 +235,9 @@ func TestLoginHandler(t *testing.T) {
 	authMiddleware, err := New(&GinJWTMiddleware{
 		Realm: "test zone",
 		Key:   key,
-		PayloadFunc: func(data interface{}) MapClaims {
+		PayloadFunc: func(data interface{}) jwt.MapClaims {
 			// Set custom claim, to be checked in Authorizator method
-			return MapClaims{"testkey": "testval", "exp": 0}
+			return jwt.MapClaims{"testkey": "testval", "exp": 0}
 		},
 		Authenticator: func(c *gin.Context) (interface{}, error) {
 			var loginVals Login
@@ -699,13 +699,13 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		PayloadFunc: func(data interface{}) MapClaims {
-			if v, ok := data.(MapClaims); ok {
+		PayloadFunc: func(data interface{}) jwt.MapClaims {
+			if v, ok := data.(jwt.MapClaims); ok {
 				return v
 			}
 
 			if reflect.TypeOf(data).String() != "string" {
-				return MapClaims{}
+				return jwt.MapClaims{}
 			}
 
 			var testkey string
@@ -719,7 +719,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 			}
 			// Set custom claim, to be checked in Authorizator method
 			now := time.Now()
-			return MapClaims{
+			return jwt.MapClaims{
 				"identity": data.(string),
 				"testkey":  testkey,
 				"exp":      now.Add(time.Hour).Unix(),
@@ -769,7 +769,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 	r := gofight.New()
 	handler := ginHandler(authMiddleware)
 
-	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
+	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
 		"identity": "administrator",
 	})
 
@@ -820,7 +820,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		})
 }
 
-func ConvertClaims(claims MapClaims) map[string]interface{} {
+func ConvertClaims(claims jwt.MapClaims) map[string]interface{} {
 	return map[string]interface{}{}
 }
 
@@ -864,7 +864,7 @@ func TestEmptyClaims(t *testing.T) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
-	assert.Empty(t, MapClaims{})
+	assert.Empty(t, jwt.MapClaims{})
 }
 
 func TestUnauthorized(t *testing.T) {
@@ -1305,8 +1305,8 @@ func TestCheckTokenString(t *testing.T) {
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.String(code, message)
 		},
-		PayloadFunc: func(data interface{}) MapClaims {
-			if v, ok := data.(MapClaims); ok {
+		PayloadFunc: func(data interface{}) jwt.MapClaims {
+			if v, ok := data.(jwt.MapClaims); ok {
 				return v
 			}
 
@@ -1318,7 +1318,7 @@ func TestCheckTokenString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator(MapClaims{
+	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
 		"identity": "admin",
 	})
 
@@ -1347,7 +1347,7 @@ func TestCheckTokenString(t *testing.T) {
 
 	_, err = authMiddleware.ParseTokenString(userToken)
 	assert.Error(t, err)
-	assert.Equal(t, MapClaims{}, ExtractClaimsFromToken(nil))
+	assert.Equal(t, jwt.MapClaims{}, ExtractClaimsFromToken(nil))
 }
 
 func TestLogout(t *testing.T) {

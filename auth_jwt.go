@@ -13,8 +13,6 @@ import (
 	"github.com/youmark/pkcs8"
 )
 
-type MapClaims jwt.MapClaims
-
 // GinJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response
 // is returned. On success, the wrapped middleware is called, and the userID is made available as
 // c.Get("userID").(string).
@@ -62,7 +60,7 @@ type GinJWTMiddleware struct {
 	// Note that the payload is not encrypted.
 	// The attributes mentioned on jwt.io can't be used as keys for the map.
 	// Optional, by default no additional data will be set.
-	PayloadFunc func(data interface{}) MapClaims
+	PayloadFunc func(data interface{}) jwt.MapClaims
 
 	// User can define own Unauthorized func.
 	Unauthorized func(c *gin.Context, code int, message string)
@@ -501,7 +499,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 }
 
 // GetClaimsFromJWT get claims from JWT token
-func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (MapClaims, error) {
+func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, error) {
 	token, err := mw.ParseToken(c)
 	if err != nil {
 		return nil, err
@@ -513,7 +511,7 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (MapClaims, error) 
 		}
 	}
 
-	claims := MapClaims{}
+	claims := jwt.MapClaims{}
 	for key, value := range token.Claims.(jwt.MapClaims) {
 		claims[key] = value
 	}
@@ -814,22 +812,22 @@ func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message strin
 }
 
 // ExtractClaims help to extract the JWT claims
-func ExtractClaims(c *gin.Context) MapClaims {
+func ExtractClaims(c *gin.Context) jwt.MapClaims {
 	claims, exists := c.Get("JWT_PAYLOAD")
 	if !exists {
-		return make(MapClaims)
+		return make(jwt.MapClaims)
 	}
 
-	return claims.(MapClaims)
+	return claims.(jwt.MapClaims)
 }
 
 // ExtractClaimsFromToken help to extract the JWT claims from token
-func ExtractClaimsFromToken(token *jwt.Token) MapClaims {
+func ExtractClaimsFromToken(token *jwt.Token) jwt.MapClaims {
 	if token == nil {
-		return make(MapClaims)
+		return make(jwt.MapClaims)
 	}
 
-	claims := MapClaims{}
+	claims := jwt.MapClaims{}
 	for key, value := range token.Claims.(jwt.MapClaims) {
 		claims[key] = value
 	}
