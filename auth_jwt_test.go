@@ -14,7 +14,7 @@ import (
 
 	"github.com/appleboy/gofight/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/tidwall/gjson"
 )
@@ -1233,7 +1233,7 @@ func TestExpiredField(t *testing.T) {
 		})
 
 	// wrong format
-	claims["exp"] = "wrongFormatForExpiryIgnoredByJwtLibrary"
+	claims["exp"] = "wrongFormatForExpiry"
 	tokenString, _ = token.SignedString(key)
 
 	r.GET("/auth/hello").
@@ -1243,8 +1243,55 @@ func TestExpiredField(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
 
-			assert.Equal(t, ErrExpiredToken.Error(), strings.ToLower(message.String()))
-			assert.Equal(t, http.StatusUnauthorized, r.Code)
+			assert.Equal(t, ErrWrongFormatOfExp.Error(), strings.ToLower(message.String()))
+			assert.Equal(t, http.StatusBadRequest, r.Code)
+		})
+}
+
+func TestExpiredFieldRequiredParserOption(t *testing.T) {
+	// the middleware to test
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:         "test zone",
+		Key:           key,
+		Timeout:       time.Hour,
+		Authenticator: defaultAuthenticator,
+		ParseOptions:  []jwt.ParserOption{jwt.WithExpirationRequired()},
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	token := jwt.New(jwt.GetSigningMethod("HS256"))
+	claims := token.Claims.(jwt.MapClaims)
+	claims["identity"] = "admin"
+	claims["orig_iat"] = 0
+	tokenString, _ := token.SignedString(key)
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + tokenString,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			message := gjson.Get(r.Body.String(), "message")
+
+			assert.Equal(t, ErrMissingExpField.Error(), message.String())
+			assert.Equal(t, http.StatusBadRequest, r.Code)
+		})
+
+	// wrong format
+	claims["exp"] = "wrongFormatForExpiry"
+	tokenString, _ = token.SignedString(key)
+
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + tokenString,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			message := gjson.Get(r.Body.String(), "message")
+
+			assert.Equal(t, ErrWrongFormatOfExp.Error(), strings.ToLower(message.String()))
+			assert.Equal(t, http.StatusBadRequest, r.Code)
 		})
 }
 
