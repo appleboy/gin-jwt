@@ -507,12 +507,19 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, err
 
 	if mw.SendAuthorization {
 		if v, ok := c.Get("JWT_TOKEN"); ok {
-			c.Header("Authorization", mw.TokenHeadName+" "+v.(string))
+			if tokenStr, ok := v.(string); ok {
+				c.Header("Authorization", mw.TokenHeadName+" "+tokenStr)
+			}
 		}
 	}
 
-	claims := jwt.MapClaims{}
-	for key, value := range token.Claims.(jwt.MapClaims) {
+	mapClaims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid token claims type")
+	}
+
+	claims := make(jwt.MapClaims, len(mapClaims))
+	for key, value := range mapClaims {
 		claims[key] = value
 	}
 
@@ -536,7 +543,11 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	// Create the token
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
+		return
+	}
 
 	if mw.PayloadFunc != nil {
 		for key, value := range mw.PayloadFunc(data) {
@@ -613,7 +624,10 @@ func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, err
 
 	// Create the token
 	newToken := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
-	newClaims := newToken.Claims.(jwt.MapClaims)
+	newClaims, ok := newToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", time.Now(), ErrFailedTokenCreation
+	}
 
 	for key := range claims {
 		newClaims[key] = claims[key]
@@ -646,10 +660,22 @@ func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, e
 		}
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid token claims type")
+	}
 
-	origIat := int64(claims["orig_iat"].(float64))
+	origIatValue, exists := claims["orig_iat"]
+	if !exists {
+		return nil, errors.New("missing orig_iat claim")
+	}
 
+	origIatFloat, ok := origIatValue.(float64)
+	if !ok {
+		return nil, errors.New("invalid orig_iat format")
+	}
+
+	origIat := int64(origIatFloat)
 	if origIat < mw.TimeFunc().Add(-mw.MaxRefresh).Unix() {
 		return nil, ErrExpiredToken
 	}
@@ -660,7 +686,10 @@ func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, e
 // TokenGenerator method that clients can use to get a jwt token.
 func (mw *GinJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time, error) {
 	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", time.Time{}, ErrFailedTokenCreation
+	}
 
 	if mw.PayloadFunc != nil {
 		for key, value := range mw.PayloadFunc(data) {
@@ -827,8 +856,13 @@ func ExtractClaimsFromToken(token *jwt.Token) jwt.MapClaims {
 		return make(jwt.MapClaims)
 	}
 
-	claims := jwt.MapClaims{}
-	for key, value := range token.Claims.(jwt.MapClaims) {
+	mapClaims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return make(jwt.MapClaims)
+	}
+
+	claims := make(jwt.MapClaims, len(mapClaims))
+	for key, value := range mapClaims {
 		claims[key] = value
 	}
 
