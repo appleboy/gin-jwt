@@ -222,7 +222,7 @@ var (
 	IdentityKey = "identity"
 )
 
-// New for check error with GinJWTMiddleware
+// New creates and initializes a new GinJWTMiddleware instance
 func New(m *GinJWTMiddleware) (*GinJWTMiddleware, error) {
 	if err := m.MiddlewareInit(); err != nil {
 		return nil, err
@@ -320,7 +320,7 @@ func (mw *GinJWTMiddleware) usingPublicKeyAlgo() bool {
 	return false
 }
 
-// MiddlewareInit initialize jwt configs.
+// MiddlewareInit initializes JWT middleware configuration with default values
 func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	if mw.TokenLookup == "" {
 		mw.TokenLookup = "header:Authorization"
@@ -345,7 +345,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	mw.TokenHeadName = strings.TrimSpace(mw.TokenHeadName)
-	if len(mw.TokenHeadName) == 0 {
+	if mw.TokenHeadName == "" {
 		mw.TokenHeadName = "Bearer"
 	}
 
@@ -366,7 +366,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 
 	if mw.LoginResponse == nil {
 		mw.LoginResponse = func(c *gin.Context, code int, token string, expire time.Time) {
-			refreshToken, _, err := mw.RefreshToken(c)
+			response, err := mw.generateTokenResponse(c, token, expire)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{
 					"code":    http.StatusUnauthorized,
@@ -374,12 +374,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 				})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{
-				"access_token":  token,
-				"token_type":    "Bearer",
-				"expires_in":    int(time.Until(expire).Seconds()),
-				"refresh_token": refreshToken,
-			})
+			c.JSON(http.StatusOK, response)
 		}
 	}
 
@@ -393,7 +388,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 
 	if mw.RefreshResponse == nil {
 		mw.RefreshResponse = func(c *gin.Context, code int, token string, expire time.Time) {
-			refreshToken, _, err := mw.RefreshToken(c)
+			response, err := mw.generateTokenResponse(c, token, expire)
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{
 					"code":    http.StatusUnauthorized,
@@ -401,12 +396,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 				})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{
-				"access_token":  token,
-				"token_type":    "Bearer",
-				"expires_in":    int(time.Until(expire).Seconds()),
-				"refresh_token": refreshToken,
-			})
+			c.JSON(http.StatusOK, response)
 		}
 	}
 
@@ -456,8 +446,8 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		return ErrMissingSecretKey
 	}
 
-	if len(mw.ParseOptions) == 0 {
-		mw.ParseOptions = []jwt.ParserOption{}
+	if mw.ParseOptions == nil {
+		mw.ParseOptions = make([]jwt.ParserOption, 0, 1)
 	}
 	mw.ParseOptions = append(mw.ParseOptions, jwt.WithTimeFunc(mw.TimeFunc))
 
@@ -474,19 +464,8 @@ func (mw *GinJWTMiddleware) MiddlewareFunc() gin.HandlerFunc {
 func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	claims, err := mw.GetClaimsFromJWT(c)
 	if err != nil {
-		if errors.Is(err, jwt.ErrTokenExpired) {
-			mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
-			return
-		} else if errors.Is(err, jwt.ErrInvalidType) && strings.Contains(err.Error(), "exp is invalid") {
-			mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, c))
-			return
-		} else if errors.Is(err, jwt.ErrTokenRequiredClaimMissing) && strings.Contains(err.Error(), "exp claim is required") {
-			mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
-			return
-		} else {
-			mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
-			return
-		}
+		mw.handleTokenError(c, err)
+		return
 	}
 
 	// For backwards compatibility since technically exp is not required in the spec but has been in gin-jwt
@@ -530,12 +509,8 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, err
 		return nil, errors.New("invalid token claims type")
 	}
 
-	claims := make(jwt.MapClaims, len(mapClaims))
-	for key, value := range mapClaims {
-		claims[key] = value
-	}
-
-	return claims, nil
+	// Return the claims directly without unnecessary copying
+	return mapClaims, nil
 }
 
 // LoginHandler can be used by clients to get a jwt token.
@@ -878,12 +853,8 @@ func ExtractClaimsFromToken(token *jwt.Token) jwt.MapClaims {
 		return make(jwt.MapClaims)
 	}
 
-	claims := make(jwt.MapClaims, len(mapClaims))
-	for key, value := range mapClaims {
-		claims[key] = value
-	}
-
-	return claims
+	// Return the claims directly without unnecessary copying
+	return mapClaims
 }
 
 // GetToken help to get the JWT token string
@@ -922,6 +893,35 @@ func (mw *GinJWTMiddleware) SetCookie(c *gin.Context, token string) {
 			mw.CookieHTTPOnly,
 		)
 	}
+}
+
+// handleTokenError handles different types of JWT token validation errors
+func (mw *GinJWTMiddleware) handleTokenError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, jwt.ErrTokenExpired):
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
+	case errors.Is(err, jwt.ErrInvalidType) && strings.Contains(err.Error(), "exp is invalid"):
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, c))
+	case errors.Is(err, jwt.ErrTokenRequiredClaimMissing) && strings.Contains(err.Error(), "exp claim is required"):
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
+	default:
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
+	}
+}
+
+// generateTokenResponse creates a standard token response with refresh token
+func (mw *GinJWTMiddleware) generateTokenResponse(c *gin.Context, token string, expire time.Time) (gin.H, error) {
+	refreshToken, _, err := mw.RefreshToken(c)
+	if err != nil {
+		return nil, err
+	}
+
+	return gin.H{
+		"access_token":  token,
+		"token_type":    "Bearer",
+		"expires_in":    int(time.Until(expire).Seconds()),
+		"refresh_token": refreshToken,
+	}, nil
 }
 
 // ClearSensitiveData clears sensitive data from memory
