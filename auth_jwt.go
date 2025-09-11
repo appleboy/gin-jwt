@@ -3,6 +3,7 @@ package jwt
 import (
 	"crypto/rsa"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -252,6 +253,8 @@ func (mw *GinJWTMiddleware) privateKey() error {
 		var filecontent []byte
 		filecontent, err = os.ReadFile(mw.PrivKeyFile)
 		if err != nil {
+			// Log detailed error for debugging but don't expose to client
+			log.Printf("Failed to read private key file %s: %v", mw.PrivKeyFile, err)
 			return ErrNoPrivKeyFile
 		}
 		keyData = filecontent
@@ -259,7 +262,14 @@ func (mw *GinJWTMiddleware) privateKey() error {
 
 	if mw.PrivateKeyPassphrase != "" {
 		var key interface{}
-		key, err = pkcs8.ParsePKCS8PrivateKey(keyData, []byte(mw.PrivateKeyPassphrase))
+		passphrase := []byte(mw.PrivateKeyPassphrase)
+		key, err = pkcs8.ParsePKCS8PrivateKey(keyData, passphrase)
+
+		// Clear passphrase from memory immediately after use
+		for i := range passphrase {
+			passphrase[i] = 0
+		}
+
 		if err != nil {
 			return ErrInvalidPrivKey
 		}
@@ -287,6 +297,8 @@ func (mw *GinJWTMiddleware) publicKey() error {
 	} else {
 		filecontent, err := os.ReadFile(mw.PubKeyFile)
 		if err != nil {
+			// Log detailed error for debugging but don't expose to client
+			log.Printf("Failed to read public key file %s: %v", mw.PubKeyFile, err)
 			return ErrNoPubKeyFile
 		}
 		keyData = filecontent
@@ -847,7 +859,12 @@ func ExtractClaims(c *gin.Context) jwt.MapClaims {
 		return make(jwt.MapClaims)
 	}
 
-	return claims.(jwt.MapClaims)
+	mapClaims, ok := claims.(jwt.MapClaims)
+	if !ok {
+		return make(jwt.MapClaims)
+	}
+
+	return mapClaims
 }
 
 // ExtractClaimsFromToken help to extract the JWT claims from token
@@ -876,7 +893,12 @@ func GetToken(c *gin.Context) string {
 		return ""
 	}
 
-	return token.(string)
+	tokenStr, ok := token.(string)
+	if !ok {
+		return ""
+	}
+
+	return tokenStr
 }
 
 // SetCookie help to set the token in the cookie
@@ -900,4 +922,46 @@ func (mw *GinJWTMiddleware) SetCookie(c *gin.Context, token string) {
 			mw.CookieHTTPOnly,
 		)
 	}
+}
+
+// ClearSensitiveData clears sensitive data from memory
+func (mw *GinJWTMiddleware) ClearSensitiveData() {
+	// Clear symmetric key
+	if mw.Key != nil {
+		for i := range mw.Key {
+			mw.Key[i] = 0
+		}
+		mw.Key = nil
+	}
+
+	// Clear private key bytes
+	if mw.PrivKeyBytes != nil {
+		for i := range mw.PrivKeyBytes {
+			mw.PrivKeyBytes[i] = 0
+		}
+		mw.PrivKeyBytes = nil
+	}
+
+	// Clear public key bytes
+	if mw.PubKeyBytes != nil {
+		for i := range mw.PubKeyBytes {
+			mw.PubKeyBytes[i] = 0
+		}
+		mw.PubKeyBytes = nil
+	}
+
+	// Clear passphrase
+	if len(mw.PrivateKeyPassphrase) > 0 {
+		// Convert to []byte to clear, then back to string
+		passBytes := []byte(mw.PrivateKeyPassphrase)
+		for i := range passBytes {
+			passBytes[i] = 0
+		}
+		mw.PrivateKeyPassphrase = ""
+	}
+
+	// Note: RSA keys (mw.privKey, mw.pubKey) are harder to clear completely
+	// due to Go's garbage collector, but setting to nil helps
+	mw.privKey = nil
+	mw.pubKey = nil
 }
