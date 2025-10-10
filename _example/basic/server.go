@@ -43,8 +43,11 @@ func main() {
 		log.Fatal("JWT Error:" + err.Error())
 	}
 
-	// register middleware
-	engine.Use(handlerMiddleWare(authMiddleware))
+	// initialize middleware
+	errInit := authMiddleware.MiddlewareInit()
+	if errInit != nil {
+		log.Fatal("authMiddleware.MiddlewareInit() Error:" + errInit.Error())
+	}
 
 	// register route
 	registerRoute(engine, authMiddleware)
@@ -66,15 +69,6 @@ func registerRoute(r *gin.Engine, handle *jwt.GinJWTMiddleware) {
 	auth := r.Group("/auth", handle.MiddlewareFunc())
 	auth.GET("/hello", helloHandler)
 	auth.POST("/logout", handle.LogoutHandler) // Logout with refresh token revocation
-}
-
-func handlerMiddleWare(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc {
-	return func(context *gin.Context) {
-		errInit := authMiddleware.MiddlewareInit()
-		if errInit != nil {
-			log.Fatal("authMiddleware.MiddlewareInit() Error:" + errInit.Error())
-		}
-	}
 }
 
 func initParams() *jwt.GinJWTMiddleware {
@@ -158,8 +152,6 @@ func unauthorized() func(c *gin.Context, code int, message string) {
 
 func handleNoRoute() func(c *gin.Context) {
 	return func(c *gin.Context) {
-		claims := jwt.ExtractClaims(c)
-		log.Printf("NoRoute claims: %#v\n", claims)
 		c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", "message": "Page not found"})
 	}
 }
