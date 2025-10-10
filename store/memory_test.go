@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // User represents a test user for testing purposes
@@ -191,10 +193,14 @@ func TestInMemoryRefreshTokenStore_Cleanup(t *testing.T) {
 	validExpiry := time.Now().Add(time.Hour)
 	expiredExpiry := time.Now().Add(-time.Hour)
 
-	store.Set("valid1", &User{ID: "1"}, validExpiry)
-	store.Set("valid2", &User{ID: "2"}, validExpiry)
-	store.Set("expired1", &User{ID: "3"}, expiredExpiry)
-	store.Set("expired2", &User{ID: "4"}, expiredExpiry)
+	err := store.Set("valid1", &User{ID: "1"}, validExpiry)
+	assert.NoError(t, err)
+	err = store.Set("valid2", &User{ID: "2"}, validExpiry)
+	assert.NoError(t, err)
+	err = store.Set("expired1", &User{ID: "3"}, expiredExpiry)
+	assert.NoError(t, err)
+	err = store.Set("expired2", &User{ID: "4"}, expiredExpiry)
+	assert.NoError(t, err)
 
 	// Verify initial count
 	count, _ := store.Count()
@@ -258,7 +264,7 @@ func TestInMemoryRefreshTokenStore_Count(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		token := fmt.Sprintf("token%d", i)
 		user := &User{ID: fmt.Sprintf("%d", i)}
-		store.Set(token, user, expiry)
+		_ = store.Set(token, user, expiry)
 	}
 
 	count, err = store.Count()
@@ -277,9 +283,9 @@ func TestInMemoryRefreshTokenStore_GetAll(t *testing.T) {
 	validExpiry := time.Now().Add(time.Hour)
 	expiredExpiry := time.Now().Add(-time.Hour)
 
-	store.Set("valid1", &User{ID: "1"}, validExpiry)
-	store.Set("valid2", &User{ID: "2"}, validExpiry)
-	store.Set("expired1", &User{ID: "3"}, expiredExpiry)
+	_ = store.Set("valid1", &User{ID: "1"}, validExpiry)
+	_ = store.Set("valid2", &User{ID: "2"}, validExpiry)
+	_ = store.Set("expired1", &User{ID: "3"}, expiredExpiry)
 
 	all := store.GetAll()
 
@@ -306,8 +312,8 @@ func TestInMemoryRefreshTokenStore_Clear(t *testing.T) {
 
 	// Add some tokens
 	expiry := time.Now().Add(time.Hour)
-	store.Set("token1", &User{ID: "1"}, expiry)
-	store.Set("token2", &User{ID: "2"}, expiry)
+	_ = store.Set("token1", &User{ID: "1"}, expiry)
+	_ = store.Set("token2", &User{ID: "2"}, expiry)
 
 	count, _ := store.Count()
 	if count != 2 {
@@ -337,7 +343,7 @@ func TestInMemoryRefreshTokenStore_ConcurrentAccess(t *testing.T) {
 			token := fmt.Sprintf("token%d", id)
 			user := &User{ID: fmt.Sprintf("%d", id)}
 			expiry := time.Now().Add(time.Hour)
-			store.Set(token, user, expiry)
+			_ = store.Set(token, user, expiry)
 		}(i)
 	}
 	wg.Wait()
@@ -368,7 +374,7 @@ func TestInMemoryRefreshTokenStore_ConcurrentAccess(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			token := fmt.Sprintf("token%d", id)
-			store.Delete(token)
+			_ = store.Delete(token)
 		}(i)
 	}
 	wg.Wait()
@@ -408,7 +414,7 @@ func BenchmarkInMemoryRefreshTokenStore_Set(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		token := fmt.Sprintf("token%d", i)
-		store.Set(token, user, expiry)
+		_ = store.Set(token, user, expiry)
 	}
 }
 
@@ -420,13 +426,13 @@ func BenchmarkInMemoryRefreshTokenStore_Get(b *testing.B) {
 	// Pre-populate with tokens
 	for i := 0; i < 1000; i++ {
 		token := fmt.Sprintf("token%d", i)
-		store.Set(token, user, expiry)
+		_ = store.Set(token, user, expiry)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		token := fmt.Sprintf("token%d", i%1000)
-		store.Get(token)
+		_, _ = store.Get(token)
 	}
 }
 
@@ -438,12 +444,12 @@ func BenchmarkInMemoryRefreshTokenStore_Delete(b *testing.B) {
 	// Pre-populate with tokens
 	for i := 0; i < b.N; i++ {
 		token := fmt.Sprintf("token%d", i)
-		store.Set(token, user, expiry)
+		_ = store.Set(token, user, expiry)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		token := fmt.Sprintf("token%d", i)
-		store.Delete(token)
+		_ = store.Delete(token)
 	}
 }
