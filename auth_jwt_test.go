@@ -606,7 +606,7 @@ func TestRefreshHandler(t *testing.T) {
 	}
 }
 
-func TestExpiredTokenWithinMaxRefreshOnRefreshHandler(t *testing.T) {
+func TestValidRefreshToken(t *testing.T) {
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
 		Realm:                "test zone",
