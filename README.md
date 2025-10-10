@@ -45,6 +45,8 @@ Easily add login, token refresh, and authorization to your Gin applications.
 - 🛡️ Customizable authentication, authorization, and claims
 - 🍪 Cookie and header token support
 - 📝 Easy integration and clear API
+- 🔐 RFC 6749 compliant refresh tokens (OAuth 2.0 standard)
+- 🗄️ Pluggable refresh token storage (in-memory, Redis, etc.)
 
 ---
 
@@ -54,6 +56,10 @@ Easily add login, token refresh, and authorization to your Gin applications.
 > JWT tokens with weak secrets (e.g., short or simple passwords) are vulnerable to brute-force attacks.
 > **Recommendation:** Use strong, long secrets or `RS256` tokens.
 > See the [jwt-cracker repository](https://github.com/lmammino/jwt-cracker) for more information.
+> **OAuth 2.0 Security:**
+> This library follows RFC 6749 OAuth 2.0 standards by default, using separate opaque refresh tokens
+> that are stored server-side and rotated on each use. This provides better security than using
+> JWT tokens for both access and refresh purposes.
 
 ---
 
@@ -87,6 +93,7 @@ import (
 
   jwt "github.com/appleboy/gin-jwt/v2"
   "github.com/gin-gonic/gin"
+  "github.com/golang-jwt/jwt/v5"
 )
 
 type login struct {
@@ -135,10 +142,11 @@ func main() {
 
 func registerRoute(r *gin.Engine, handle *jwt.GinJWTMiddleware) {
   r.POST("/login", handle.LoginHandler)
+  r.POST("/refresh", handle.RefreshHandler) // RFC 6749 compliant refresh endpoint
   r.NoRoute(handle.MiddlewareFunc(), handleNoRoute())
 
   auth := r.Group("/auth", handle.MiddlewareFunc())
-  auth.GET("/refresh_token", handle.RefreshHandler)
+  auth.POST("/refresh_token", handle.RefreshHandler) // Alternative refresh endpoint
   auth.GET("/hello", helloHandler)
 }
 
@@ -271,8 +279,14 @@ http -v --json POST localhost:8000/login username=admin password=admin
 
 ### Refresh Token
 
+Using RFC 6749 compliant refresh tokens (default behavior):
+
 ```sh
-http -v -f GET localhost:8000/auth/refresh_token "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+# First login to get refresh token
+http -v --json POST localhost:8000/login username=admin password=admin
+
+# Use refresh token to get new access token
+http -v --json POST localhost:8000/auth/refresh_token refresh_token=your_refresh_token_here
 ```
 
 ![Refresh screenshot](screenshot/refresh_token.png)
@@ -373,11 +387,11 @@ This should likely just return back to the user the http status code, if logout 
 
 PROVIDED: `RefreshHandler`:
 
-This is a provided function to be called on any refresh token endpoint. If the token passed in is was issued within the `MaxRefreshTime` time frame, then this handler will create/set a new token similar to the `LoginHandler`, and pass this token into `RefreshResponse`
+This is a provided function to be called on any refresh token endpoint. The handler expects a `refresh_token` parameter (RFC 6749 compliant) and validates it against the server-side token store. If the refresh token is valid and not expired, the handler will create a new access token and refresh token, revoke the old refresh token, and pass the new tokens into `RefreshResponse`. This follows OAuth 2.0 security best practices by rotating refresh tokens.
 
 OPTIONAL: `RefreshResponse`:
 
-This should likely return a JSON of the token back to the user, similar to `LoginResponse`
+This should return a JSON response containing the new `access_token`, `token_type`, `expires_in`, and `refresh_token` fields, following RFC 6749 token response format.
 
 ### Failures with logging in, bad tokens, or lacking privileges
 

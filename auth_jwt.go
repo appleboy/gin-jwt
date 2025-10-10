@@ -1,13 +1,18 @@
 package jwt
 
 import (
+	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"errors"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/appleboy/gin-jwt/v2/core"
+	"github.com/appleboy/gin-jwt/v2/store"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -158,6 +163,20 @@ type GinJWTMiddleware struct {
 
 	// Default value is "exp"
 	ExpField string
+
+	// RefreshTokenTimeout specifies how long refresh tokens are valid
+	// Defaults to 30 days if not set
+	RefreshTokenTimeout time.Duration
+
+	// RefreshTokenStore interface for storing and retrieving refresh tokens
+	// If nil, an in-memory store will be used
+	RefreshTokenStore core.TokenStore
+
+	// RefreshTokenLength specifies the byte length of refresh tokens (default: 32)
+	RefreshTokenLength int
+
+	// inMemoryStore internal fallback refresh token store
+	inMemoryStore *store.InMemoryRefreshTokenStore
 }
 
 var (
@@ -220,6 +239,12 @@ var (
 
 	// IdentityKey default identity key
 	IdentityKey = "identity"
+
+	// ErrInvalidRefreshToken indicates the refresh token is invalid or expired
+	ErrInvalidRefreshToken = errors.New("invalid or expired refresh token")
+
+	// ErrRefreshTokenNotFound indicates the refresh token was not found in storage
+	ErrRefreshTokenNotFound = errors.New("refresh token not found")
 )
 
 // New creates and initializes a new GinJWTMiddleware instance
@@ -433,6 +458,18 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		mw.ExpField = "exp"
 	}
 
+	// Initialize refresh token settings (RFC 6749 compliant by default)
+	if mw.RefreshTokenTimeout == 0 {
+		mw.RefreshTokenTimeout = 30 * 24 * time.Hour // 30 days default
+	}
+	if mw.RefreshTokenLength == 0 {
+		mw.RefreshTokenLength = 32 // 256 bits default
+	}
+	if mw.RefreshTokenStore == nil {
+		mw.inMemoryStore = store.NewInMemoryRefreshTokenStore()
+		mw.RefreshTokenStore = mw.inMemoryStore
+	}
+
 	// bypass other key settings if KeyFunc is set
 	if mw.KeyFunc != nil {
 		return nil
@@ -553,11 +590,50 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 
 	mw.SetCookie(c, tokenString)
 
+	// Generate RFC 6749 compliant refresh token
+	refreshToken, err := mw.generateRefreshToken()
+	if err != nil {
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
+		return
+	}
+
+	if err := mw.storeRefreshToken(refreshToken, data); err != nil {
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
+		return
+	}
+
+	// Store refresh token in context for response generation
+	c.Set("REFRESH_TOKEN", refreshToken)
+
 	mw.LoginResponse(c, http.StatusOK, tokenString, expire)
 }
 
-// LogoutHandler can be used by clients to remove the jwt cookie (if set)
+func (mw *GinJWTMiddleware) extractRefreshToken(c *gin.Context) string {
+	token := c.PostForm("refresh_token")
+	if token == "" {
+		token = c.Query("refresh_token")
+	}
+	if token == "" {
+		var reqBody struct {
+			RefreshToken string `json:"refresh_token"`
+		}
+		if err := c.ShouldBindJSON(&reqBody); err == nil {
+			token = reqBody.RefreshToken
+		}
+	}
+	return token
+}
+
+// LogoutHandler can be used by clients to remove the jwt cookie and revoke refresh token
 func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
+	// Handle refresh token revocation (RFC 6749 compliant)
+	refreshToken := mw.extractRefreshToken(c)
+	if refreshToken != "" {
+		if err := mw.revokeRefreshToken(refreshToken); err != nil {
+			log.Printf("Failed to revoke refresh token on logout: %v", err)
+		}
+	}
+
 	// delete auth cookie
 	if mw.SendCookie {
 		if mw.CookieSameSite != 0 {
@@ -589,48 +665,99 @@ func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
 	return tokenString, err
 }
 
-// RefreshHandler can be used to refresh a token. The token still needs to be valid on refresh.
-// Shall be put under an endpoint that is using the GinJWTMiddleware.
-// Reply will be of the form {"token": "TOKEN"}.
+// generateRefreshToken creates a cryptographically secure random refresh token
+func (mw *GinJWTMiddleware) generateRefreshToken() (string, error) {
+	bytes := make([]byte, mw.RefreshTokenLength)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(bytes), nil
+}
+
+// storeRefreshToken stores a refresh token with user data
+func (mw *GinJWTMiddleware) storeRefreshToken(token string, userData interface{}) error {
+	expiry := mw.TimeFunc().Add(mw.RefreshTokenTimeout)
+	return mw.RefreshTokenStore.Set(token, userData, expiry)
+}
+
+// validateRefreshToken validates a refresh token and returns associated user data
+func (mw *GinJWTMiddleware) validateRefreshToken(token string) (interface{}, error) {
+	userData, err := mw.RefreshTokenStore.Get(token)
+	if err != nil {
+		if err == core.ErrRefreshTokenNotFound {
+			return nil, ErrInvalidRefreshToken
+		}
+		return nil, err
+	}
+	return userData, nil
+}
+
+// revokeRefreshToken removes a refresh token from storage
+func (mw *GinJWTMiddleware) revokeRefreshToken(token string) error {
+	return mw.RefreshTokenStore.Delete(token)
+}
+
+// RefreshHandler can be used to refresh a token using RFC 6749 compliant refresh tokens.
+// This handler expects a refresh_token parameter and returns a new access token and refresh token.
+// Reply will be of the form {"access_token": "TOKEN", "refresh_token": "REFRESH_TOKEN"}.
 func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
-	tokenString, expire, err := mw.RefreshToken(c)
+	mw.rfc6749RefreshHandler(c)
+}
+
+// rfc6749RefreshHandler handles refresh token requests in RFC 6749 compliant mode
+func (mw *GinJWTMiddleware) rfc6749RefreshHandler(c *gin.Context) {
+	// Extract refresh token from request
+	refreshToken := mw.extractRefreshToken(c)
+	if refreshToken == "" {
+		mw.unauthorized(c, http.StatusBadRequest, "missing refresh_token parameter")
+		return
+	}
+
+	// Validate refresh token
+	userData, err := mw.validateRefreshToken(refreshToken)
 	if err != nil {
 		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
 		return
 	}
 
-	mw.RefreshResponse(c, http.StatusOK, tokenString, expire)
+	// Generate new access token
+	newTokenString, expire, err := mw.TokenGenerator(userData)
+	if err != nil {
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
+		return
+	}
+
+	// Generate new refresh token and revoke old one
+	newRefreshToken, err := mw.generateRefreshToken()
+	if err != nil {
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
+		return
+	}
+
+	// Store new refresh token
+	if err := mw.storeRefreshToken(newRefreshToken, userData); err != nil {
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
+		return
+	}
+
+	// Revoke old refresh token
+	if err := mw.revokeRefreshToken(refreshToken); err != nil {
+		// Log error but don't fail the request
+		log.Printf("Failed to revoke old refresh token: %v", err)
+	}
+
+	mw.SetCookie(c, newTokenString)
+
+	// Store new refresh token in context for response generation
+	c.Set("REFRESH_TOKEN", newRefreshToken)
+
+	mw.RefreshResponse(c, http.StatusOK, newTokenString, expire)
 }
 
-// RefreshToken refresh token and check if token is expired
+// RefreshToken is deprecated. Use RefreshHandler instead for RFC 6749 compliant refresh tokens.
+// This method now returns an error to encourage migration to the proper refresh token flow.
 func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, error) {
-	claims, err := mw.CheckIfTokenExpire(c)
-	if err != nil {
-		return "", time.Now(), err
-	}
-
-	// Create the token
-	newToken := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
-	newClaims, ok := newToken.Claims.(jwt.MapClaims)
-	if !ok {
-		return "", time.Now(), ErrFailedTokenCreation
-	}
-
-	for key := range claims {
-		newClaims[key] = claims[key]
-	}
-
-	expire := mw.TimeFunc().Add(mw.TimeoutFunc(claims))
-	newClaims[mw.ExpField] = expire.Unix()
-	newClaims["orig_iat"] = mw.TimeFunc().Unix()
-	tokenString, err := mw.signedString(newToken)
-	if err != nil {
-		return "", time.Now(), err
-	}
-
-	mw.SetCookie(c, tokenString)
-
-	return tokenString, expire, nil
+	return "", time.Now(), errors.New("RefreshToken method is deprecated: use RefreshHandler with refresh_token parameter for RFC 6749 compliant behavior")
 }
 
 // CheckIfTokenExpire check if token expire
@@ -909,19 +1036,20 @@ func (mw *GinJWTMiddleware) handleTokenError(c *gin.Context, err error) {
 	}
 }
 
-// generateTokenResponse creates a standard token response with refresh token
+// generateTokenResponse creates a RFC 6749 compliant token response with refresh token
 func (mw *GinJWTMiddleware) generateTokenResponse(c *gin.Context, token string, expire time.Time) (gin.H, error) {
-	refreshToken, _, err := mw.RefreshToken(c)
-	if err != nil {
-		return nil, err
+	response := gin.H{
+		"access_token": token,
+		"token_type":   "Bearer",
+		"expires_in":   int(time.Until(expire).Seconds()),
 	}
 
-	return gin.H{
-		"access_token":  token,
-		"token_type":    "Bearer",
-		"expires_in":    int(time.Until(expire).Seconds()),
-		"refresh_token": refreshToken,
-	}, nil
+	// Always include refresh token from context (RFC 6749 compliant)
+	if refreshToken, exists := c.Get("REFRESH_TOKEN"); exists {
+		response["refresh_token"] = refreshToken
+	}
+
+	return response, nil
 }
 
 // ClearSensitiveData clears sensitive data from memory
@@ -964,4 +1092,9 @@ func (mw *GinJWTMiddleware) ClearSensitiveData() {
 	// due to Go's garbage collector, but setting to nil helps
 	mw.privKey = nil
 	mw.pubKey = nil
+
+	// Clear refresh token store if using in-memory store
+	if mw.inMemoryStore != nil {
+		mw.inMemoryStore.Clear()
+	}
 }

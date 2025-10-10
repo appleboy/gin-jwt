@@ -8,6 +8,7 @@ import (
 
 	jwt "github.com/appleboy/gin-jwt/v2"
 	"github.com/gin-gonic/gin"
+	gojwt "github.com/golang-jwt/jwt/v5"
 )
 
 type login struct {
@@ -55,12 +56,16 @@ func main() {
 }
 
 func registerRoute(r *gin.Engine, handle *jwt.GinJWTMiddleware) {
+	// Public routes
 	r.POST("/login", handle.LoginHandler)
+	r.POST("/refresh", handle.RefreshHandler) // RFC 6749 compliant refresh endpoint
+
 	r.NoRoute(handle.MiddlewareFunc(), handleNoRoute())
 
+	// Protected routes
 	auth := r.Group("/auth", handle.MiddlewareFunc())
-	auth.GET("/refresh_token", handle.RefreshHandler)
 	auth.GET("/hello", helloHandler)
+	auth.POST("/logout", handle.LogoutHandler) // Logout with refresh token revocation
 }
 
 func handlerMiddleWare(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc {
@@ -93,14 +98,14 @@ func initParams() *jwt.GinJWTMiddleware {
 	}
 }
 
-func payloadFunc() func(data interface{}) jwt.MapClaims {
-	return func(data interface{}) jwt.MapClaims {
+func payloadFunc() func(data interface{}) gojwt.MapClaims {
+	return func(data interface{}) gojwt.MapClaims {
 		if v, ok := data.(*User); ok {
-			return jwt.MapClaims{
+			return gojwt.MapClaims{
 				identityKey: v.UserName,
 			}
 		}
-		return jwt.MapClaims{}
+		return gojwt.MapClaims{}
 	}
 }
 
