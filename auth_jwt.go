@@ -608,22 +608,26 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	mw.LoginResponse(c, http.StatusOK, tokenString, expire)
 }
 
-// LogoutHandler can be used by clients to remove the jwt cookie and revoke refresh token
-func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
-	// Handle refresh token revocation (RFC 6749 compliant)
-	refreshToken := c.PostForm("refresh_token")
-	if refreshToken == "" {
-		refreshToken = c.Query("refresh_token")
+func (mw *GinJWTMiddleware) extractRefreshToken(c *gin.Context) string {
+	token := c.PostForm("refresh_token")
+	if token == "" {
+		token = c.Query("refresh_token")
 	}
-	if refreshToken == "" {
+	if token == "" {
 		var reqBody struct {
 			RefreshToken string `json:"refresh_token"`
 		}
 		if err := c.ShouldBindJSON(&reqBody); err == nil {
-			refreshToken = reqBody.RefreshToken
+			token = reqBody.RefreshToken
 		}
 	}
+	return token
+}
 
+// LogoutHandler can be used by clients to remove the jwt cookie and revoke refresh token
+func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
+	// Handle refresh token revocation (RFC 6749 compliant)
+	refreshToken := mw.extractRefreshToken(c)
 	if refreshToken != "" {
 		if err := mw.revokeRefreshToken(refreshToken); err != nil {
 			log.Printf("Failed to revoke refresh token on logout: %v", err)
@@ -703,19 +707,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 // rfc6749RefreshHandler handles refresh token requests in RFC 6749 compliant mode
 func (mw *GinJWTMiddleware) rfc6749RefreshHandler(c *gin.Context) {
 	// Extract refresh token from request
-	refreshToken := c.PostForm("refresh_token")
-	if refreshToken == "" {
-		refreshToken = c.Query("refresh_token")
-	}
-	if refreshToken == "" {
-		var reqBody struct {
-			RefreshToken string `json:"refresh_token"`
-		}
-		if err := c.ShouldBindJSON(&reqBody); err == nil {
-			refreshToken = reqBody.RefreshToken
-		}
-	}
-
+	refreshToken := mw.extractRefreshToken(c)
 	if refreshToken == "" {
 		mw.unauthorized(c, http.StatusBadRequest, "missing refresh_token parameter")
 		return
