@@ -47,15 +47,21 @@
 - 🛡️ 可自定义认证、授权与 Claims
 - 🍪 支持 Cookie 与 Header Token
 - 📝 易于集成，API 清晰
+- 🔐 符合 RFC 6749 规范的刷新令牌（OAuth 2.0 标准）
+- 🗄️ 可插拔的刷新令牌存储（内存、Redis 等）
 
 ---
 
 ## 安全性注意事项
 
-> **警告：**  
-> 使用弱密码（如短或简单密码）的 JWT Token 易受暴力破解攻击。  
-> **建议：**请使用强且长的密钥或 `RS256` Token。  
+> **警告：**
+> 使用弱密码（如短或简单密码）的 JWT Token 易受暴力破解攻击。
+> **建议：**请使用强且长的密钥或 `RS256` Token。
 > 详见 [jwt-cracker repository](https://github.com/lmammino/jwt-cracker)。
+> **OAuth 2.0 安全性：**
+> 此库默认遵循 RFC 6749 OAuth 2.0 标准，使用分离的不透明刷新令牌，
+> 这些令牌在服务器端存储并在每次使用时轮替。这比同时使用 JWT 令牌
+> 作为访问和刷新用途提供更好的安全性。
 
 ---
 
@@ -104,8 +110,14 @@ http -v --json POST localhost:8000/login username=admin password=admin
 
 ### 刷新 Token
 
+使用符合 RFC 6749 规范的刷新令牌（默认行为）：
+
 ```sh
-http -v -f GET localhost:8000/auth/refresh_token "Authorization:Bearer xxxxxxxxx"  "Content-Type: application/json"
+# 首先登录获取刷新令牌
+http -v --json POST localhost:8000/login username=admin password=admin
+
+# 使用刷新令牌获取新的访问令牌
+http -v --json POST localhost:8000/auth/refresh_token refresh_token=your_refresh_token_here
 ```
 
 ![刷新截图](screenshot/refresh_token.png)

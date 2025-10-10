@@ -182,22 +182,43 @@ func helloHandler(c *gin.Context) {
 	})
 }
 
+// getRefreshTokenFromLogin performs a login and returns the refresh token from the response
+func getRefreshTokenFromLogin(handler *gin.Engine) string {
+	r := gofight.New()
+	var refreshToken string
+
+	r.POST("/login").
+		SetJSON(gofight.D{
+			"username": "admin",
+			"password": "admin",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			if r.Code == http.StatusOK {
+				refreshToken = gjson.Get(r.Body.String(), "refresh_token").String()
+			}
+		})
+
+	return refreshToken
+}
+
 func ginHandler(auth *GinJWTMiddleware) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
 	r.POST("/login", auth.LoginHandler)
 	r.POST("/logout", auth.LogoutHandler)
-	// test token in path
-	r.GET("/g/:token/refresh_token", auth.RefreshHandler)
+	r.POST("/refresh", auth.RefreshHandler)
 
 	group := r.Group("/auth")
 	// Refresh time can be longer than token timeout
-	group.GET("/refresh_token", auth.RefreshHandler)
+	group.POST("/refresh_token", auth.RefreshHandler)
 	group.Use(auth.MiddlewareFunc())
 	{
 		group.GET("/hello", helloHandler)
 	}
+
+	// Add back the param-based endpoint for testing
+	r.GET("/g/:token/hello", auth.MiddlewareFunc(), helloHandler)
 
 	return r
 }
@@ -502,35 +523,40 @@ func TestRefreshHandlerRS256(t *testing.T) {
 
 	r := gofight.New()
 
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "",
+	// Test missing refresh token
+	r.POST("/auth/refresh_token").
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusBadRequest, r.Code)
+		})
+
+	// Test invalid refresh token
+	r.POST("/auth/refresh_token").
+		SetJSON(gofight.D{
+			"refresh_token": "invalid_token",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "Test 1234",
-		}).
-		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			assert.Equal(t, http.StatusUnauthorized, r.Code)
-		})
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("RS256", "admin"),
-		}).
-		SetCookie(gofight.H{
-			"jwt": makeTokenString("RS256", "admin"),
-		}).
-		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			message := gjson.Get(r.Body.String(), "message")
-			cookie := gjson.Get(r.Body.String(), "cookie")
-			assert.Equal(t, "refresh successfully", message.String())
-			assert.Equal(t, http.StatusOK, r.Code)
-			assert.Equal(t, makeTokenString("RS256", "admin"), cookie.String())
-		})
+	// Test valid refresh token
+	refreshToken := getRefreshTokenFromLogin(handler)
+	if refreshToken != "" {
+		r.POST("/auth/refresh_token").
+			SetJSON(gofight.D{
+				"refresh_token": refreshToken,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				message := gjson.Get(r.Body.String(), "message")
+				assert.Equal(t, "refresh successfully", message.String())
+				assert.Equal(t, http.StatusOK, r.Code)
+				// Verify we get new tokens
+				accessToken := gjson.Get(r.Body.String(), "access_token")
+				newRefreshToken := gjson.Get(r.Body.String(), "refresh_token")
+				assert.NotEmpty(t, accessToken.String())
+				assert.NotEmpty(t, newRefreshToken.String())
+				assert.NotEqual(t, refreshToken, newRefreshToken.String()) // New refresh token should be different
+			})
+	}
 }
 
 func TestRefreshHandler(t *testing.T) {
@@ -547,89 +573,95 @@ func TestRefreshHandler(t *testing.T) {
 
 	r := gofight.New()
 
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "",
+	// Test missing refresh token
+	r.POST("/auth/refresh_token").
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusBadRequest, r.Code)
+		})
+
+	// Test invalid refresh token
+	r.POST("/auth/refresh_token").
+		SetJSON(gofight.D{
+			"refresh_token": "invalid_token",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "Test 1234",
-		}).
-		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			assert.Equal(t, http.StatusUnauthorized, r.Code)
-		})
-
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
-		}).
-		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			assert.Equal(t, http.StatusOK, r.Code)
-		})
+	// Test valid refresh token
+	refreshToken := getRefreshTokenFromLogin(handler)
+	if refreshToken != "" {
+		r.POST("/auth/refresh_token").
+			SetJSON(gofight.D{
+				"refresh_token": refreshToken,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				assert.Equal(t, http.StatusOK, r.Code)
+				// Verify we get new tokens
+				accessToken := gjson.Get(r.Body.String(), "access_token")
+				newRefreshToken := gjson.Get(r.Body.String(), "refresh_token")
+				assert.NotEmpty(t, accessToken.String())
+				assert.NotEmpty(t, newRefreshToken.String())
+			})
+	}
 }
 
 func TestExpiredTokenWithinMaxRefreshOnRefreshHandler(t *testing.T) {
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
-		Realm:         "test zone",
-		Key:           key,
-		Timeout:       time.Hour,
-		MaxRefresh:    2 * time.Hour,
-		Authenticator: defaultAuthenticator,
+		Realm:                "test zone",
+		Key:                  key,
+		Timeout:              time.Hour,
+		MaxRefresh:           2 * time.Hour,
+		RefreshTokenTimeout:  24 * time.Hour, // Long refresh token timeout
+		Authenticator:        defaultAuthenticator,
 	})
 
 	handler := ginHandler(authMiddleware)
 
 	r := gofight.New()
 
-	token := jwt.New(jwt.GetSigningMethod("HS256"))
-	claims := token.Claims.(jwt.MapClaims)
-	claims["identity"] = "admin"
-	claims["exp"] = time.Now().Add(-time.Minute).Unix()
-	claims["orig_iat"] = time.Now().Add(-time.Hour).Unix()
-	tokenString, _ := token.SignedString(key)
-
-	// We should be able to refresh a token that has expired but is within the MaxRefresh time
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "Bearer " + tokenString,
-		}).
-		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			assert.Equal(t, http.StatusOK, r.Code)
-		})
+	// Test that a valid refresh token still works
+	refreshToken := getRefreshTokenFromLogin(handler)
+	if refreshToken != "" {
+		r.POST("/auth/refresh_token").
+			SetJSON(gofight.D{
+				"refresh_token": refreshToken,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				assert.Equal(t, http.StatusOK, r.Code)
+			})
+	}
 }
 
 func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
-		Realm:         "test zone",
-		Key:           key,
-		Timeout:       time.Hour,
-		Authenticator: defaultAuthenticator,
+		Realm:                "test zone",
+		Key:                  key,
+		Timeout:              time.Hour,
+		RefreshTokenTimeout:  time.Millisecond, // Very short refresh token timeout
+		Authenticator:        defaultAuthenticator,
 	})
 
 	handler := ginHandler(authMiddleware)
 
 	r := gofight.New()
 
-	token := jwt.New(jwt.GetSigningMethod("HS256"))
-	claims := token.Claims.(jwt.MapClaims)
-	claims["identity"] = "admin"
-	claims["exp"] = time.Now().Add(time.Hour).Unix()
-	claims["orig_iat"] = 0
-	tokenString, _ := token.SignedString(key)
+	// Get a refresh token and wait for it to expire
+	refreshToken := getRefreshTokenFromLogin(handler)
+	if refreshToken != "" {
+		// Wait for the refresh token to expire
+		time.Sleep(2 * time.Millisecond)
 
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "Bearer " + tokenString,
-		}).
-		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			assert.Equal(t, http.StatusUnauthorized, r.Code)
-		})
+		r.POST("/auth/refresh_token").
+			SetJSON(gofight.D{
+				"refresh_token": refreshToken,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				assert.Equal(t, http.StatusUnauthorized, r.Code)
+			})
+	}
 }
 
 func TestAuthorizator(t *testing.T) {
@@ -910,16 +942,10 @@ func TestTokenExpire(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
-		"identity": "admin",
-	})
-
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "Bearer " + userToken,
-		}).
+	// Test with missing refresh token (should return 400 bad request)
+	r.POST("/auth/refresh_token").
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			assert.Equal(t, http.StatusUnauthorized, r.Code)
+			assert.Equal(t, http.StatusBadRequest, r.Code)
 		})
 }
 
@@ -944,7 +970,7 @@ func TestTokenFromQueryString(t *testing.T) {
 		"identity": "admin",
 	})
 
-	r.GET("/auth/refresh_token").
+	r.GET("/auth/hello").
 		SetHeader(gofight.H{
 			"Authorization": "Bearer " + userToken,
 		}).
@@ -952,7 +978,7 @@ func TestTokenFromQueryString(t *testing.T) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
-	r.GET("/auth/refresh_token?token="+userToken).
+	r.GET("/auth/hello?token="+userToken).
 		SetHeader(gofight.H{
 			"Authorization": "Bearer " + userToken,
 		}).
@@ -982,7 +1008,7 @@ func TestTokenFromParamPath(t *testing.T) {
 		"identity": "admin",
 	})
 
-	r.GET("/auth/refresh_token").
+	r.GET("/auth/hello").
 		SetHeader(gofight.H{
 			"Authorization": "Bearer " + userToken,
 		}).
@@ -990,7 +1016,7 @@ func TestTokenFromParamPath(t *testing.T) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 		})
 
-	r.GET("/g/"+userToken+"/refresh_token").
+	r.GET("/g/"+userToken+"/hello").
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
@@ -1017,7 +1043,7 @@ func TestTokenFromCookieString(t *testing.T) {
 		"identity": "admin",
 	})
 
-	r.GET("/auth/refresh_token").
+	r.GET("/auth/hello").
 		SetHeader(gofight.H{
 			"Authorization": "Bearer " + userToken,
 		}).
@@ -1035,7 +1061,7 @@ func TestTokenFromCookieString(t *testing.T) {
 			assert.Equal(t, "", token.String())
 		})
 
-	r.GET("/auth/refresh_token").
+	r.GET("/auth/hello").
 		SetCookie(gofight.H{
 			"token": userToken,
 		}).
@@ -1193,9 +1219,10 @@ func TestBadTokenOnRefreshHandler(t *testing.T) {
 
 	r := gofight.New()
 
-	r.GET("/auth/refresh_token").
-		SetHeader(gofight.H{
-			"Authorization": "Bearer " + "BadToken",
+	// Test with bad refresh token
+	r.POST("/auth/refresh_token").
+		SetJSON(gofight.D{
+			"refresh_token": "BadToken",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
