@@ -283,7 +283,7 @@ http -v --json POST localhost:8000/login username=admin password=admin
 http -v --form POST localhost:8000/refresh refresh_token=your_refresh_token_here
 ```
 
-![Refresh screenshot](screenshot/refresh_token.png)
+![Refresh screenshot](screenshot/refresh.png)
 
 ### Hello World
 
