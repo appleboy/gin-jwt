@@ -116,8 +116,8 @@ http -v --json POST localhost:8000/login username=admin password=admin
 # 首先登录获取刷新令牌
 http -v --json POST localhost:8000/login username=admin password=admin
 
-# 使用刷新令牌获取新的访问令牌
-http -v --json POST localhost:8000/auth/refresh_token refresh_token=your_refresh_token_here
+# 使用刷新令牌获取新的访问令牌（公开端点）
+http -v --form POST localhost:8000/refresh refresh_token=your_refresh_token_here
 ```
 
 ![刷新截图](screenshot/refresh_token.png)

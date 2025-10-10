@@ -128,8 +128,11 @@ func main() {
     log.Fatal("JWT Error:" + err.Error())
   }
 
-  // register middleware
-  engine.Use(handlerMiddleware(authMiddleware))
+  // initialize middleware
+  errInit := authMiddleware.MiddlewareInit()
+  if errInit != nil {
+    log.Fatal("authMiddleware.MiddlewareInit() Error:" + errInit.Error())
+  }
 
   // register route
   registerRoute(engine, authMiddleware)
@@ -141,23 +144,16 @@ func main() {
 }
 
 func registerRoute(r *gin.Engine, handle *jwt.GinJWTMiddleware) {
+  // Public routes
   r.POST("/login", handle.LoginHandler)
   r.POST("/refresh", handle.RefreshHandler) // RFC 6749 compliant refresh endpoint
-  r.NoRoute(handle.MiddlewareFunc(), handleNoRoute())
 
+  // Protected routes
   auth := r.Group("/auth", handle.MiddlewareFunc())
-  auth.POST("/refresh_token", handle.RefreshHandler) // Alternative refresh endpoint
   auth.GET("/hello", helloHandler)
+  auth.POST("/logout", handle.LogoutHandler) // Logout with refresh token revocation
 }
 
-func handlerMiddleware(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc {
-  return func(context *gin.Context) {
-    errInit := authMiddleware.MiddlewareInit()
-    if errInit != nil {
-      log.Fatal("authMiddleware.MiddlewareInit() Error:" + errInit.Error())
-    }
-  }
-}
 
 func initParams() *jwt.GinJWTMiddleware {
 
@@ -241,8 +237,6 @@ func unauthorized() func(c *gin.Context, code int, message string) {
 
 func handleNoRoute() func(c *gin.Context) {
   return func(c *gin.Context) {
-    claims := jwt.ExtractClaims(c)
-    log.Printf("NoRoute claims: %#v\n", claims)
     c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", "message": "Page not found"})
   }
 }
@@ -285,8 +279,8 @@ Using RFC 6749 compliant refresh tokens (default behavior):
 # First login to get refresh token
 http -v --json POST localhost:8000/login username=admin password=admin
 
-# Use refresh token to get new access token
-http -v --json POST localhost:8000/auth/refresh_token refresh_token=your_refresh_token_here
+# Use refresh token to get new access token (public endpoint)
+http -v --form POST localhost:8000/refresh refresh_token=your_refresh_token_here
 ```
 
 ![Refresh screenshot](screenshot/refresh_token.png)

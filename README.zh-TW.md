@@ -116,8 +116,8 @@ http -v --json POST localhost:8000/login username=admin password=admin
 # 首先登入取得刷新 Token
 http -v --json POST localhost:8000/login username=admin password=admin
 
-# 使用刷新 Token 取得新的存取 Token
-http -v --json POST localhost:8000/auth/refresh_token refresh_token=your_refresh_token_here
+# 使用刷新 Token 取得新的存取 Token（公開端點）
+http -v --form POST localhost:8000/refresh refresh_token=your_refresh_token_here
 ```
 
 ![刷新截圖](screenshot/refresh_token.png)
