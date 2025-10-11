@@ -65,8 +65,6 @@
     - [登出流程（LogoutHandler）](#登出流程logouthandler)
     - [刷新流程（RefreshHandler）](#刷新流程refreshhandler)
     - [登入失敗、Token 錯誤或權限不足](#登入失敗token-錯誤或權限不足)
-  - [截圖](#截圖)
-  - [授權](#授權)
 
 ---
 
@@ -808,17 +806,3 @@ CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxM
 
 - **可選：** `Unauthorized`  
   處理登入、授權或 Token 錯誤時的回應。回傳 HTTP 錯誤碼與訊息的 JSON。
-
----
-
-## 截圖
-
-| 登入                              | 刷新 Token                                |
-| --------------------------------- | ----------------------------------------- |
-| ![登入截圖](screenshot/login.png) | ![刷新截圖](screenshot/refresh_token.png) |
-
----
-
-## 授權
-
-詳見 [`LICENSE`](LICENSE)。
