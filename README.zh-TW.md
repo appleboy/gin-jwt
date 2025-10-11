@@ -500,13 +500,13 @@ CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxM
 
   - 從 header/cookie/query 解析 Token
   - 驗證 Token
-  - 呼叫 `IdentityHandler` 與 `Authorizator`
+  - 呼叫 `IdentityHandler` 與 `Authorizer`
   - 驗證失敗則呼叫 `Unauthorized`
 
 - **可選：** `IdentityHandler`  
   從 JWT Claims 取得使用者身份。
 
-- **可選：** `Authorizator`  
+- **可選：** `Authorizer`  
   檢查使用者是否有權限存取該端點。
 
 ---

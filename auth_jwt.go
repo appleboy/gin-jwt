@@ -58,7 +58,7 @@ type GinJWTMiddleware struct {
 	// Callback function that should perform the authorization of the authenticated user. Called
 	// only after an authentication success. Must return true on success, false on failure.
 	// Optional, default to success.
-	Authorizator func(c *gin.Context, data any) bool
+	Authorizer func(c *gin.Context, data any) bool
 
 	// Callback function that will be called during login.
 	// Using this function it is possible to add additional payload data to the webtoken.
@@ -382,8 +382,8 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		mw.TokenHeadName = "Bearer"
 	}
 
-	if mw.Authorizator == nil {
-		mw.Authorizator = func(c *gin.Context, data any) bool {
+	if mw.Authorizer == nil {
+		mw.Authorizer = func(c *gin.Context, data any) bool {
 			return true
 		}
 	}
@@ -520,7 +520,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 		c.Set(mw.IdentityKey, identity)
 	}
 
-	if !mw.Authorizator(c, identity) {
+	if !mw.Authorizer(c, identity) {
 		mw.unauthorized(c, http.StatusForbidden, mw.HTTPStatusMessageFunc(c,ErrForbidden))
 		return
 	}

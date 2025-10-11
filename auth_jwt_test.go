@@ -258,7 +258,7 @@ func TestLoginHandler(t *testing.T) {
 		Realm: "test zone",
 		Key:   key,
 		PayloadFunc: func(data any) jwt.MapClaims {
-			// Set custom claim, to be checked in Authorizator method
+			// Set custom claim, to be checked in Authorizer method
 			return jwt.MapClaims{"testkey": "testval", "exp": 0}
 		},
 		Authenticator: func(c *gin.Context) (any, error) {
@@ -273,7 +273,7 @@ func TestLoginHandler(t *testing.T) {
 			}
 			return "", ErrFailedAuthentication
 		},
-		Authorizator: func(c *gin.Context, user any) bool {
+		Authorizer: func(c *gin.Context, user any) bool {
 			return true
 		},
 		LoginResponse: func(c *gin.Context, token *core.Token) {
@@ -667,7 +667,7 @@ func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 	}
 }
 
-func TestAuthorizator(t *testing.T) {
+func TestAuthorizer(t *testing.T) {
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
 		Realm:         "test zone",
@@ -675,7 +675,7 @@ func TestAuthorizator(t *testing.T) {
 		Timeout:       time.Hour,
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
-		Authorizator: func(c *gin.Context, data any) bool {
+		Authorizer: func(c *gin.Context, data any) bool {
 			return data.(string) == "admin"
 		},
 	})
@@ -752,7 +752,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 			case "Guest":
 				testkey = ""
 			}
-			// Set custom claim, to be checked in Authorizator method
+			// Set custom claim, to be checked in Authorizer method
 			now := time.Now()
 			return jwt.MapClaims{
 				"identity": data.(string),
@@ -782,7 +782,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 
 			return "Guest", ErrFailedAuthentication
 		},
-		Authorizator: func(c *gin.Context, user any) bool {
+		Authorizer: func(c *gin.Context, user any) bool {
 			jwtClaims := ExtractClaims(c)
 
 			if jwtClaims["identity"] == "administrator" {
@@ -1150,7 +1150,7 @@ func TestSendAuthorizationBool(t *testing.T) {
 		MaxRefresh:        time.Hour * 24,
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
-		Authorizator: func(c *gin.Context, data any) bool {
+		Authorizer: func(c *gin.Context, data any) bool {
 			return data.(string) == "admin"
 		},
 	})
@@ -1188,7 +1188,7 @@ func TestExpiredTokenOnAuth(t *testing.T) {
 		MaxRefresh:        time.Hour * 24,
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
-		Authorizator: func(c *gin.Context, data any) bool {
+		Authorizer: func(c *gin.Context, data any) bool {
 			return data.(string) == "admin"
 		},
 		TimeFunc: func() time.Time {
@@ -1456,7 +1456,7 @@ func TestGenerateTokenPair(t *testing.T) {
 				"identity": data,
 			}
 		},
-		Authorizator: func(c *gin.Context, data any) bool {
+		Authorizer: func(c *gin.Context, data any) bool {
 			return data == "admin"
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {

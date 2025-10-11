@@ -182,7 +182,7 @@ func initParams() *jwt.GinJWTMiddleware {
 
     IdentityHandler: identityHandler(),
     Authenticator:   authenticator(),
-    Authorizator:    authorizator(),
+    Authorizer:    authorizator(),
     Unauthorized:    unauthorized(),
     TokenLookup:     "header: Authorization, query: token, cookie: jwt",
     // TokenLookup: "query:token",
@@ -662,13 +662,13 @@ Signature: `func(c *gin.Context, token *core.Token)`
 
 PROVIDED: `MiddlewareFunc`
 
-This is gin middleware that should be used within any endpoints that require the jwt token to be present. This middleware will parse the request headers for the token if it exists, and check that the jwt token is valid (not expired, correct signature). Then it will call `IdentityHandler` followed by `Authorizator`. If `Authorizator` passes and all of the previous token validity checks passed, the middleware will continue the request. If any of these checks fail, the `Unauthorized` function is used (explained below).
+This is gin middleware that should be used within any endpoints that require the jwt token to be present. This middleware will parse the request headers for the token if it exists, and check that the jwt token is valid (not expired, correct signature). Then it will call `IdentityHandler` followed by `Authorizer`. If `Authorizer` passes and all of the previous token validity checks passed, the middleware will continue the request. If any of these checks fail, the `Unauthorized` function is used (explained below).
 
 OPTIONAL: `IdentityHandler`
 
-The default of this function is likely sufficient for your needs. The purpose of this function is to fetch the user identity from claims embedded within the jwt token, and pass this identity value to `Authorizator`. This function assumes [`IdentityKey`: some_user_identity] is one of the attributes embedded within the claims of the jwt token (determined by `PayloadFunc`).
+The default of this function is likely sufficient for your needs. The purpose of this function is to fetch the user identity from claims embedded within the jwt token, and pass this identity value to `Authorizer`. This function assumes [`IdentityKey`: some_user_identity] is one of the attributes embedded within the claims of the jwt token (determined by `PayloadFunc`).
 
-OPTIONAL: `Authorizator`
+OPTIONAL: `Authorizer`
 
 Given the user identity value (`data` parameter) and the gin context, this function should check if the user is authorized to be reaching this endpoint (on the endpoints where the `MiddlewareFunc` applies). This function should likely use `ExtractClaims` to check if the user has the sufficient permissions to reach this endpoint, as opposed to hitting the database on every request. This function should return true if the user is authorized to continue through with the request, or false if they are not authorized (where `Unauthorized` will be called).
 
