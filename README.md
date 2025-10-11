@@ -27,6 +27,19 @@ Easily add login, token refresh, and authorization to your Gin applications.
     - [Basic Usage](#basic-usage)
     - [Token Structure](#token-structure)
     - [Refresh Token Management](#refresh-token-management)
+  - [Redis Store Configuration](#redis-store-configuration)
+    - [Redis Features](#redis-features)
+    - [Redis Usage Methods](#redis-usage-methods)
+      - [Method 1: Enable Redis with Default Configuration](#method-1-enable-redis-with-default-configuration)
+      - [Method 2: Enable Redis with Custom Address](#method-2-enable-redis-with-custom-address)
+      - [Method 3: Enable Redis with Full Options](#method-3-enable-redis-with-full-options)
+      - [Method 4: Enable Redis with Custom Configuration](#method-4-enable-redis-with-custom-configuration)
+      - [Method 5: Configure Client-side Cache](#method-5-configure-client-side-cache)
+      - [Method 6: Method Chaining](#method-6-method-chaining)
+    - [Configuration Options](#configuration-options)
+      - [RedisConfig](#redisconfig)
+    - [Fallback Behavior](#fallback-behavior)
+    - [Example with Redis](#example-with-redis)
   - [Demo](#demo)
     - [Login](#login)
     - [Refresh Token](#refresh-token)
@@ -50,7 +63,7 @@ Easily add login, token refresh, and authorization to your Gin applications.
 - 🍪 Cookie and header token support
 - 📝 Easy integration and clear API
 - 🔐 RFC 6749 compliant refresh tokens (OAuth 2.0 standard)
-- 🗄️ Pluggable refresh token storage (in-memory, Redis, etc.)
+- 🗄️ Pluggable refresh token storage (in-memory, Redis with client-side caching)
 - 🏭 Direct token generation without HTTP middleware
 - 📦 Structured Token type with metadata
 
@@ -351,6 +364,186 @@ fmt.Printf("New Refresh Token: %s\n", newTokenPair.RefreshToken)
 - 🎛️ **Custom Auth Flows**: Build custom authentication logic
 
 See the [complete example](_example/token_generator/) for more details.
+
+---
+
+## Redis Store Configuration
+
+This library supports Redis as a backend for refresh token storage, with built-in client-side caching for improved performance. Redis store provides better scalability and persistence compared to the default in-memory store.
+
+### Redis Features
+
+- 🔄 **Client-side Caching**: Built-in Redis client-side caching for improved performance
+- 🚀 **Automatic Fallback**: Falls back to in-memory store if Redis connection fails
+- ⚙️ **Easy Configuration**: Simple methods to configure Redis store
+- 🔧 **Method Chaining**: Fluent API for convenient configuration
+- 📦 **Factory Pattern**: Support for both Redis and memory stores
+
+### Redis Usage Methods
+
+#### Method 1: Enable Redis with Default Configuration
+
+```go
+middleware := &jwt.GinJWTMiddleware{
+    // ... other configuration
+}
+
+// Enable Redis with default settings (localhost:6379)
+middleware.EnableRedisStore()
+```
+
+#### Method 2: Enable Redis with Custom Address
+
+```go
+// Enable Redis with custom address
+middleware.EnableRedisStoreWithAddr("redis.example.com:6379")
+```
+
+#### Method 3: Enable Redis with Full Options
+
+```go
+// Enable Redis with address, password, and database
+middleware.EnableRedisStoreWithOptions("redis.example.com:6379", "password", 0)
+```
+
+#### Method 4: Enable Redis with Custom Configuration
+
+```go
+import "github.com/appleboy/gin-jwt/v2/store"
+
+config := &store.RedisConfig{
+    Addr:      "redis.example.com:6379",
+    Password:  "your-password",
+    DB:        0,
+    CacheSize: 256 * 1024 * 1024, // 256MB cache
+    CacheTTL:  5 * time.Minute,    // 5 minute cache TTL
+    KeyPrefix: "myapp-jwt:",
+}
+
+middleware.EnableRedisStoreWithConfig(config)
+```
+
+#### Method 5: Configure Client-side Cache
+
+```go
+// Set client-side cache size and TTL
+middleware.SetRedisClientSideCache(64*1024*1024, 30*time.Second) // 64MB cache, 30s TTL
+```
+
+#### Method 6: Method Chaining
+
+```go
+middleware := &jwt.GinJWTMiddleware{
+    // ... other configuration
+}.
+EnableRedisStoreWithAddr("redis.example.com:6379").
+SetRedisClientSideCache(128*1024*1024, time.Minute)
+```
+
+### Configuration Options
+
+#### RedisConfig
+
+- **Addr**: Redis server address (default: `"localhost:6379"`)
+- **Password**: Redis password (default: `""`)
+- **DB**: Redis database number (default: `0`)
+- **CacheSize**: Client-side cache size in bytes (default: `128MB`)
+- **CacheTTL**: Client-side cache TTL (default: `1 minute`)
+- **KeyPrefix**: Prefix for all Redis keys (default: `"gin-jwt:"`)
+
+### Fallback Behavior
+
+If Redis connection fails during initialization:
+
+- The middleware logs an error message
+- Automatically falls back to in-memory store
+- Application continues to function normally
+
+This ensures high availability and prevents application failures due to Redis connectivity issues.
+
+### Example with Redis
+
+See the [Redis example](_example/redis_simple/) for a complete implementation.
+
+```go
+package main
+
+import (
+    "log"
+    "net/http"
+    "time"
+
+    jwt "github.com/appleboy/gin-jwt/v2"
+    "github.com/gin-gonic/gin"
+)
+
+func main() {
+    r := gin.Default()
+
+    authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+        Realm:       "example zone",
+        Key:         []byte("secret key"),
+        Timeout:     time.Hour,
+        MaxRefresh:  time.Hour * 24,
+        IdentityKey: "id",
+
+        PayloadFunc: func(data interface{}) jwt.MapClaims {
+            if v, ok := data.(map[string]interface{}); ok {
+                return jwt.MapClaims{
+                    "id": v["username"],
+                }
+            }
+            return jwt.MapClaims{}
+        },
+
+        Authenticator: func(c *gin.Context) (interface{}, error) {
+            var loginVals struct {
+                Username string `json:"username"`
+                Password string `json:"password"`
+            }
+
+            if err := c.ShouldBind(&loginVals); err != nil {
+                return "", jwt.ErrMissingLoginValues
+            }
+
+            if loginVals.Username == "admin" && loginVals.Password == "admin" {
+                return map[string]interface{}{
+                    "username": loginVals.Username,
+                }, nil
+            }
+
+            return nil, jwt.ErrFailedAuthentication
+        },
+    }).EnableRedisStoreWithAddr("localhost:6379").                    // Enable Redis
+      SetRedisClientSideCache(64*1024*1024, 30*time.Second)         // Configure cache
+
+    if err != nil {
+        log.Fatal("JWT Error:" + err.Error())
+    }
+
+    errInit := authMiddleware.MiddlewareInit()
+    if errInit != nil {
+        log.Fatal("authMiddleware.MiddlewareInit() Error:" + errInit.Error())
+    }
+
+    r.POST("/login", authMiddleware.LoginHandler)
+
+    auth := r.Group("/auth")
+    auth.Use(authMiddleware.MiddlewareFunc())
+    {
+        auth.GET("/hello", func(c *gin.Context) {
+            c.JSON(200, gin.H{
+                "message": "Hello World.",
+            })
+        })
+        auth.GET("/refresh_token", authMiddleware.RefreshHandler)
+    }
+
+    if err := http.ListenAndServe(":8000", r); err != nil {
+        log.Fatal(err)
+    }
+}
+```
 
 ---
 

@@ -175,6 +175,14 @@ type GinJWTMiddleware struct {
 	// RefreshTokenLength specifies the byte length of refresh tokens (default: 32)
 	RefreshTokenLength int
 
+	// UseRedisStore indicates whether to use Redis store instead of in-memory store
+	// When true, will attempt to connect to Redis using RedisConfig
+	UseRedisStore bool
+
+	// RedisConfig configuration for Redis store when UseRedisStore is true
+	// If nil when UseRedisStore is true, will use default Redis configuration
+	RedisConfig *store.RedisConfig
+
 	// inMemoryStore internal fallback refresh token store
 	inMemoryStore *store.InMemoryRefreshTokenStore
 }
@@ -466,8 +474,28 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		mw.RefreshTokenLength = 32 // 256 bits default
 	}
 	if mw.RefreshTokenStore == nil {
-		mw.inMemoryStore = store.NewInMemoryRefreshTokenStore()
-		mw.RefreshTokenStore = mw.inMemoryStore
+		if mw.UseRedisStore {
+			// Try to create Redis store
+			redisConfig := mw.RedisConfig
+			if redisConfig == nil {
+				redisConfig = store.DefaultRedisConfig()
+			}
+
+			redisStore, err := store.NewRedisRefreshTokenStore(redisConfig)
+			if err != nil {
+				// Log error and fall back to memory store
+				log.Printf("Failed to connect to Redis: %v, falling back to in-memory store", err)
+				mw.inMemoryStore = store.NewInMemoryRefreshTokenStore()
+				mw.RefreshTokenStore = mw.inMemoryStore
+			} else {
+				log.Println("Successfully connected to Redis store with client-side cache enabled")
+				mw.RefreshTokenStore = redisStore
+			}
+		} else {
+			// Use in-memory store
+			mw.inMemoryStore = store.NewInMemoryRefreshTokenStore()
+			mw.RefreshTokenStore = mw.inMemoryStore
+		}
 	}
 
 	// bypass other key settings if KeyFunc is set
@@ -1095,4 +1123,48 @@ func (mw *GinJWTMiddleware) ClearSensitiveData() {
 	if mw.inMemoryStore != nil {
 		mw.inMemoryStore.Clear()
 	}
+}
+
+// EnableRedisStore enables Redis store with default configuration
+func (mw *GinJWTMiddleware) EnableRedisStore() *GinJWTMiddleware {
+	mw.UseRedisStore = true
+	mw.RedisConfig = store.DefaultRedisConfig()
+	return mw
+}
+
+// EnableRedisStoreWithConfig enables Redis store with custom configuration
+func (mw *GinJWTMiddleware) EnableRedisStoreWithConfig(config *store.RedisConfig) *GinJWTMiddleware {
+	mw.UseRedisStore = true
+	mw.RedisConfig = config
+	return mw
+}
+
+// EnableRedisStoreWithAddr enables Redis store with custom Redis server address
+func (mw *GinJWTMiddleware) EnableRedisStoreWithAddr(addr string) *GinJWTMiddleware {
+	mw.UseRedisStore = true
+	config := store.DefaultRedisConfig()
+	config.Addr = addr
+	mw.RedisConfig = config
+	return mw
+}
+
+// EnableRedisStoreWithOptions enables Redis store with custom options
+func (mw *GinJWTMiddleware) EnableRedisStoreWithOptions(addr, password string, db int) *GinJWTMiddleware {
+	mw.UseRedisStore = true
+	config := store.DefaultRedisConfig()
+	config.Addr = addr
+	config.Password = password
+	config.DB = db
+	mw.RedisConfig = config
+	return mw
+}
+
+// SetRedisClientSideCache configures client-side caching options for Redis store
+func (mw *GinJWTMiddleware) SetRedisClientSideCache(cacheSize int, cacheTTL time.Duration) *GinJWTMiddleware {
+	if mw.RedisConfig == nil {
+		mw.RedisConfig = store.DefaultRedisConfig()
+	}
+	mw.RedisConfig.CacheSize = cacheSize
+	mw.RedisConfig.CacheTTL = cacheTTL
+	return mw
 }
