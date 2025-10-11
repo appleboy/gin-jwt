@@ -318,6 +318,31 @@ http -f GET localhost:8000/auth/hello "Authorization:Bearer xxxxxxxxx"  "Content
 }
 ```
 
+### Logout
+
+Login first, then call the logout endpoint with the JWT token:
+
+```sh
+# First login to get the JWT token
+http -v --json POST localhost:8000/login username=admin password=admin
+
+# Use the returned JWT token to logout (replace xxxxxxxxx with actual token)
+http -f POST localhost:8000/auth/logout "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
+```
+
+**Response:**
+
+```json
+{
+  "code": 200,
+  "logged_out_user": "admin",
+  "message": "Successfully logged out",
+  "user_info": "admin"
+}
+```
+
+The logout response demonstrates that JWT claims are now accessible during logout through `jwt.ExtractClaims(c)`, allowing developers to access user information for logging, auditing, or cleanup purposes.
+
 ---
 
 ## Cookie Token

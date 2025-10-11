@@ -155,6 +155,31 @@ http -f GET localhost:8000/auth/hello "Authorization:Bearer xxxxxxxxx"  "Content
 }
 ```
 
+### 登出
+
+先登入取得 JWT Token，然後呼叫登出端點：
+
+```sh
+# 先登入取得 JWT Token
+http -v --json POST localhost:8000/login username=admin password=admin
+
+# 使用取得的 JWT Token 來登出（將 xxxxxxxxx 替換為實際的 Token）
+http -f POST localhost:8000/auth/logout "Authorization:Bearer xxxxxxxxx" "Content-Type: application/json"
+```
+
+**回應：**
+
+```json
+{
+  "code": 200,
+  "logged_out_user": "admin",
+  "message": "Successfully logged out",
+  "user_info": "admin"
+}
+```
+
+登出回應展示了 JWT 聲明現在可以透過 `jwt.ExtractClaims(c)` 在登出期間存取，讓開發者能夠取得使用者資訊用於日誌記錄、稽核或清理作業。
+
 ---
 
 ## Cookie Token
