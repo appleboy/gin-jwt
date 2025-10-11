@@ -818,10 +818,9 @@ func (mw *GinJWTMiddleware) GenerateTokenPairWithRevocation(data interface{}, ol
 		return nil, err
 	}
 
-	// Revoke old refresh token (don't fail if it fails)
-	if err := mw.revokeRefreshToken(oldRefreshToken); err != nil {
-		// Log error but don't fail the request
-		log.Printf("Failed to revoke old refresh token: %v", err)
+	// Revoke old refresh token, ignore if token already doesn't exist
+	if err := mw.revokeRefreshToken(oldRefreshToken); err != nil && !errors.Is(err, core.ErrRefreshTokenNotFound) {
+		return nil, err
 	}
 
 	return tokenPair, nil

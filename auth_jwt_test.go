@@ -1533,6 +1533,16 @@ func TestGenerateTokenPairWithRevocation(t *testing.T) {
 	storedData, err = authMiddleware.validateRefreshToken(newTokenPair.RefreshToken)
 	assert.NoError(t, err)
 	assert.Equal(t, userData, storedData)
+
+	// Test revoking already revoked token (should not fail)
+	anotherTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldTokenPair.RefreshToken)
+	assert.NoError(t, err)
+	assert.NotNil(t, anotherTokenPair)
+
+	// Test revoking non-existent token (should not fail)
+	finalTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, "non_existent_token")
+	assert.NoError(t, err)
+	assert.NotNil(t, finalTokenPair)
 }
 
 func TestTokenStruct(t *testing.T) {
