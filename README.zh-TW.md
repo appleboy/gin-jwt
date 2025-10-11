@@ -20,8 +20,11 @@
   - [目錄](#目錄)
   - [功能特色](#功能特色)
   - [安全性注意事項](#安全性注意事項)
+    - [🔒 關鍵安全要求](#-關鍵安全要求)
+    - [🛡️ 生產環境安全檢查清單](#️-生產環境安全檢查清單)
+    - [🔄 OAuth 2.0 安全標準](#-oauth-20-安全標準)
+    - [💡 安全配置範例](#-安全配置範例)
   - [安裝](#安裝)
-    - [使用 Go Modules（推薦）](#使用-go-modules推薦)
   - [快速開始範例](#快速開始範例)
   - [Token 產生器（直接建立 Token）](#token-產生器直接建立-token)
     - [基本用法](#基本用法)
@@ -83,25 +86,61 @@
 
 ## 安全性注意事項
 
-> **警告：**
-> 使用弱密碼（如短或簡單密碼）的 JWT Token 易受暴力破解攻擊。
-> **建議：**請使用強且長的密鑰或 `RS256` Token。
-> 詳見 [jwt-cracker repository](https://github.com/lmammino/jwt-cracker)。
-> **OAuth 2.0 安全性：**
-> 此函式庫預設遵循 RFC 6749 OAuth 2.0 標準，使用分離的不透明刷新 Token，
-> 這些 Token 在伺服器端儲存並在每次使用時輪替。這比同時使用 JWT Token
-> 作為存取與刷新用途提供更好的安全性。
+### 🔒 關鍵安全要求
+
+> **⚠️ JWT 密鑰安全**
+>
+> - **最低要求：** 使用至少 **256 位元（32 位元組）** 長度的密鑰
+> - **禁止使用：** 簡單密碼、字典詞彙或可預測的模式
+> - **建議：** 產生密碼學安全的隨機密鑰或使用 `RS256` 演算法
+> - **儲存：** 將密鑰儲存在環境變數中，絕不硬編碼在原始碼中
+> - **漏洞：** 弱密鑰易受暴力破解攻擊（[jwt-cracker](https://github.com/lmammino/jwt-cracker)）
+
+### 🛡️ 生產環境安全檢查清單
+
+- ✅ **僅限 HTTPS：** 生產環境中務必使用 HTTPS
+- ✅ **強密鑰：** 最少 256 位元隨機產生的密鑰
+- ✅ **Token 過期：** 設定適當的過期時間（建議：存取 Token 15-60 分鐘）
+- ✅ **安全 Cookie：** 啟用 `SecureCookie`、`CookieHTTPOnly` 和適當的 `SameSite` 設定
+- ✅ **環境變數：** 將敏感配置儲存在環境變數中
+- ✅ **輸入驗證：** 徹底驗證所有認證輸入
+
+### 🔄 OAuth 2.0 安全標準
+
+此函式庫遵循 **RFC 6749 OAuth 2.0** 安全標準：
+
+- **分離 Token：** 使用不同的不透明刷新 Token（非 JWT）以增強安全性
+- **伺服器端儲存：** 刷新 Token 在伺服器端儲存和驗證
+- **Token 輪替：** 每次使用時自動輪替刷新 Token
+- **增強安全性：** 防止 JWT 刷新 Token 漏洞和重放攻擊
+
+### 💡 安全配置範例
+
+```go
+// ❌ 不良：弱密鑰、不安全設定
+authMiddleware := &jwt.GinJWTMiddleware{
+    Key:         []byte("weak"),           // 太短！
+    Timeout:     time.Hour * 24,          // 太長！
+    SecureCookie: false,                  // 生產環境不安全！
+}
+
+// ✅ 良好：強安全配置
+authMiddleware := &jwt.GinJWTMiddleware{
+    Key:            []byte(os.Getenv("JWT_SECRET")), // 來自環境變數
+    Timeout:        time.Minute * 15,                // 短期存取 Token
+    MaxRefresh:     time.Hour * 24 * 7,             // 1 週刷新有效期
+    SecureCookie:   true,                           // 僅限 HTTPS
+    CookieHTTPOnly: true,                           // 防止 XSS
+    CookieSameSite: http.SameSiteStrictMode,        // CSRF 保護
+    SendCookie:     true,                           // 啟用安全 Cookie
+}
+```
+
+**更多安全指導，請參見我們的 [安全最佳實踐指南](_docs/security.md)**
 
 ---
 
 ## 安裝
-
-### 使用 Go Modules（推薦）
-
-```sh
-export GO111MODULE=on
-go get github.com/appleboy/gin-jwt/v2
-```
 
 ```go
 import "github.com/appleboy/gin-jwt/v2"

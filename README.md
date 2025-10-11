@@ -20,8 +20,11 @@ Easily add login, token refresh, and authorization to your Gin applications.
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
   - [Security Notice](#security-notice)
+    - [🔒 Critical Security Requirements](#-critical-security-requirements)
+    - [🛡️ Production Security Checklist](#️-production-security-checklist)
+    - [🔄 OAuth 2.0 Security Standards](#-oauth-20-security-standards)
+    - [💡 Secure Configuration Example](#-secure-configuration-example)
   - [Installation](#installation)
-    - [Using Go Modules (Recommended)](#using-go-modules-recommended)
   - [Quick Start Example](#quick-start-example)
   - [Token Generator (Direct Token Creation)](#token-generator-direct-token-creation)
     - [Basic Usage](#basic-usage)
@@ -81,25 +84,59 @@ Easily add login, token refresh, and authorization to your Gin applications.
 
 ## Security Notice
 
-> **Warning:**
-> JWT tokens with weak secrets (e.g., short or simple passwords) are vulnerable to brute-force attacks.
-> **Recommendation:** Use strong, long secrets or `RS256` tokens.
-> See the [jwt-cracker repository](https://github.com/lmammino/jwt-cracker) for more information.
-> **OAuth 2.0 Security:**
-> This library follows RFC 6749 OAuth 2.0 standards by default, using separate opaque refresh tokens
-> that are stored server-side and rotated on each use. This provides better security than using
-> JWT tokens for both access and refresh purposes.
+### 🔒 Critical Security Requirements
+
+> **⚠️ JWT Secret Security**
+>
+> - **Minimum Requirements:** Use secrets of at least **256 bits (32 bytes)** in length
+> - **Never use:** Simple passwords, dictionary words, or predictable patterns
+> - **Recommended:** Generate cryptographically secure random secrets or use `RS256` algorithm
+> - **Storage:** Store secrets in environment variables, never hardcode in source code
+> - **Vulnerability:** Weak secrets are vulnerable to brute-force attacks ([jwt-cracker](https://github.com/lmammino/jwt-cracker))
+
+### 🛡️ Production Security Checklist
+
+- ✅ **HTTPS Only:** Always use HTTPS in production environments
+- ✅ **Strong Secrets:** Minimum 256-bit randomly generated secrets
+- ✅ **Token Expiry:** Set appropriate timeout values (recommended: 15-60 minutes for access tokens)
+- ✅ **Secure Cookies:** Enable `SecureCookie`, `CookieHTTPOnly`, and appropriate `SameSite` settings
+- ✅ **Environment Variables:** Store sensitive configuration in environment variables
+- ✅ **Input Validation:** Validate all authentication inputs thoroughly
+
+### 🔄 OAuth 2.0 Security Standards
+
+This library follows **RFC 6749 OAuth 2.0** security standards:
+
+- **Separate Tokens:** Uses distinct opaque refresh tokens (not JWT) for enhanced security
+- **Server-Side Storage:** Refresh tokens are stored and validated server-side
+- **Token Rotation:** Refresh tokens are automatically rotated on each use
+- **Improved Security:** Prevents JWT refresh token vulnerabilities and replay attacks
+
+### 💡 Secure Configuration Example
+
+```go
+// ❌ BAD: Weak secret, insecure settings
+authMiddleware := &jwt.GinJWTMiddleware{
+    Key:         []byte("weak"),           // Too short!
+    Timeout:     time.Hour * 24,          // Too long!
+    SecureCookie: false,                  // Insecure in production!
+}
+
+// ✅ GOOD: Strong security configuration
+authMiddleware := &jwt.GinJWTMiddleware{
+    Key:            []byte(os.Getenv("JWT_SECRET")), // From environment
+    Timeout:        time.Minute * 15,                // Short-lived access tokens
+    MaxRefresh:     time.Hour * 24 * 7,             // 1 week refresh validity
+    SecureCookie:   true,                           // HTTPS only
+    CookieHTTPOnly: true,                           // Prevent XSS
+    CookieSameSite: http.SameSiteStrictMode,        // CSRF protection
+    SendCookie:     true,                           // Enable secure cookies
+}
+```
 
 ---
 
 ## Installation
-
-### Using Go Modules (Recommended)
-
-```sh
-export GO111MODULE=on
-go get github.com/appleboy/gin-jwt/v2
-```
 
 ```go
 import "github.com/appleboy/gin-jwt/v2"

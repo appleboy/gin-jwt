@@ -20,8 +20,11 @@
   - [目录](#目录)
   - [功能特色](#功能特色)
   - [安全性注意事项](#安全性注意事项)
+    - [🔒 关键安全要求](#-关键安全要求)
+    - [🛡️ 生产环境安全检查清单](#️-生产环境安全检查清单)
+    - [🔄 OAuth 2.0 安全标准](#-oauth-20-安全标准)
+    - [💡 安全配置示例](#-安全配置示例)
   - [安装](#安装)
-    - [使用 Go Modules（推荐）](#使用-go-modules推荐)
   - [快速开始示例](#快速开始示例)
   - [Token 生成器（直接创建 Token）](#token-生成器直接创建-token)
     - [基本用法](#基本用法)
@@ -83,25 +86,61 @@
 
 ## 安全性注意事项
 
-> **警告：**
-> 使用弱密码（如短或简单密码）的 JWT Token 易受暴力破解攻击。
-> **建议：**请使用强且长的密钥或 `RS256` Token。
-> 详见 [jwt-cracker repository](https://github.com/lmammino/jwt-cracker)。
-> **OAuth 2.0 安全性：**
-> 此库默认遵循 RFC 6749 OAuth 2.0 标准，使用分离的不透明刷新令牌，
-> 这些令牌在服务器端存储并在每次使用时轮替。这比同时使用 JWT 令牌
-> 作为访问和刷新用途提供更好的安全性。
+### 🔒 关键安全要求
+
+> **⚠️ JWT 密钥安全**
+>
+> - **最低要求：** 使用至少 **256 位（32 字节）** 长度的密钥
+> - **禁止使用：** 简单密码、字典词汇或可预测的模式
+> - **建议：** 生成加密安全的随机密钥或使用 `RS256` 算法
+> - **存储：** 将密钥存储在环境变量中，绝不硬编码在源码中
+> - **漏洞：** 弱密钥易受暴力破解攻击（[jwt-cracker](https://github.com/lmammino/jwt-cracker)）
+
+### 🛡️ 生产环境安全检查清单
+
+- ✅ **仅限 HTTPS：** 生产环境中务必使用 HTTPS
+- ✅ **强密钥：** 最少 256 位随机生成的密钥
+- ✅ **Token 过期：** 设置适当的过期时间（建议：访问 Token 15-60 分钟）
+- ✅ **安全 Cookie：** 启用 `SecureCookie`、`CookieHTTPOnly` 和适当的 `SameSite` 设置
+- ✅ **环境变量：** 将敏感配置存储在环境变量中
+- ✅ **输入验证：** 彻底验证所有认证输入
+
+### 🔄 OAuth 2.0 安全标准
+
+此库遵循 **RFC 6749 OAuth 2.0** 安全标准：
+
+- **分离令牌：** 使用不同的不透明刷新令牌（非 JWT）以增强安全性
+- **服务器端存储：** 刷新令牌在服务器端存储和验证
+- **令牌轮替：** 每次使用时自动轮替刷新令牌
+- **增强安全性：** 防止 JWT 刷新令牌漏洞和重放攻击
+
+### 💡 安全配置示例
+
+```go
+// ❌ 不良：弱密钥、不安全设置
+authMiddleware := &jwt.GinJWTMiddleware{
+    Key:         []byte("weak"),           // 太短！
+    Timeout:     time.Hour * 24,          // 太长！
+    SecureCookie: false,                  // 生产环境不安全！
+}
+
+// ✅ 良好：强安全配置
+authMiddleware := &jwt.GinJWTMiddleware{
+    Key:            []byte(os.Getenv("JWT_SECRET")), // 来自环境变量
+    Timeout:        time.Minute * 15,                // 短期访问令牌
+    MaxRefresh:     time.Hour * 24 * 7,             // 1 周刷新有效期
+    SecureCookie:   true,                           // 仅限 HTTPS
+    CookieHTTPOnly: true,                           // 防止 XSS
+    CookieSameSite: http.SameSiteStrictMode,        // CSRF 保护
+    SendCookie:     true,                           // 启用安全 Cookie
+}
+```
+
+**更多安全指导，请参见我们的 [安全最佳实践指南](_docs/security.md)**
 
 ---
 
 ## 安装
-
-### 使用 Go Modules（推荐）
-
-```sh
-export GO111MODULE=on
-go get github.com/appleboy/gin-jwt/v2
-```
 
 ```go
 import "github.com/appleboy/gin-jwt/v2"
