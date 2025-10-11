@@ -58,7 +58,7 @@ type GinJWTMiddleware struct {
 	// Callback function that should perform the authorization of the authenticated user. Called
 	// only after an authentication success. Must return true on success, false on failure.
 	// Optional, default to success.
-	Authorizator func(data any, c *gin.Context) bool
+	Authorizator func(c *gin.Context, data any) bool
 
 	// Callback function that will be called during login.
 	// Using this function it is possible to add additional payload data to the webtoken.
@@ -103,7 +103,7 @@ type GinJWTMiddleware struct {
 
 	// HTTP Status messages for when something in the JWT middleware fails.
 	// Check error (e) to determine the appropriate error message.
-	HTTPStatusMessageFunc func(e error, c *gin.Context) string
+	HTTPStatusMessageFunc func(c *gin.Context, e error) string
 
 	// Private key file for asymmetric algorithms
 	PrivKeyFile string
@@ -383,7 +383,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.Authorizator == nil {
-		mw.Authorizator = func(data any, c *gin.Context) bool {
+		mw.Authorizator = func(c *gin.Context, data any) bool {
 			return true
 		}
 	}
@@ -431,7 +431,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.HTTPStatusMessageFunc == nil {
-		mw.HTTPStatusMessageFunc = func(e error, c *gin.Context) string {
+		mw.HTTPStatusMessageFunc = func(c *gin.Context, e error) string {
 			return e.Error()
 		}
 	}
@@ -509,7 +509,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 
 	// For backwards compatibility since technically exp is not required in the spec but has been in gin-jwt
 	if claims["exp"] == nil {
-		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(c,ErrMissingExpField))
 		return
 	}
 
@@ -520,8 +520,8 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 		c.Set(mw.IdentityKey, identity)
 	}
 
-	if !mw.Authorizator(identity, c) {
-		mw.unauthorized(c, http.StatusForbidden, mw.HTTPStatusMessageFunc(ErrForbidden, c))
+	if !mw.Authorizator(c, identity) {
+		mw.unauthorized(c, http.StatusForbidden, mw.HTTPStatusMessageFunc(c,ErrForbidden))
 		return
 	}
 
@@ -557,20 +557,20 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, err
 // Reply will be of the form {"token": "TOKEN"}.
 func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	if mw.Authenticator == nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrMissingAuthenticatorFunc, c))
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(c,ErrMissingAuthenticatorFunc))
 		return
 	}
 
 	data, err := mw.Authenticator(c)
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(c,err))
 		return
 	}
 
 	// Generate complete token pair
 	tokenPair, err := mw.GenerateTokenPair(data)
 	if err != nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(c,ErrFailedTokenCreation))
 		return
 	}
 
@@ -694,14 +694,14 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	// Validate refresh token
 	userData, err := mw.validateRefreshToken(refreshToken)
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(c,err))
 		return
 	}
 
 	// Generate new token pair and revoke old refresh token
 	tokenPair, err := mw.GenerateTokenPairWithRevocation(userData, refreshToken)
 	if err != nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(c,err))
 		return
 	}
 
@@ -1022,13 +1022,13 @@ func (mw *GinJWTMiddleware) SetCookie(c *gin.Context, token string) {
 func (mw *GinJWTMiddleware) handleTokenError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, jwt.ErrTokenExpired):
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrExpiredToken, c))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(c, ErrExpiredToken))
 	case errors.Is(err, jwt.ErrInvalidType) && strings.Contains(err.Error(), "exp is invalid"):
-		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrWrongFormatOfExp, c))
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(c, ErrWrongFormatOfExp))
 	case errors.Is(err, jwt.ErrTokenRequiredClaimMissing) && strings.Contains(err.Error(), "exp claim is required"):
-		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(ErrMissingExpField, c))
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(c, ErrMissingExpField))
 	default:
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(err, c))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(c, err))
 	}
 }
 

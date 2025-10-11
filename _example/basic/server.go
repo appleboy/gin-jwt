@@ -133,8 +133,8 @@ func authenticator() func(c *gin.Context) (any, error) {
 	}
 }
 
-func authorizator() func(data any, c *gin.Context) bool {
-	return func(data any, c *gin.Context) bool {
+func authorizator() func(c *gin.Context, data any) bool {
+	return func(c *gin.Context, data any) bool {
 		if v, ok := data.(*User); ok && v.UserName == "admin" {
 			return true
 		}

@@ -61,7 +61,7 @@ func main() {
 
 			return nil, jwt.ErrFailedAuthentication
 		},
-		Authorizator: func(data any, c *gin.Context) bool {
+		Authorizator: func(c *gin.Context, data any) bool {
 			if v, ok := data.(*User); ok && v.UserName == "admin" {
 				return true
 			}

@@ -273,7 +273,7 @@ func TestLoginHandler(t *testing.T) {
 			}
 			return "", ErrFailedAuthentication
 		},
-		Authorizator: func(user any, c *gin.Context) bool {
+		Authorizator: func(c *gin.Context, user any) bool {
 			return true
 		},
 		LoginResponse: func(c *gin.Context, token *core.Token) {
@@ -675,7 +675,7 @@ func TestAuthorizator(t *testing.T) {
 		Timeout:       time.Hour,
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
-		Authorizator: func(data any, c *gin.Context) bool {
+		Authorizator: func(c *gin.Context, data any) bool {
 			return data.(string) == "admin"
 		},
 	})
@@ -782,7 +782,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 
 			return "Guest", ErrFailedAuthentication
 		},
-		Authorizator: func(user any, c *gin.Context) bool {
+		Authorizator: func(c *gin.Context, user any) bool {
 			jwtClaims := ExtractClaims(c)
 
 			if jwtClaims["identity"] == "administrator" {
@@ -1125,7 +1125,7 @@ func TestHTTPStatusMessageFunc(t *testing.T) {
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
 
-		HTTPStatusMessageFunc: func(e error, c *gin.Context) string {
+		HTTPStatusMessageFunc: func(c *gin.Context, e error) string {
 			if e == successError {
 				return successMessage
 			}
@@ -1134,8 +1134,8 @@ func TestHTTPStatusMessageFunc(t *testing.T) {
 		},
 	})
 
-	successString := authMiddleware.HTTPStatusMessageFunc(successError, nil)
-	failedString := authMiddleware.HTTPStatusMessageFunc(failedError, nil)
+	successString := authMiddleware.HTTPStatusMessageFunc(nil, successError)
+	failedString := authMiddleware.HTTPStatusMessageFunc(nil, failedError)
 
 	assert.Equal(t, successMessage, successString)
 	assert.NotEqual(t, successMessage, failedString)
@@ -1150,7 +1150,7 @@ func TestSendAuthorizationBool(t *testing.T) {
 		MaxRefresh:        time.Hour * 24,
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
-		Authorizator: func(data any, c *gin.Context) bool {
+		Authorizator: func(c *gin.Context, data any) bool {
 			return data.(string) == "admin"
 		},
 	})
@@ -1188,7 +1188,7 @@ func TestExpiredTokenOnAuth(t *testing.T) {
 		MaxRefresh:        time.Hour * 24,
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
-		Authorizator: func(data any, c *gin.Context) bool {
+		Authorizator: func(c *gin.Context, data any) bool {
 			return data.(string) == "admin"
 		},
 		TimeFunc: func() time.Time {
@@ -1456,7 +1456,7 @@ func TestGenerateTokenPair(t *testing.T) {
 				"identity": data,
 			}
 		},
-		Authorizator: func(data any, c *gin.Context) bool {
+		Authorizator: func(c *gin.Context, data any) bool {
 			return data == "admin"
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
