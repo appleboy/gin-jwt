@@ -30,12 +30,8 @@
   - [Redis 儲存配置](#redis-儲存配置)
     - [Redis 功能特色](#redis-功能特色)
     - [Redis 使用方法](#redis-使用方法)
-      - [方法 1：啟用預設 Redis 配置](#方法-1啟用預設-redis-配置)
-      - [方法 2：啟用自訂位址的 Redis](#方法-2啟用自訂位址的-redis)
-      - [方法 3：使用完整選項啟用 Redis](#方法-3使用完整選項啟用-redis)
-      - [方法 4：使用自訂配置啟用 Redis](#方法-4使用自訂配置啟用-redis)
-      - [方法 5：配置用戶端快取](#方法-5配置用戶端快取)
-      - [方法 6：方法鏈](#方法-6方法鏈)
+      - [使用函數選項模式（推薦）](#使用函數選項模式推薦)
+      - [可用選項](#可用選項)
     - [配置選項](#配置選項)
       - [RedisConfig](#redisconfig)
     - [回退行為](#回退行為)
@@ -216,64 +212,50 @@ fmt.Printf("New Refresh Token: %s\n", newTokenPair.RefreshToken)
 
 ### Redis 使用方法
 
-#### 方法 1：啟用預設 Redis 配置
+#### 使用函數選項模式（推薦）
+
+Redis 配置現在使用函數選項模式，提供更清潔且靈活的配置：
 
 ```go
+// 方法 1：使用預設配置啟用 Redis
 middleware := &jwt.GinJWTMiddleware{
     // ... 其他配置
-}
+}.EnableRedisStore()
 
-// 使用預設設定啟用 Redis（localhost:6379）
-middleware.EnableRedisStore()
-```
-
-#### 方法 2：啟用自訂位址的 Redis
-
-```go
-// 使用自訂位址啟用 Redis
-middleware.EnableRedisStoreWithAddr("redis.example.com:6379")
-```
-
-#### 方法 3：使用完整選項啟用 Redis
-
-```go
-// 使用位址、密碼和資料庫啟用 Redis
-middleware.EnableRedisStoreWithOptions("redis.example.com:6379", "password", 0)
-```
-
-#### 方法 4：使用自訂配置啟用 Redis
-
-```go
-import "github.com/appleboy/gin-jwt/v2/store"
-
-config := &store.RedisConfig{
-    Addr:      "redis.example.com:6379",
-    Password:  "your-password",
-    DB:        0,
-    CacheSize: 256 * 1024 * 1024, // 256MB 快取
-    CacheTTL:  5 * time.Minute,    // 5 分鐘快取 TTL
-    KeyPrefix: "myapp-jwt:",
-}
-
-middleware.EnableRedisStoreWithConfig(config)
-```
-
-#### 方法 5：配置用戶端快取
-
-```go
-// 設定用戶端快取大小和 TTL
-middleware.SetRedisClientSideCache(64*1024*1024, 30*time.Second) // 64MB 快取，30秒 TTL
-```
-
-#### 方法 6：方法鏈
-
-```go
+// 方法 2：使用自訂位址啟用 Redis
 middleware := &jwt.GinJWTMiddleware{
     // ... 其他配置
-}.
-EnableRedisStoreWithAddr("redis.example.com:6379").
-SetRedisClientSideCache(128*1024*1024, time.Minute)
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6379"),
+)
+
+// 方法 3：使用認證啟用 Redis
+middleware := &jwt.GinJWTMiddleware{
+    // ... 其他配置
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6379"),
+    jwt.WithRedisAuth("password", 0),
+)
+
+// 方法 4：使用所有選項的完整配置
+middleware := &jwt.GinJWTMiddleware{
+    // ... 其他配置
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6379"),
+    jwt.WithRedisAuth("password", 1),
+    jwt.WithRedisCache(128*1024*1024, time.Minute),     // 128MB 快取，1分鐘 TTL
+    jwt.WithRedisPool(20, time.Hour, 2*time.Hour),      // 連線池配置
+    jwt.WithRedisKeyPrefix("myapp:jwt:"),               // 鍵前綴
+)
 ```
+
+#### 可用選項
+
+- `WithRedisAddr(addr string)` - 設定 Redis 伺服器位址
+- `WithRedisAuth(password string, db int)` - 設定認證和資料庫
+- `WithRedisCache(size int, ttl time.Duration)` - 配置用戶端快取
+- `WithRedisPool(poolSize int, maxIdleTime, maxLifetime time.Duration)` - 配置連線池
+- `WithRedisKeyPrefix(prefix string)` - 設定 Redis 鍵的前綴
 
 ### 配置選項
 
@@ -349,8 +331,10 @@ func main() {
 
             return nil, jwt.ErrFailedAuthentication
         },
-    }).EnableRedisStoreWithAddr("localhost:6379").                    // 啟用 Redis
-      SetRedisClientSideCache(64*1024*1024, 30*time.Second)         // 配置快取
+    }).EnableRedisStore(                                            // 使用選項啟用 Redis
+        jwt.WithRedisAddr("localhost:6379"),                       // Redis 伺服器位址
+        jwt.WithRedisCache(64*1024*1024, 30*time.Second),         // 64MB 快取，30秒 TTL
+    )
 
     if err != nil {
         log.Fatal("JWT Error:" + err.Error())

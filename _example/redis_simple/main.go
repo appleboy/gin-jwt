@@ -84,28 +84,37 @@ func main() {
 		TimeFunc:      time.Now,
 	}
 
-	// Configure Redis store using convenience methods
-	middleware.EnableRedisStore().SetRedisClientSideCache(64*1024*1024, 30*time.Second) // 64MB cache, 30s TTL
+	// Configure Redis store using functional options pattern
+	middleware.EnableRedisStore(
+		jwt.WithRedisCache(64*1024*1024, 30*time.Second), // 64MB cache, 30s TTL
+	)
 
 	// Create the JWT middleware
 	authMiddleware, err := jwt.New(middleware)
 
-	// Alternative initialization methods:
+	// Alternative initialization methods using functional options:
 	//
 	// Method 1: Simple enable with defaults
 	// }.EnableRedisStore())
 	//
 	// Method 2: Enable with custom address
-	// }.EnableRedisStoreWithAddr("redis:6379"))
+	// }.EnableRedisStore(jwt.WithRedisAddr("redis:6379")))
 	//
 	// Method 3: Enable with full options
-	// }.EnableRedisStoreWithOptions("localhost:6379", "", 0))
+	// }.EnableRedisStore(
+	//     jwt.WithRedisAddr("localhost:6379"),
+	//     jwt.WithRedisAuth("", 0),
+	//     jwt.WithRedisCache(128*1024*1024, time.Minute),
+	// ))
 	//
-	// Method 4: Enable with custom config
-	// config := store.DefaultRedisConfig()
-	// config.Addr = "localhost:6379"
-	// config.CacheSize = 128 * 1024 * 1024 // 128MB
-	// }.EnableRedisStoreWithConfig(config))
+	// Method 4: Enable with comprehensive configuration
+	// }.EnableRedisStore(
+	//     jwt.WithRedisAddr("localhost:6379"),
+	//     jwt.WithRedisAuth("password", 1),
+	//     jwt.WithRedisCache(128*1024*1024, time.Minute),
+	//     jwt.WithRedisPool(20, time.Hour, 2*time.Hour),
+	//     jwt.WithRedisKeyPrefix("myapp:jwt:"),
+	// ))
 
 	if err != nil {
 		log.Fatal("JWT Error:" + err.Error())

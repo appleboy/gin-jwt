@@ -30,12 +30,8 @@ Easily add login, token refresh, and authorization to your Gin applications.
   - [Redis Store Configuration](#redis-store-configuration)
     - [Redis Features](#redis-features)
     - [Redis Usage Methods](#redis-usage-methods)
-      - [Method 1: Enable Redis with Default Configuration](#method-1-enable-redis-with-default-configuration)
-      - [Method 2: Enable Redis with Custom Address](#method-2-enable-redis-with-custom-address)
-      - [Method 3: Enable Redis with Full Options](#method-3-enable-redis-with-full-options)
-      - [Method 4: Enable Redis with Custom Configuration](#method-4-enable-redis-with-custom-configuration)
-      - [Method 5: Configure Client-side Cache](#method-5-configure-client-side-cache)
-      - [Method 6: Method Chaining](#method-6-method-chaining)
+      - [Using Functional Options Pattern (Recommended)](#using-functional-options-pattern-recommended)
+      - [Available Options](#available-options)
     - [Configuration Options](#configuration-options)
       - [RedisConfig](#redisconfig)
     - [Fallback Behavior](#fallback-behavior)
@@ -381,64 +377,50 @@ This library supports Redis as a backend for refresh token storage, with built-i
 
 ### Redis Usage Methods
 
-#### Method 1: Enable Redis with Default Configuration
+#### Using Functional Options Pattern (Recommended)
+
+The Redis configuration now uses a functional options pattern for cleaner and more flexible configuration:
 
 ```go
+// Method 1: Enable Redis with default configuration
 middleware := &jwt.GinJWTMiddleware{
     // ... other configuration
-}
+}.EnableRedisStore()
 
-// Enable Redis with default settings (localhost:6379)
-middleware.EnableRedisStore()
-```
-
-#### Method 2: Enable Redis with Custom Address
-
-```go
-// Enable Redis with custom address
-middleware.EnableRedisStoreWithAddr("redis.example.com:6379")
-```
-
-#### Method 3: Enable Redis with Full Options
-
-```go
-// Enable Redis with address, password, and database
-middleware.EnableRedisStoreWithOptions("redis.example.com:6379", "password", 0)
-```
-
-#### Method 4: Enable Redis with Custom Configuration
-
-```go
-import "github.com/appleboy/gin-jwt/v2/store"
-
-config := &store.RedisConfig{
-    Addr:      "redis.example.com:6379",
-    Password:  "your-password",
-    DB:        0,
-    CacheSize: 256 * 1024 * 1024, // 256MB cache
-    CacheTTL:  5 * time.Minute,    // 5 minute cache TTL
-    KeyPrefix: "myapp-jwt:",
-}
-
-middleware.EnableRedisStoreWithConfig(config)
-```
-
-#### Method 5: Configure Client-side Cache
-
-```go
-// Set client-side cache size and TTL
-middleware.SetRedisClientSideCache(64*1024*1024, 30*time.Second) // 64MB cache, 30s TTL
-```
-
-#### Method 6: Method Chaining
-
-```go
+// Method 2: Enable Redis with custom address
 middleware := &jwt.GinJWTMiddleware{
     // ... other configuration
-}.
-EnableRedisStoreWithAddr("redis.example.com:6379").
-SetRedisClientSideCache(128*1024*1024, time.Minute)
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6379"),
+)
+
+// Method 3: Enable Redis with authentication
+middleware := &jwt.GinJWTMiddleware{
+    // ... other configuration
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6379"),
+    jwt.WithRedisAuth("password", 0),
+)
+
+// Method 4: Full configuration with all options
+middleware := &jwt.GinJWTMiddleware{
+    // ... other configuration
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6379"),
+    jwt.WithRedisAuth("password", 1),
+    jwt.WithRedisCache(128*1024*1024, time.Minute),     // 128MB cache, 1min TTL
+    jwt.WithRedisPool(20, time.Hour, 2*time.Hour),      // Pool config
+    jwt.WithRedisKeyPrefix("myapp:jwt:"),               // Key prefix
+)
 ```
+
+#### Available Options
+
+- `WithRedisAddr(addr string)` - Sets Redis server address
+- `WithRedisAuth(password string, db int)` - Sets authentication and database
+- `WithRedisCache(size int, ttl time.Duration)` - Configures client-side cache
+- `WithRedisPool(poolSize int, maxIdleTime, maxLifetime time.Duration)` - Configures connection pool
+- `WithRedisKeyPrefix(prefix string)` - Sets key prefix for Redis keys
 
 ### Configuration Options
 
@@ -514,8 +496,10 @@ func main() {
 
             return nil, jwt.ErrFailedAuthentication
         },
-    }).EnableRedisStoreWithAddr("localhost:6379").                    // Enable Redis
-      SetRedisClientSideCache(64*1024*1024, 30*time.Second)         // Configure cache
+    }).EnableRedisStore(                                            // Enable Redis with options
+        jwt.WithRedisAddr("localhost:6379"),                       // Redis server address
+        jwt.WithRedisCache(64*1024*1024, 30*time.Second),         // 64MB cache, 30s TTL
+    )
 
     if err != nil {
         log.Fatal("JWT Error:" + err.Error())
