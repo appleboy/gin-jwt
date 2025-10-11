@@ -750,21 +750,42 @@ func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, e
 
 // TokenGenerator method that clients can use to get a jwt token.
 func (mw *GinJWTMiddleware) TokenGenerator(data any) (string, time.Time, error) {
-	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
+	// 1. Validate signing algorithm
+	signingMethod := jwt.GetSigningMethod(mw.SigningAlgorithm)
+	if signingMethod == nil {
+		return "", time.Time{}, ErrInvalidSigningAlgorithm
+	}
+
+	token := jwt.New(signingMethod)
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		return "", time.Time{}, ErrFailedTokenCreation
 	}
 
+	// 2. Define reserved claims to prevent PayloadFunc from overwriting system fields
+	reservedClaims := map[string]bool{
+		"exp": true, "iat": true, "nbf": true, "iss": true,
+		"aud": true, "sub": true, "jti": true, "orig_iat": true,
+	}
+
+	// 3. Safely add custom payload, avoiding system field overwrites
 	if mw.PayloadFunc != nil {
 		for key, value := range mw.PayloadFunc(data) {
-			claims[key] = value
+			if !reservedClaims[key] {
+				claims[key] = value
+			}
 		}
 	}
 
-	expire := mw.TimeFunc().Add(mw.TimeoutFunc(claims))
+	// 4. Calculate expiration time using original data instead of claims
+	expire := mw.TimeFunc().Add(mw.TimeoutFunc(data))
+
+	// 5. Set required system claims
+	now := mw.TimeFunc()
 	claims[mw.ExpField] = expire.Unix()
-	claims["orig_iat"] = mw.TimeFunc().Unix()
+	claims["orig_iat"] = now.Unix()
+
+	// 6. Sign the token
 	tokenString, err := mw.signedString(token)
 	if err != nil {
 		return "", time.Time{}, err
