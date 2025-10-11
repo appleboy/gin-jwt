@@ -27,6 +27,19 @@
     - [基本用法](#基本用法)
     - [Token 結構](#token-結構)
     - [刷新 Token 管理](#刷新-token-管理)
+  - [Redis 儲存配置](#redis-儲存配置)
+    - [Redis 功能特色](#redis-功能特色)
+    - [Redis 使用方法](#redis-使用方法)
+      - [方法 1：啟用預設 Redis 配置](#方法-1啟用預設-redis-配置)
+      - [方法 2：啟用自訂位址的 Redis](#方法-2啟用自訂位址的-redis)
+      - [方法 3：使用完整選項啟用 Redis](#方法-3使用完整選項啟用-redis)
+      - [方法 4：使用自訂配置啟用 Redis](#方法-4使用自訂配置啟用-redis)
+      - [方法 5：配置用戶端快取](#方法-5配置用戶端快取)
+      - [方法 6：方法鏈](#方法-6方法鏈)
+    - [配置選項](#配置選項)
+      - [RedisConfig](#redisconfig)
+    - [回退行為](#回退行為)
+    - [Redis 範例](#redis-範例)
   - [Demo](#demo)
     - [登入](#登入)
     - [刷新 Token](#刷新-token)
@@ -52,7 +65,7 @@
 - 🍪 支援 Cookie 與 Header Token
 - 📝 易於整合，API 清晰
 - 🔐 符合 RFC 6749 規範的刷新 Token（OAuth 2.0 標準）
-- 🗄️ 可插拔的刷新 Token 儲存（記憶體、Redis 等）
+- 🗄️ 可插拔的刷新 Token 儲存（記憶體、Redis 用戶端快取）
 - 🏭 直接產生 Token，無需 HTTP 中介軟體
 - 📦 結構化 Token 類型與中繼資料
 
@@ -186,6 +199,186 @@ fmt.Printf("New Refresh Token: %s\n", newTokenPair.RefreshToken)
 - 🎛️ **自訂驗證流程**：建立自訂驗證邏輯
 
 詳見[完整範例](_example/token_generator/)。
+
+---
+
+## Redis 儲存配置
+
+此函式庫支援 Redis 作為刷新 Token 儲存後端，並內建用戶端快取以提升效能。相比預設的記憶體儲存，Redis 儲存提供更好的可延展性和持久性。
+
+### Redis 功能特色
+
+- 🔄 **用戶端快取**：內建 Redis 用戶端快取以提升效能
+- 🚀 **自動回退**：Redis 連線失敗時自動回退到記憶體儲存
+- ⚙️ **簡易配置**：簡單的方法配置 Redis 儲存
+- 🔧 **方法鏈**：流暢的 API，便於配置
+- 📦 **工廠模式**：同時支援 Redis 和記憶體儲存
+
+### Redis 使用方法
+
+#### 方法 1：啟用預設 Redis 配置
+
+```go
+middleware := &jwt.GinJWTMiddleware{
+    // ... 其他配置
+}
+
+// 使用預設設定啟用 Redis（localhost:6379）
+middleware.EnableRedisStore()
+```
+
+#### 方法 2：啟用自訂位址的 Redis
+
+```go
+// 使用自訂位址啟用 Redis
+middleware.EnableRedisStoreWithAddr("redis.example.com:6379")
+```
+
+#### 方法 3：使用完整選項啟用 Redis
+
+```go
+// 使用位址、密碼和資料庫啟用 Redis
+middleware.EnableRedisStoreWithOptions("redis.example.com:6379", "password", 0)
+```
+
+#### 方法 4：使用自訂配置啟用 Redis
+
+```go
+import "github.com/appleboy/gin-jwt/v2/store"
+
+config := &store.RedisConfig{
+    Addr:      "redis.example.com:6379",
+    Password:  "your-password",
+    DB:        0,
+    CacheSize: 256 * 1024 * 1024, // 256MB 快取
+    CacheTTL:  5 * time.Minute,    // 5 分鐘快取 TTL
+    KeyPrefix: "myapp-jwt:",
+}
+
+middleware.EnableRedisStoreWithConfig(config)
+```
+
+#### 方法 5：配置用戶端快取
+
+```go
+// 設定用戶端快取大小和 TTL
+middleware.SetRedisClientSideCache(64*1024*1024, 30*time.Second) // 64MB 快取，30秒 TTL
+```
+
+#### 方法 6：方法鏈
+
+```go
+middleware := &jwt.GinJWTMiddleware{
+    // ... 其他配置
+}.
+EnableRedisStoreWithAddr("redis.example.com:6379").
+SetRedisClientSideCache(128*1024*1024, time.Minute)
+```
+
+### 配置選項
+
+#### RedisConfig
+
+- **Addr**：Redis 伺服器位址（預設：`"localhost:6379"`）
+- **Password**：Redis 密碼（預設：`""`）
+- **DB**：Redis 資料庫編號（預設：`0`）
+- **CacheSize**：用戶端快取大小（位元組）（預設：`128MB`）
+- **CacheTTL**：用戶端快取 TTL（預設：`1 分鐘`）
+- **KeyPrefix**：所有 Redis 鍵的前綴（預設：`"gin-jwt:"`）
+
+### 回退行為
+
+如果在初始化期間 Redis 連線失敗：
+
+- 中介軟體會記錄錯誤訊息
+- 自動回退到記憶體儲存
+- 應用程式繼續正常運作
+
+這確保了高可用性，防止因 Redis 連線問題導致的應用程式故障。
+
+### Redis 範例
+
+參見[Redis 範例](_example/redis_simple/)了解完整實作。
+
+```go
+package main
+
+import (
+    "log"
+    "net/http"
+    "time"
+
+    jwt "github.com/appleboy/gin-jwt/v2"
+    "github.com/gin-gonic/gin"
+)
+
+func main() {
+    r := gin.Default()
+
+    authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+        Realm:       "example zone",
+        Key:         []byte("secret key"),
+        Timeout:     time.Hour,
+        MaxRefresh:  time.Hour * 24,
+        IdentityKey: "id",
+
+        PayloadFunc: func(data interface{}) jwt.MapClaims {
+            if v, ok := data.(map[string]interface{}); ok {
+                return jwt.MapClaims{
+                    "id": v["username"],
+                }
+            }
+            return jwt.MapClaims{}
+        },
+
+        Authenticator: func(c *gin.Context) (interface{}, error) {
+            var loginVals struct {
+                Username string `json:"username"`
+                Password string `json:"password"`
+            }
+
+            if err := c.ShouldBind(&loginVals); err != nil {
+                return "", jwt.ErrMissingLoginValues
+            }
+
+            if loginVals.Username == "admin" && loginVals.Password == "admin" {
+                return map[string]interface{}{
+                    "username": loginVals.Username,
+                }, nil
+            }
+
+            return nil, jwt.ErrFailedAuthentication
+        },
+    }).EnableRedisStoreWithAddr("localhost:6379").                    // 啟用 Redis
+      SetRedisClientSideCache(64*1024*1024, 30*time.Second)         // 配置快取
+
+    if err != nil {
+        log.Fatal("JWT Error:" + err.Error())
+    }
+
+    errInit := authMiddleware.MiddlewareInit()
+    if errInit != nil {
+        log.Fatal("authMiddleware.MiddlewareInit() Error:" + errInit.Error())
+    }
+
+    r.POST("/login", authMiddleware.LoginHandler)
+
+    auth := r.Group("/auth")
+    auth.Use(authMiddleware.MiddlewareFunc())
+    {
+        auth.GET("/hello", func(c *gin.Context) {
+            c.JSON(200, gin.H{
+                "message": "Hello World.",
+            })
+        })
+        auth.GET("/refresh_token", authMiddleware.RefreshHandler)
+    }
+
+    if err := http.ListenAndServe(":8000", r); err != nil {
+        log.Fatal(err)
+    }
+}
+```
 
 ---
 
