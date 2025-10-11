@@ -15,44 +15,26 @@ import (
 	gojwt "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/redis"
 )
 
 func setupRedisContainerForJWT(t *testing.T) (*redis.RedisContainer, string, string) {
-  ctx := context.Background()
-  t.Helper()
+	ctx := context.Background()
+	t.Helper()
 
-  // Start Redis container
-  redisContainer, err := redis.Run(ctx, "redis:7-alpine")
-  require.NoError(t, err, "failed to start Redis container")
-
-  mappedPort, err := redisContainer.MappedPort(ctx, "6379/tcp")
-  require.NoError(t, err, "failed to get Redis port")
-
-  t.Cleanup(func() {
-    if err := redisContainer.Terminate(ctx); err != nil {
-      t.Logf("failed to terminate Redis container: %s", err)
-    }
-  })
-
-  // …the rest of your setup logic…
-}
 	// Start Redis container
-	redisContainer, err := redis.Run(ctx,
-		"redis:alpine",
-	)
+	redisContainer, err := redis.Run(ctx, "redis:8-alpine")
 	require.NoError(t, err, "failed to start Redis container")
 
 	// Get host and port
 	host, err := redisContainer.Host(ctx)
 	require.NoError(t, err, "failed to get Redis host")
 
-	mappedPort, err := redisContainer.MappedPort(ctx, "6379")
+	mappedPort, err := redisContainer.MappedPort(ctx, "6379/tcp")
 	require.NoError(t, err, "failed to get Redis port")
 
 	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(redisContainer); err != nil {
+		if err := redisContainer.Terminate(ctx); err != nil {
 			t.Logf("failed to terminate Redis container: %s", err)
 		}
 	})
@@ -243,7 +225,7 @@ func createTestMiddleware(t *testing.T, redisAddr string) *GinJWTMiddleware {
 			Addr:      redisAddr,
 			Password:  "",
 			DB:        0,
-			CacheSize: 1024 * 1024,    // 1MB for testing
+			CacheSize: 1024 * 1024,           // 1MB for testing
 			CacheTTL:  50 * time.Millisecond, // Very short TTL for testing
 			KeyPrefix: "test-jwt:",
 		},
