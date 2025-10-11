@@ -1057,18 +1057,6 @@ func (mw *GinJWTMiddleware) generateTokenResponse(c *gin.Context, token string, 
 	return response, nil
 }
 
-// generateTokenResponseFromToken creates a RFC 6749 compliant token response from Token struct
-func (mw *GinJWTMiddleware) generateTokenResponseFromToken(tokenPair *core.Token) gin.H {
-	return gin.H{
-		"access_token":  tokenPair.AccessToken,
-		"token_type":    tokenPair.TokenType,
-		"refresh_token": tokenPair.RefreshToken,
-		"expires_in":    tokenPair.ExpiresIn(),
-		"expires_at":    tokenPair.ExpiresAt,
-		"created_at":    tokenPair.CreatedAt,
-	}
-}
-
 // ClearSensitiveData clears sensitive data from memory
 func (mw *GinJWTMiddleware) ClearSensitiveData() {
 	// Clear symmetric key
