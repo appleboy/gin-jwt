@@ -20,8 +20,24 @@ import (
 )
 
 func setupRedisContainerForJWT(t *testing.T) (*redis.RedisContainer, string, string) {
-	ctx := context.Background()
+  ctx := context.Background()
+  t.Helper()
 
+  // Start Redis container
+  redisContainer, err := redis.Run(ctx, "redis:7-alpine")
+  require.NoError(t, err, "failed to start Redis container")
+
+  mappedPort, err := redisContainer.MappedPort(ctx, "6379/tcp")
+  require.NoError(t, err, "failed to get Redis port")
+
+  t.Cleanup(func() {
+    if err := redisContainer.Terminate(ctx); err != nil {
+      t.Logf("failed to terminate Redis container: %s", err)
+    }
+  })
+
+  // …the rest of your setup logic…
+}
 	// Start Redis container
 	redisContainer, err := redis.Run(ctx,
 		"redis:alpine",
