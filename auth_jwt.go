@@ -565,47 +565,19 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Create the token
-	token := jwt.New(jwt.GetSigningMethod(mw.SigningAlgorithm))
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
-		return
-	}
-
-	if mw.PayloadFunc != nil {
-		for key, value := range mw.PayloadFunc(data) {
-			claims[key] = value
-		}
-	}
-
-	expire := mw.TimeFunc().Add(mw.TimeoutFunc(claims))
-	claims[mw.ExpField] = expire.Unix()
-	claims["orig_iat"] = mw.TimeFunc().Unix()
-	tokenString, err := mw.signedString(token)
-	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
-		return
-	}
-
-	mw.SetCookie(c, tokenString)
-
-	// Generate RFC 6749 compliant refresh token
-	refreshToken, err := mw.generateRefreshToken()
+	// Generate complete token pair
+	tokenPair, err := mw.GenerateTokenPair(data)
 	if err != nil {
 		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
 		return
 	}
 
-	if err := mw.storeRefreshToken(refreshToken, data); err != nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(ErrFailedTokenCreation, c))
-		return
-	}
+	// Set cookie and context for response generation
+	mw.SetCookie(c, tokenPair.AccessToken)
+	c.Set("REFRESH_TOKEN", tokenPair.RefreshToken)
 
-	// Store refresh token in context for response generation
-	c.Set("REFRESH_TOKEN", refreshToken)
-
-	mw.LoginResponse(c, http.StatusOK, tokenString, expire)
+	expire := time.Unix(tokenPair.ExpiresAt, 0)
+	mw.LoginResponse(c, http.StatusOK, tokenPair.AccessToken, expire)
 }
 
 func (mw *GinJWTMiddleware) extractRefreshToken(c *gin.Context) string {
@@ -712,11 +684,6 @@ func (mw *GinJWTMiddleware) revokeRefreshToken(token string) error {
 // This handler expects a refresh_token parameter and returns a new access token and refresh token.
 // Reply will be of the form {"access_token": "TOKEN", "refresh_token": "REFRESH_TOKEN"}.
 func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
-	mw.rfc6749RefreshHandler(c)
-}
-
-// rfc6749RefreshHandler handles refresh token requests in RFC 6749 compliant mode
-func (mw *GinJWTMiddleware) rfc6749RefreshHandler(c *gin.Context) {
 	// Extract refresh token from request
 	refreshToken := mw.extractRefreshToken(c)
 	if refreshToken == "" {
@@ -731,38 +698,19 @@ func (mw *GinJWTMiddleware) rfc6749RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	// Generate new access token
-	newTokenString, expire, err := mw.TokenGenerator(userData)
+	// Generate new token pair and revoke old refresh token
+	tokenPair, err := mw.GenerateTokenPairWithRevocation(userData, refreshToken)
 	if err != nil {
 		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
 		return
 	}
 
-	// Generate new refresh token and revoke old one
-	newRefreshToken, err := mw.generateRefreshToken()
-	if err != nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
-		return
-	}
+	// Set cookie and context for response generation
+	mw.SetCookie(c, tokenPair.AccessToken)
+	c.Set("REFRESH_TOKEN", tokenPair.RefreshToken)
 
-	// Store new refresh token
-	if err := mw.storeRefreshToken(newRefreshToken, userData); err != nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(err, c))
-		return
-	}
-
-	// Revoke old refresh token
-	if err := mw.revokeRefreshToken(refreshToken); err != nil {
-		// Log error but don't fail the request
-		log.Printf("Failed to revoke old refresh token: %v", err)
-	}
-
-	mw.SetCookie(c, newTokenString)
-
-	// Store new refresh token in context for response generation
-	c.Set("REFRESH_TOKEN", newRefreshToken)
-
-	mw.RefreshResponse(c, http.StatusOK, newTokenString, expire)
+	expire := time.Unix(tokenPair.ExpiresAt, 0)
+	mw.RefreshResponse(c, http.StatusOK, tokenPair.AccessToken, expire)
 }
 
 // RefreshToken is deprecated. Use RefreshHandler instead for RFC 6749 compliant refresh tokens.
@@ -831,6 +779,52 @@ func (mw *GinJWTMiddleware) TokenGenerator(data interface{}) (string, time.Time,
 	}
 
 	return tokenString, expire, nil
+}
+
+// GenerateTokenPair generates a complete token pair (access + refresh) with RFC 6749 compliance
+func (mw *GinJWTMiddleware) GenerateTokenPair(data interface{}) (*core.Token, error) {
+	// Generate access token
+	accessToken, expire, err := mw.TokenGenerator(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate refresh token
+	refreshToken, err := mw.generateRefreshToken()
+	if err != nil {
+		return nil, err
+	}
+
+	// Store refresh token
+	if err := mw.storeRefreshToken(refreshToken, data); err != nil {
+		return nil, err
+	}
+
+	now := mw.TimeFunc()
+	return &core.Token{
+		AccessToken:  accessToken,
+		TokenType:    "Bearer",
+		RefreshToken: refreshToken,
+		ExpiresAt:    expire.Unix(),
+		CreatedAt:    now.Unix(),
+	}, nil
+}
+
+// GenerateTokenPairWithRevocation generates a new token pair and revokes the old refresh token
+func (mw *GinJWTMiddleware) GenerateTokenPairWithRevocation(data interface{}, oldRefreshToken string) (*core.Token, error) {
+	// Generate new token pair
+	tokenPair, err := mw.GenerateTokenPair(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Revoke old refresh token (don't fail if it fails)
+	if err := mw.revokeRefreshToken(oldRefreshToken); err != nil {
+		// Log error but don't fail the request
+		log.Printf("Failed to revoke old refresh token: %v", err)
+	}
+
+	return tokenPair, nil
 }
 
 func (mw *GinJWTMiddleware) jwtFromHeader(c *gin.Context, key string) (string, error) {
@@ -1061,6 +1055,18 @@ func (mw *GinJWTMiddleware) generateTokenResponse(c *gin.Context, token string, 
 	}
 
 	return response, nil
+}
+
+// generateTokenResponseFromToken creates a RFC 6749 compliant token response from Token struct
+func (mw *GinJWTMiddleware) generateTokenResponseFromToken(tokenPair *core.Token) gin.H {
+	return gin.H{
+		"access_token":  tokenPair.AccessToken,
+		"token_type":    tokenPair.TokenType,
+		"refresh_token": tokenPair.RefreshToken,
+		"expires_in":    tokenPair.ExpiresIn(),
+		"expires_at":    tokenPair.ExpiresAt,
+		"created_at":    tokenPair.CreatedAt,
+	}
 }
 
 // ClearSensitiveData clears sensitive data from memory

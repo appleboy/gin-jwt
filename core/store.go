@@ -48,3 +48,17 @@ type RefreshTokenData struct {
 func (r *RefreshTokenData) IsExpired() bool {
 	return time.Now().After(r.Expiry)
 }
+
+// Token represents a complete JWT token pair with metadata
+type Token struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+	ExpiresAt    int64  `json:"expires_at"`
+	CreatedAt    int64  `json:"created_at"`
+}
+
+// ExpiresIn returns the number of seconds until the access token expires
+func (t *Token) ExpiresIn() int64 {
+	return t.ExpiresAt - time.Now().Unix()
+}
