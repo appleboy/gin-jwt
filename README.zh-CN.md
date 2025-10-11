@@ -30,12 +30,8 @@
   - [Redis 存储配置](#redis-存储配置)
     - [Redis 功能特色](#redis-功能特色)
     - [Redis 使用方法](#redis-使用方法)
-      - [方法 1：启用默认 Redis 配置](#方法-1启用默认-redis-配置)
-      - [方法 2：启用自定义地址的 Redis](#方法-2启用自定义地址的-redis)
-      - [方法 3：使用完整选项启用 Redis](#方法-3使用完整选项启用-redis)
-      - [方法 4：使用自定义配置启用 Redis](#方法-4使用自定义配置启用-redis)
-      - [方法 5：配置客户端缓存](#方法-5配置客户端缓存)
-      - [方法 6：方法链](#方法-6方法链)
+      - [使用函数选项模式（推荐）](#使用函数选项模式推荐)
+      - [可用选项](#可用选项)
     - [配置选项](#配置选项)
       - [RedisConfig](#redisconfig)
     - [回退行为](#回退行为)
@@ -216,64 +212,50 @@ fmt.Printf("New Refresh Token: %s\n", newTokenPair.RefreshToken)
 
 ### Redis 使用方法
 
-#### 方法 1：启用默认 Redis 配置
+#### 使用函数选项模式（推荐）
+
+Redis 配置现在使用函数选项模式，提供更清洁且灵活的配置：
 
 ```go
+// 方法 1：使用默认配置启用 Redis
 middleware := &jwt.GinJWTMiddleware{
     // ... 其他配置
-}
+}.EnableRedisStore()
 
-// 使用默认设置启用 Redis（localhost:6379）
-middleware.EnableRedisStore()
-```
-
-#### 方法 2：启用自定义地址的 Redis
-
-```go
-// 使用自定义地址启用 Redis
-middleware.EnableRedisStoreWithAddr("redis.example.com:6379")
-```
-
-#### 方法 3：使用完整选项启用 Redis
-
-```go
-// 使用地址、密码和数据库启用 Redis
-middleware.EnableRedisStoreWithOptions("redis.example.com:6379", "password", 0)
-```
-
-#### 方法 4：使用自定义配置启用 Redis
-
-```go
-import "github.com/appleboy/gin-jwt/v2/store"
-
-config := &store.RedisConfig{
-    Addr:      "redis.example.com:6379",
-    Password:  "your-password",
-    DB:        0,
-    CacheSize: 256 * 1024 * 1024, // 256MB 缓存
-    CacheTTL:  5 * time.Minute,    // 5 分钟缓存 TTL
-    KeyPrefix: "myapp-jwt:",
-}
-
-middleware.EnableRedisStoreWithConfig(config)
-```
-
-#### 方法 5：配置客户端缓存
-
-```go
-// 设置客户端缓存大小和 TTL
-middleware.SetRedisClientSideCache(64*1024*1024, 30*time.Second) // 64MB 缓存，30秒 TTL
-```
-
-#### 方法 6：方法链
-
-```go
+// 方法 2：使用自定义地址启用 Redis
 middleware := &jwt.GinJWTMiddleware{
     // ... 其他配置
-}.
-EnableRedisStoreWithAddr("redis.example.com:6379").
-SetRedisClientSideCache(128*1024*1024, time.Minute)
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6379"),
+)
+
+// 方法 3：使用认证启用 Redis
+middleware := &jwt.GinJWTMiddleware{
+    // ... 其他配置
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6379"),
+    jwt.WithRedisAuth("password", 0),
+)
+
+// 方法 4：使用所有选项的完整配置
+middleware := &jwt.GinJWTMiddleware{
+    // ... 其他配置
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6379"),
+    jwt.WithRedisAuth("password", 1),
+    jwt.WithRedisCache(128*1024*1024, time.Minute),     // 128MB 缓存，1分钟 TTL
+    jwt.WithRedisPool(20, time.Hour, 2*time.Hour),      // 连接池配置
+    jwt.WithRedisKeyPrefix("myapp:jwt:"),               // 键前缀
+)
 ```
+
+#### 可用选项
+
+- `WithRedisAddr(addr string)` - 设置 Redis 服务器地址
+- `WithRedisAuth(password string, db int)` - 设置认证和数据库
+- `WithRedisCache(size int, ttl time.Duration)` - 配置客户端缓存
+- `WithRedisPool(poolSize int, maxIdleTime, maxLifetime time.Duration)` - 配置连接池
+- `WithRedisKeyPrefix(prefix string)` - 设置 Redis 键的前缀
 
 ### 配置选项
 
@@ -349,8 +331,10 @@ func main() {
 
             return nil, jwt.ErrFailedAuthentication
         },
-    }).EnableRedisStoreWithAddr("localhost:6379").                    // 启用 Redis
-      SetRedisClientSideCache(64*1024*1024, 30*time.Second)         // 配置缓存
+    }).EnableRedisStore(                                            // 使用选项启用 Redis
+        jwt.WithRedisAddr("localhost:6379"),                       // Redis 服务器地址
+        jwt.WithRedisCache(64*1024*1024, 30*time.Second),         // 64MB 缓存，30秒 TTL
+    )
 
     if err != nil {
         log.Fatal("JWT Error:" + err.Error())

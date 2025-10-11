@@ -6,8 +6,6 @@ import (
 	"time"
 
 	jwt "github.com/appleboy/gin-jwt/v2"
-	"github.com/appleboy/gin-jwt/v2/store"
-
 	"github.com/gin-gonic/gin"
 	gojwt "github.com/golang-jwt/jwt/v5"
 )
@@ -22,35 +20,10 @@ type User struct {
 var identityKey = "id"
 
 func main() {
-	// Create Redis store with client-side cache
-	redisConfig := store.DefaultRedisConfig()
-	redisConfig.Addr = "localhost:6379"      // Change this to your Redis server
-	redisConfig.CacheSize = 64 * 1024 * 1024 // 64MB client-side cache
-	redisConfig.CacheTTL = 30 * time.Second  // Cache TTL
-
-	// Create store using factory pattern - defaults to memory if Redis fails
-	var tokenStore store.RefreshTokenStorer
-
-	// Try to create Redis store first
-	config := store.NewRedisConfig(redisConfig)
-	redisStore, err := store.NewStore(config)
-	if err != nil {
-		log.Printf("Failed to connect to Redis: %v, falling back to memory store", err)
-		// Fall back to memory store
-		tokenStore = store.Default()
-	} else {
-		log.Println("Connected to Redis successfully with client-side cache enabled")
-		tokenStore = redisStore
-	}
-
-	// Or you can use the factory pattern directly:
-	// tokenStore := store.MustNewStore(store.NewMemoryConfig()) // Memory store
-	// tokenStore := store.MustNewRedisStore(redisConfig)        // Redis store (panics on failure)
-
 	r := gin.Default()
 
-	// the jwt middleware
-	authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+	// Method 1: Using functional options with EnableRedisStore (recommended)
+	middleware := &jwt.GinJWTMiddleware{
 		Realm:       "test zone",
 		Key:         []byte("secret key"),
 		Timeout:     time.Hour,
@@ -101,11 +74,18 @@ func main() {
 				"message": message,
 			})
 		},
-		RefreshTokenStore: tokenStore, // Use our Redis or memory store
-		TokenLookup:       "header: Authorization, query: token, cookie: jwt",
-		TokenHeadName:     "Bearer",
-		TimeFunc:          time.Now,
-	})
+		TokenLookup:   "header: Authorization, query: token, cookie: jwt",
+		TokenHeadName: "Bearer",
+		TimeFunc:      time.Now,
+	}
+
+	// Configure Redis using functional options
+	middleware.EnableRedisStore(
+		jwt.WithRedisAddr("localhost:6379"),
+		jwt.WithRedisCache(64*1024*1024, 30*time.Second), // 64MB client-side cache, 30s TTL
+	)
+
+	authMiddleware, err := jwt.New(middleware)
 	if err != nil {
 		log.Fatal("JWT Error:" + err.Error())
 	}
@@ -132,8 +112,12 @@ func main() {
 	auth.Use(authMiddleware.MiddlewareFunc())
 	{
 		auth.GET("/hello", helloHandler)
-		auth.GET("/store-info", storeInfoHandler(tokenStore))
+		auth.GET("/store-info", storeInfoHandler())
 	}
+
+	log.Println("Server starting on :8000")
+	log.Println("Using functional options Redis configuration")
+	log.Println("Alternative methods shown below as comments:")
 
 	if err := http.ListenAndServe(":8000", r); err != nil {
 		log.Fatal(err)
@@ -151,26 +135,12 @@ func helloHandler(c *gin.Context) {
 }
 
 // storeInfoHandler provides information about the current token store
-func storeInfoHandler(tokenStore store.RefreshTokenStorer) gin.HandlerFunc {
+func storeInfoHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		count, err := tokenStore.Count()
-		if err != nil {
-			c.JSON(500, gin.H{"error": err.Error()})
-			return
-		}
-
-		storeType := "unknown"
-		switch tokenStore.(type) {
-		case *store.InMemoryRefreshTokenStore:
-			storeType = "memory"
-		case *store.RedisRefreshTokenStore:
-			storeType = "redis"
-		}
-
 		c.JSON(200, gin.H{
-			"store_type":  storeType,
-			"token_count": count,
-			"message":     "Token store information",
+			"configuration": "functional_options",
+			"redis_enabled": true,
+			"message":       "Using functional options pattern for Redis configuration",
 		})
 	}
 }

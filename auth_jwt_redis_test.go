@@ -68,11 +68,11 @@ func TestGinJWTMiddleware_RedisStore_Integration(t *testing.T) {
 	}
 
 	t.Run("LoginAndRefreshWithRedis", func(t *testing.T) {
-		testLoginAndRefreshFlow(t, r, middleware)
+		testLoginAndRefreshFlow(t, r)
 	})
 
 	t.Run("TokenPersistenceAcrossRequests", func(t *testing.T) {
-		testTokenPersistenceAcrossRequests(t, r, middleware)
+		testTokenPersistenceAcrossRequests(t, r)
 	})
 
 	t.Run("RedisStoreOperations", func(t *testing.T) {
@@ -108,14 +108,14 @@ func TestGinJWTMiddleware_RedisStoreFallback(t *testing.T) {
 	assert.Equal(t, middleware.RefreshTokenStore, middleware.inMemoryStore, "should use in-memory store as fallback")
 }
 
-func TestGinJWTMiddleware_ConvenienceMethods(t *testing.T) {
+func TestGinJWTMiddleware_FunctionalOptions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	_, host, port := setupRedisContainerForJWT(t)
 
 	redisAddr := fmt.Sprintf("%s:%s", host, port)
 
-	t.Run("EnableRedisStore", func(t *testing.T) {
+	t.Run("EnableRedisStoreDefault", func(t *testing.T) {
 		middleware := &GinJWTMiddleware{
 			Realm:       "test zone",
 			Key:         []byte("secret key"),
@@ -124,11 +124,12 @@ func TestGinJWTMiddleware_ConvenienceMethods(t *testing.T) {
 			IdentityKey: "id",
 		}
 
-		// Test EnableRedisStore
+		// Test EnableRedisStore with no options (default)
 		result := middleware.EnableRedisStore()
 		assert.Equal(t, middleware, result, "should return self for chaining")
 		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
 		assert.NotNil(t, middleware.RedisConfig, "should set default Redis config")
+		assert.Equal(t, "localhost:6379", middleware.RedisConfig.Addr, "should use default address")
 	})
 
 	t.Run("EnableRedisStoreWithAddr", func(t *testing.T) {
@@ -140,14 +141,14 @@ func TestGinJWTMiddleware_ConvenienceMethods(t *testing.T) {
 			IdentityKey: "id",
 		}
 
-		// Test EnableRedisStoreWithAddr
-		result := middleware.EnableRedisStoreWithAddr(redisAddr)
+		// Test EnableRedisStore with address option
+		result := middleware.EnableRedisStore(WithRedisAddr(redisAddr))
 		assert.Equal(t, middleware, result, "should return self for chaining")
 		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
 		assert.Equal(t, redisAddr, middleware.RedisConfig.Addr, "should set custom address")
 	})
 
-	t.Run("EnableRedisStoreWithOptions", func(t *testing.T) {
+	t.Run("EnableRedisStoreWithAuth", func(t *testing.T) {
 		middleware := &GinJWTMiddleware{
 			Realm:       "test zone",
 			Key:         []byte("secret key"),
@@ -156,8 +157,11 @@ func TestGinJWTMiddleware_ConvenienceMethods(t *testing.T) {
 			IdentityKey: "id",
 		}
 
-		// Test EnableRedisStoreWithOptions
-		result := middleware.EnableRedisStoreWithOptions(redisAddr, "testpass", 1)
+		// Test EnableRedisStore with auth options
+		result := middleware.EnableRedisStore(
+			WithRedisAddr(redisAddr),
+			WithRedisAuth("testpass", 1),
+		)
 		assert.Equal(t, middleware, result, "should return self for chaining")
 		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
 		assert.Equal(t, redisAddr, middleware.RedisConfig.Addr, "should set custom address")
@@ -165,7 +169,7 @@ func TestGinJWTMiddleware_ConvenienceMethods(t *testing.T) {
 		assert.Equal(t, 1, middleware.RedisConfig.DB, "should set custom DB")
 	})
 
-	t.Run("SetRedisClientSideCache", func(t *testing.T) {
+	t.Run("EnableRedisStoreWithCache", func(t *testing.T) {
 		middleware := &GinJWTMiddleware{
 			Realm:       "test zone",
 			Key:         []byte("secret key"),
@@ -174,16 +178,65 @@ func TestGinJWTMiddleware_ConvenienceMethods(t *testing.T) {
 			IdentityKey: "id",
 		}
 
-		// Test SetRedisClientSideCache
+		// Test EnableRedisStore with cache options
 		cacheSize := 64 * 1024 * 1024 // 64MB
 		cacheTTL := 30 * time.Second
-		result := middleware.SetRedisClientSideCache(cacheSize, cacheTTL)
+		result := middleware.EnableRedisStore(
+			WithRedisAddr(redisAddr),
+			WithRedisCache(cacheSize, cacheTTL),
+		)
 		assert.Equal(t, middleware, result, "should return self for chaining")
+		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
+		assert.Equal(t, redisAddr, middleware.RedisConfig.Addr, "should set address")
 		assert.Equal(t, cacheSize, middleware.RedisConfig.CacheSize, "should set cache size")
 		assert.Equal(t, cacheTTL, middleware.RedisConfig.CacheTTL, "should set cache TTL")
 	})
 
-	t.Run("ChainedConfiguration", func(t *testing.T) {
+	t.Run("EnableRedisStoreWithPool", func(t *testing.T) {
+		middleware := &GinJWTMiddleware{
+			Realm:       "test zone",
+			Key:         []byte("secret key"),
+			Timeout:     time.Hour,
+			MaxRefresh:  time.Hour * 24,
+			IdentityKey: "id",
+		}
+
+		// Test EnableRedisStore with pool options
+		poolSize := 20
+		maxIdleTime := time.Hour
+		maxLifetime := 2 * time.Hour
+		result := middleware.EnableRedisStore(
+			WithRedisAddr(redisAddr),
+			WithRedisPool(poolSize, maxIdleTime, maxLifetime),
+		)
+		assert.Equal(t, middleware, result, "should return self for chaining")
+		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
+		assert.Equal(t, poolSize, middleware.RedisConfig.PoolSize, "should set pool size")
+		assert.Equal(t, maxIdleTime, middleware.RedisConfig.ConnMaxIdleTime, "should set max idle time")
+		assert.Equal(t, maxLifetime, middleware.RedisConfig.ConnMaxLifetime, "should set max lifetime")
+	})
+
+	t.Run("EnableRedisStoreWithKeyPrefix", func(t *testing.T) {
+		middleware := &GinJWTMiddleware{
+			Realm:       "test zone",
+			Key:         []byte("secret key"),
+			Timeout:     time.Hour,
+			MaxRefresh:  time.Hour * 24,
+			IdentityKey: "id",
+		}
+
+		// Test EnableRedisStore with key prefix option
+		keyPrefix := "test-jwt:"
+		result := middleware.EnableRedisStore(
+			WithRedisAddr(redisAddr),
+			WithRedisKeyPrefix(keyPrefix),
+		)
+		assert.Equal(t, middleware, result, "should return self for chaining")
+		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
+		assert.Equal(t, keyPrefix, middleware.RedisConfig.KeyPrefix, "should set key prefix")
+	})
+
+	t.Run("EnableRedisStoreWithAllOptions", func(t *testing.T) {
 		middleware := &GinJWTMiddleware{
 			Realm:         "test zone",
 			Key:           []byte("secret key"),
@@ -194,25 +247,36 @@ func TestGinJWTMiddleware_ConvenienceMethods(t *testing.T) {
 			PayloadFunc:   testPayloadFunc,
 		}
 
-		// Test chained configuration
-		result := middleware.
-			EnableRedisStoreWithAddr(redisAddr).
-			SetRedisClientSideCache(32*1024*1024, 15*time.Second)
+		// Test EnableRedisStore with all options
+		result := middleware.EnableRedisStore(
+			WithRedisAddr(redisAddr),
+			WithRedisAuth("testpass", 1),
+			WithRedisCache(32*1024*1024, 15*time.Second),
+			WithRedisPool(25, 2*time.Hour, 4*time.Hour),
+			WithRedisKeyPrefix("test-app:"),
+		)
 
 		assert.Equal(t, middleware, result, "should return self for chaining")
 		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
 		assert.Equal(t, redisAddr, middleware.RedisConfig.Addr, "should set address")
+		assert.Equal(t, "testpass", middleware.RedisConfig.Password, "should set password")
+		assert.Equal(t, 1, middleware.RedisConfig.DB, "should set DB")
 		assert.Equal(t, 32*1024*1024, middleware.RedisConfig.CacheSize, "should set cache size")
 		assert.Equal(t, 15*time.Second, middleware.RedisConfig.CacheTTL, "should set cache TTL")
+		assert.Equal(t, 25, middleware.RedisConfig.PoolSize, "should set pool size")
+		assert.Equal(t, 2*time.Hour, middleware.RedisConfig.ConnMaxIdleTime, "should set max idle time")
+		assert.Equal(t, 4*time.Hour, middleware.RedisConfig.ConnMaxLifetime, "should set max lifetime")
+		assert.Equal(t, "test-app:", middleware.RedisConfig.KeyPrefix, "should set key prefix")
 
-		// Test that it actually works
+		// Test that it actually works (but use working address for actual initialization)
+		middleware.EnableRedisStore(WithRedisAddr(redisAddr)) // Reset to working address
 		err := middleware.MiddlewareInit()
-		assert.NoError(t, err, "chained configuration should initialize successfully")
+		assert.NoError(t, err, "configuration with all options should initialize successfully")
 	})
 }
 
 func createTestMiddleware(t *testing.T, redisAddr string) *GinJWTMiddleware {
-	return &GinJWTMiddleware{
+	middleware := &GinJWTMiddleware{
 		Realm:         "test zone",
 		Key:           []byte("secret key"),
 		Timeout:       time.Hour,
@@ -220,16 +284,16 @@ func createTestMiddleware(t *testing.T, redisAddr string) *GinJWTMiddleware {
 		IdentityKey:   "id",
 		Authenticator: testAuthenticator,
 		PayloadFunc:   testPayloadFunc,
-		UseRedisStore: true,
-		RedisConfig: &store.RedisConfig{
-			Addr:      redisAddr,
-			Password:  "",
-			DB:        0,
-			CacheSize: 1024 * 1024,           // 1MB for testing
-			CacheTTL:  50 * time.Millisecond, // Very short TTL for testing
-			KeyPrefix: "test-jwt:",
-		},
 	}
+
+	// Configure Redis using functional options
+	middleware.EnableRedisStore(
+		WithRedisAddr(redisAddr),
+		WithRedisCache(1024*1024, 50*time.Millisecond), // 1MB for testing, very short TTL for testing
+		WithRedisKeyPrefix("test-jwt:"),
+	)
+
+	return middleware
 }
 
 func testAuthenticator(c *gin.Context) (interface{}, error) {
@@ -261,7 +325,7 @@ func testPayloadFunc(data interface{}) gojwt.MapClaims {
 	return gojwt.MapClaims{}
 }
 
-func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine, middleware *GinJWTMiddleware) {
+func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 	// Test login
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(`{"username":"admin","password":"admin"}`))
@@ -299,7 +363,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine, middleware *GinJWTMidd
 	assert.Contains(t, w.Body.String(), "refresh_token", "refresh response should contain new refresh token")
 }
 
-func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine, middleware *GinJWTMiddleware) {
+func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 	// Login and get refresh token
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/login", strings.NewReader(`{"username":"admin","password":"admin"}`))
