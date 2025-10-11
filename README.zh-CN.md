@@ -41,6 +41,20 @@
     - [刷新 Token](#刷新-token)
     - [Hello World](#hello-world)
     - [授权示例](#授权示例)
+  - [理解 Authorizer](#理解-authorizer)
+    - [Authorizer 工作原理](#authorizer-工作原理)
+    - [Authorizer 函数签名](#authorizer-函数签名)
+    - [基本用法示例](#基本用法示例)
+      - [示例 1：基于角色的授权](#示例-1基于角色的授权)
+      - [示例 2：基于路径的授权](#示例-2基于路径的授权)
+      - [示例 3：基于方法和路径的授权](#示例-3基于方法和路径的授权)
+    - [为不同路由设置不同授权](#为不同路由设置不同授权)
+      - [方法 1：多个中间件实例](#方法-1多个中间件实例)
+      - [方法 2：带路径逻辑的单一 Authorizer](#方法-2带路径逻辑的单一-authorizer)
+    - [高级授权模式](#高级授权模式)
+      - [使用 Claims 进行细粒度控制](#使用-claims-进行细粒度控制)
+    - [常见模式和最佳实践](#常见模式和最佳实践)
+    - [完整示例](#完整示例)
     - [登出](#登出)
   - [Cookie Token](#cookie-token)
     - [登录流程（LoginHandler）](#登录流程loginhandler)
@@ -431,6 +445,222 @@ http -f GET localhost:8000/auth/hello "Authorization:Bearer xxxxxxxxx"  "Content
   "message": "You don't have permission to access."
 }
 ```
+
+---
+
+## 理解 Authorizer
+
+`Authorizer` 函数是在应用程序中实现基于角色的访问控制的关键组件。它决定已认证用户是否有权限访问特定的受保护路由。
+
+### Authorizer 工作原理
+
+`Authorizer` 在使用 `MiddlewareFunc()` 的任何路由的 JWT 中间件处理过程中**自动调用**。执行流程如下：
+
+1. **Token 验证**：JWT 中间件验证 token
+2. **身份提取**：`IdentityHandler` 从 token claims 中提取用户身份
+3. **授权检查**：`Authorizer` 决定用户是否可以访问资源
+4. **路由访问**：如果授权通过，请求继续；否则调用 `Unauthorized`
+
+### Authorizer 函数签名
+
+```go
+func(c *gin.Context, data any) bool
+```
+
+- `c *gin.Context`：包含请求信息的 Gin 上下文
+- `data any`：由 `IdentityHandler` 返回的用户身份数据
+- 返回 `bool`：`true` 表示授权访问，`false` 表示拒绝访问
+
+### 基本用法示例
+
+#### 示例 1：基于角色的授权
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        if v, ok := data.(*User); ok && v.UserName == "admin" {
+            return true  // 只有 admin 用户可以访问
+        }
+        return false
+    }
+}
+```
+
+#### 示例 2：基于路径的授权
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        user, ok := data.(*User)
+        if !ok {
+            return false
+        }
+
+        path := c.Request.URL.Path
+
+        // Admin 可以访问所有路由
+        if user.Role == "admin" {
+            return true
+        }
+
+        // 普通用户只能访问 /auth/profile 和 /auth/hello
+        allowedPaths := []string{"/auth/profile", "/auth/hello"}
+        for _, allowedPath := range allowedPaths {
+            if path == allowedPath {
+                return true
+            }
+        }
+
+        return false
+    }
+}
+```
+
+#### 示例 3：基于方法和路径的授权
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        user, ok := data.(*User)
+        if !ok {
+            return false
+        }
+
+        path := c.Request.URL.Path
+        method := c.Request.Method
+
+        // 管理员拥有完全访问权限
+        if user.Role == "admin" {
+            return true
+        }
+
+        // 用户只能 GET 自己的资料
+        if path == "/auth/profile" && method == "GET" {
+            return true
+        }
+
+        // 用户不能修改或删除资源
+        if method == "POST" || method == "PUT" || method == "DELETE" {
+            return false
+        }
+
+        return true // 允许其他 GET 请求
+    }
+}
+```
+
+### 为不同路由设置不同授权
+
+要为不同的路由组实现不同的授权规则，可以创建多个中间件实例或在单个 Authorizer 中使用路径检查：
+
+#### 方法 1：多个中间件实例
+
+```go
+// 仅限管理员的中间件
+adminMiddleware, _ := jwt.New(&jwt.GinJWTMiddleware{
+    // ... 其他配置
+    Authorizer: func(c *gin.Context, data any) bool {
+        if user, ok := data.(*User); ok {
+            return user.Role == "admin"
+        }
+        return false
+    },
+})
+
+// 普通用户中间件
+userMiddleware, _ := jwt.New(&jwt.GinJWTMiddleware{
+    // ... 其他配置
+    Authorizer: func(c *gin.Context, data any) bool {
+        if user, ok := data.(*User); ok {
+            return user.Role == "user" || user.Role == "admin"
+        }
+        return false
+    },
+})
+
+// 路由设置
+adminRoutes := r.Group("/admin", adminMiddleware.MiddlewareFunc())
+userRoutes := r.Group("/user", userMiddleware.MiddlewareFunc())
+```
+
+#### 方法 2：带路径逻辑的单一 Authorizer
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        user, ok := data.(*User)
+        if !ok {
+            return false
+        }
+
+        path := c.Request.URL.Path
+
+        // 管理员路由 - 只允许管理员
+        if strings.HasPrefix(path, "/admin/") {
+            return user.Role == "admin"
+        }
+
+        // 用户路由 - 允许用户和管理员
+        if strings.HasPrefix(path, "/user/") {
+            return user.Role == "user" || user.Role == "admin"
+        }
+
+        // 公开认证路由 - 所有已认证用户
+        return true
+    }
+}
+```
+
+### 高级授权模式
+
+#### 使用 Claims 进行细粒度控制
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        // 提取额外的 claims
+        claims := jwt.ExtractClaims(c)
+
+        // 从 claims 获取用户权限
+        permissions, ok := claims["permissions"].([]interface{})
+        if !ok {
+            return false
+        }
+
+        // 检查用户是否拥有此路由所需的权限
+        requiredPermission := getRequiredPermission(c.Request.URL.Path)
+
+        for _, perm := range permissions {
+            if perm.(string) == requiredPermission {
+                return true
+            }
+        }
+
+        return false
+    }
+}
+
+func getRequiredPermission(path string) string {
+    permissionMap := map[string]string{
+        "/auth/users":    "read_users",
+        "/auth/reports":  "read_reports",
+        "/auth/settings": "admin",
+    }
+    return permissionMap[path]
+}
+```
+
+### 常见模式和最佳实践
+
+1. **始终验证数据类型**：检查用户数据是否可以转换为您期望的类型
+2. **使用 claims 获取额外上下文**：使用 `jwt.ExtractClaims(c)` 访问 JWT claims
+3. **考虑请求上下文**：使用 `c.Request.URL.Path`、`c.Request.Method` 等
+4. **安全优先**：默认返回 `false`，显式允许访问
+5. **记录授权失败**：添加日志以调试授权问题
+
+### 完整示例
+
+查看[授权示例](_example/authorization/)了解展示不同授权场景的完整实现。
 
 ### 登出
 
