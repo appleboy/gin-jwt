@@ -1,6 +1,6 @@
 # Token Generator Example
 
-This example demonstrates how to use the new `GenerateTokenPair` functionality to create JWT tokens directly without using HTTP middleware handlers.
+This example demonstrates how to use the `TokenGenerator` functionality to create JWT tokens directly without using HTTP middleware handlers.
 
 ## Features
 
@@ -20,7 +20,7 @@ go run main.go
 
 ## Key Methods
 
-### `GenerateTokenPair(userData any) (*core.Token, error)`
+### `TokenGenerator(userData any) (*core.Token, error)`
 
 Generates a complete token pair containing:
 
@@ -29,7 +29,7 @@ Generates a complete token pair containing:
 - Token metadata (expiry, creation time, etc.)
 
 ```go
-tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+tokenPair, err := authMiddleware.TokenGenerator(userData)
 if err != nil {
     log.Fatal("Failed to generate token pair:", err)
 }
@@ -39,12 +39,12 @@ fmt.Printf("Refresh Token: %s\n", tokenPair.RefreshToken)
 fmt.Printf("Expires In: %d seconds\n", tokenPair.ExpiresIn())
 ```
 
-### `GenerateTokenPairWithRevocation(userData any, oldRefreshToken string) (*core.Token, error)`
+### `TokenGeneratorWithRevocation(userData any, oldRefreshToken string) (*core.Token, error)`
 
 Generates a new token pair and automatically revokes the old refresh token:
 
 ```go
-newTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldRefreshToken)
+newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, oldRefreshToken)
 if err != nil {
     log.Fatal("Failed to refresh token pair:", err)
 }

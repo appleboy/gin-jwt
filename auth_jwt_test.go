@@ -804,7 +804,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 	r := gofight.New()
 	handler := ginHandler(authMiddleware)
 
-	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
+	userToken, _, _ := authMiddleware.generateAccessToken(jwt.MapClaims{
 		"identity": "administrator",
 	})
 
@@ -969,7 +969,7 @@ func TestTokenFromQueryString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
+	userToken, _, _ := authMiddleware.generateAccessToken(jwt.MapClaims{
 		"identity": "admin",
 	})
 
@@ -1007,7 +1007,7 @@ func TestTokenFromParamPath(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
+	userToken, _, _ := authMiddleware.generateAccessToken(jwt.MapClaims{
 		"identity": "admin",
 	})
 
@@ -1042,7 +1042,7 @@ func TestTokenFromCookieString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
+	userToken, _, _ := authMiddleware.generateAccessToken(jwt.MapClaims{
 		"identity": "admin",
 	})
 
@@ -1348,7 +1348,7 @@ func TestCheckTokenString(t *testing.T) {
 
 	r := gofight.New()
 
-	userToken, _, _ := authMiddleware.TokenGenerator(jwt.MapClaims{
+	userToken, _, _ := authMiddleware.generateAccessToken(jwt.MapClaims{
 		"identity": "admin",
 	})
 
@@ -1442,7 +1442,7 @@ func TestSetCookie(t *testing.T) {
 	assert.Equal(t, true, cookie.HttpOnly)
 }
 
-func TestGenerateTokenPair(t *testing.T) {
+func TestTokenGenerator(t *testing.T) {
 	authMiddleware, err := New(&GinJWTMiddleware{
 		Realm:      "test zone",
 		Key:        key,
@@ -1470,7 +1470,7 @@ func TestGenerateTokenPair(t *testing.T) {
 	assert.NoError(t, err)
 
 	userData := "admin"
-	tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+	tokenPair, err := authMiddleware.TokenGenerator(userData)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenPair)
@@ -1491,7 +1491,7 @@ func TestGenerateTokenPair(t *testing.T) {
 	assert.Equal(t, userData, claims["identity"])
 }
 
-func TestGenerateTokenPairWithRevocation(t *testing.T) {
+func TestTokenGeneratorWithRevocation(t *testing.T) {
 	authMiddleware, err := New(&GinJWTMiddleware{
 		Realm:      "test zone",
 		Key:        key,
@@ -1512,7 +1512,7 @@ func TestGenerateTokenPairWithRevocation(t *testing.T) {
 	userData := "admin"
 
 	// Generate first token pair
-	oldTokenPair, err := authMiddleware.GenerateTokenPair(userData)
+	oldTokenPair, err := authMiddleware.TokenGenerator(userData)
 	assert.NoError(t, err)
 
 	// Verify old refresh token exists in store
@@ -1521,7 +1521,7 @@ func TestGenerateTokenPairWithRevocation(t *testing.T) {
 	assert.Equal(t, userData, storedData)
 
 	// Generate new token pair with revocation
-	newTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldTokenPair.RefreshToken)
+	newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, oldTokenPair.RefreshToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, newTokenPair)
 
@@ -1538,12 +1538,12 @@ func TestGenerateTokenPairWithRevocation(t *testing.T) {
 	assert.Equal(t, userData, storedData)
 
 	// Test revoking already revoked token (should not fail)
-	anotherTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldTokenPair.RefreshToken)
+	anotherTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, oldTokenPair.RefreshToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, anotherTokenPair)
 
 	// Test revoking non-existent token (should not fail)
-	finalTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, "non_existent_token")
+	finalTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, "non_existent_token")
 	assert.NoError(t, err)
 	assert.NotNil(t, finalTokenPair)
 }
@@ -1562,7 +1562,7 @@ func TestTokenStruct(t *testing.T) {
 	assert.NoError(t, err)
 
 	userData := "admin"
-	tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+	tokenPair, err := authMiddleware.TokenGenerator(userData)
 	assert.NoError(t, err)
 
 	// Test ExpiresIn method

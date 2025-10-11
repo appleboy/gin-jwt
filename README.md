@@ -286,7 +286,7 @@ func helloHandler(c *gin.Context) {
 
 ## Token Generator (Direct Token Creation)
 
-The new `GenerateTokenPair` functionality allows you to create JWT tokens directly without HTTP middleware, perfect for programmatic authentication, testing, and custom flows.
+The `TokenGenerator` functionality allows you to create JWT tokens directly without HTTP middleware, perfect for programmatic authentication, testing, and custom flows.
 
 ### Basic Usage
 
@@ -321,7 +321,7 @@ func main() {
 
     // Generate a complete token pair (access + refresh tokens)
     userData := "user123"
-    tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+    tokenPair, err := authMiddleware.TokenGenerator(userData)
     if err != nil {
         log.Fatal("Failed to generate token pair:", err)
     }
@@ -334,7 +334,7 @@ func main() {
 
 ### Token Structure
 
-The `GenerateTokenPair` method returns a structured `core.Token`:
+The `TokenGenerator` method returns a structured `core.Token`:
 
 ```go
 type Token struct {
@@ -351,11 +351,11 @@ func (t *Token) ExpiresIn() int64 // Returns seconds until expiry
 
 ### Refresh Token Management
 
-Use `GenerateTokenPairWithRevocation` to refresh tokens and automatically revoke old ones:
+Use `TokenGeneratorWithRevocation` to refresh tokens and automatically revoke old ones:
 
 ```go
 // Refresh with automatic revocation of old token
-newTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldRefreshToken)
+newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, oldRefreshToken)
 if err != nil {
     log.Fatal("Failed to refresh token:", err)
 }

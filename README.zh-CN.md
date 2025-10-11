@@ -121,7 +121,7 @@ import "github.com/appleboy/gin-jwt/v2"
 
 ## Token 生成器（直接创建 Token）
 
-新的 `GenerateTokenPair` 功能让你可以直接创建 JWT Token 而无需 HTTP 中间件，非常适合程序化认证、测试和自定义流程。
+`TokenGenerator` 功能让你可以直接创建 JWT Token 而无需 HTTP 中间件，非常适合程序化认证、测试和自定义流程。
 
 ### 基本用法
 
@@ -156,7 +156,7 @@ func main() {
 
     // 生成完整的 Token 组（访问 + 刷新 Token）
     userData := "user123"
-    tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+    tokenPair, err := authMiddleware.TokenGenerator(userData)
     if err != nil {
         log.Fatal("Failed to generate token pair:", err)
     }
@@ -169,7 +169,7 @@ func main() {
 
 ### Token 结构
 
-`GenerateTokenPair` 方法返回结构化的 `core.Token`：
+`TokenGenerator` 方法返回结构化的 `core.Token`：
 
 ```go
 type Token struct {
@@ -186,11 +186,11 @@ func (t *Token) ExpiresIn() int64 // 返回到期前的秒数
 
 ### 刷新 Token 管理
 
-使用 `GenerateTokenPairWithRevocation` 来刷新 Token 并自动撤销旧 Token：
+使用 `TokenGeneratorWithRevocation` 来刷新 Token 并自动撤销旧 Token：
 
 ```go
 // 刷新并自动撤销旧 Token
-newTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldRefreshToken)
+newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, oldRefreshToken)
 if err != nil {
     log.Fatal("Failed to refresh token:", err)
 }

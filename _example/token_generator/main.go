@@ -1,4 +1,4 @@
-// Example demonstrating the new GenerateTokenPair functionality
+// Example demonstrating the TokenGenerator functionality
 package main
 
 import (
@@ -32,7 +32,7 @@ func main() {
 
 	// Generate a complete token pair (access + refresh tokens)
 	fmt.Println("=== Generating Token Pair ===")
-	tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+	tokenPair, err := authMiddleware.TokenGenerator(userData)
 	if err != nil {
 		log.Fatal("Failed to generate token pair:", err)
 	}
@@ -46,7 +46,7 @@ func main() {
 
 	// Simulate refresh token usage
 	fmt.Println("\n=== Refreshing Token Pair ===")
-	newTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, tokenPair.RefreshToken)
+	newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, tokenPair.RefreshToken)
 	if err != nil {
 		log.Fatal("Failed to refresh token pair:", err)
 	}
@@ -57,7 +57,7 @@ func main() {
 
 	// Verify old refresh token is invalid
 	fmt.Println("\n=== Verifying Old Token Revocation ===")
-	_, err = authMiddleware.GenerateTokenPairWithRevocation(userData, tokenPair.RefreshToken)
+	_, err = authMiddleware.TokenGeneratorWithRevocation(userData, tokenPair.RefreshToken)
 	if err != nil {
 		fmt.Printf("Old refresh token correctly rejected: %s\n", err)
 	}

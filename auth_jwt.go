@@ -568,7 +568,7 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	}
 
 	// Generate complete token pair
-	tokenPair, err := mw.GenerateTokenPair(data)
+	tokenPair, err := mw.TokenGenerator(data)
 	if err != nil {
 		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(c,ErrFailedTokenCreation))
 		return
@@ -699,7 +699,7 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	}
 
 	// Generate new token pair and revoke old refresh token
-	tokenPair, err := mw.GenerateTokenPairWithRevocation(userData, refreshToken)
+	tokenPair, err := mw.TokenGeneratorWithRevocation(userData, refreshToken)
 	if err != nil {
 		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(c,err))
 		return
@@ -748,8 +748,8 @@ func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, e
 	return claims, nil
 }
 
-// TokenGenerator method that clients can use to get a jwt token.
-func (mw *GinJWTMiddleware) TokenGenerator(data any) (string, time.Time, error) {
+// generateAccessToken method that clients can use to get a jwt token.
+func (mw *GinJWTMiddleware) generateAccessToken(data any) (string, time.Time, error) {
 	// 1. Validate signing algorithm
 	signingMethod := jwt.GetSigningMethod(mw.SigningAlgorithm)
 	if signingMethod == nil {
@@ -794,10 +794,10 @@ func (mw *GinJWTMiddleware) TokenGenerator(data any) (string, time.Time, error) 
 	return tokenString, expire, nil
 }
 
-// GenerateTokenPair generates a complete token pair (access + refresh) with RFC 6749 compliance
-func (mw *GinJWTMiddleware) GenerateTokenPair(data any) (*core.Token, error) {
+// TokenGenerator generates a complete token pair (access + refresh) with RFC 6749 compliance
+func (mw *GinJWTMiddleware) TokenGenerator(data any) (*core.Token, error) {
 	// Generate access token
-	accessToken, expire, err := mw.TokenGenerator(data)
+	accessToken, expire, err := mw.generateAccessToken(data)
 	if err != nil {
 		return nil, err
 	}
@@ -823,10 +823,10 @@ func (mw *GinJWTMiddleware) GenerateTokenPair(data any) (*core.Token, error) {
 	}, nil
 }
 
-// GenerateTokenPairWithRevocation generates a new token pair and revokes the old refresh token
-func (mw *GinJWTMiddleware) GenerateTokenPairWithRevocation(data any, oldRefreshToken string) (*core.Token, error) {
+// TokenGeneratorWithRevocation generates a new token pair and revokes the old refresh token
+func (mw *GinJWTMiddleware) TokenGeneratorWithRevocation(data any, oldRefreshToken string) (*core.Token, error) {
 	// Generate new token pair
-	tokenPair, err := mw.GenerateTokenPair(data)
+	tokenPair, err := mw.TokenGenerator(data)
 	if err != nil {
 		return nil, err
 	}
