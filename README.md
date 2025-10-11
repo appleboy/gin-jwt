@@ -41,6 +41,20 @@ Easily add login, token refresh, and authorization to your Gin applications.
     - [Refresh Token](#refresh-token)
     - [Hello World](#hello-world)
     - [Authorization Example](#authorization-example)
+  - [Understanding the Authorizer](#understanding-the-authorizer)
+    - [How Authorizer Works](#how-authorizer-works)
+    - [Authorizer Function Signature](#authorizer-function-signature)
+    - [Basic Usage Examples](#basic-usage-examples)
+      - [Example 1: Role-Based Authorization](#example-1-role-based-authorization)
+      - [Example 2: Path-Based Authorization](#example-2-path-based-authorization)
+      - [Example 3: Method and Path Based Authorization](#example-3-method-and-path-based-authorization)
+    - [Setting Up Different Authorization for Different Routes](#setting-up-different-authorization-for-different-routes)
+      - [Method 1: Multiple Middleware Instances](#method-1-multiple-middleware-instances)
+      - [Method 2: Single Authorizer with Path Logic](#method-2-single-authorizer-with-path-logic)
+    - [Advanced Authorization Patterns](#advanced-authorization-patterns)
+      - [Using Claims for Fine-Grained Control](#using-claims-for-fine-grained-control)
+    - [Common Patterns and Best Practices](#common-patterns-and-best-practices)
+    - [Complete Example](#complete-example)
     - [Logout](#logout)
   - [Cookie Token](#cookie-token)
     - [Login request flow (using the LoginHandler)](#login-request-flow-using-the-loginhandler)
@@ -596,6 +610,222 @@ http -f GET localhost:8000/auth/hello "Authorization:Bearer xxxxxxxxx"  "Content
   "message": "You don't have permission to access."
 }
 ```
+
+---
+
+## Understanding the Authorizer
+
+The `Authorizer` function is a crucial component for implementing role-based access control in your application. It determines whether an authenticated user has permission to access specific protected routes.
+
+### How Authorizer Works
+
+The `Authorizer` is called **automatically** during the JWT middleware processing for any route that uses `MiddlewareFunc()`. Here's the execution flow:
+
+1. **Token Validation**: JWT middleware validates the token
+2. **Identity Extraction**: `IdentityHandler` extracts user identity from token claims
+3. **Authorization Check**: `Authorizer` determines if the user can access the resource
+4. **Route Access**: If authorized, request proceeds; otherwise, `Unauthorized` is called
+
+### Authorizer Function Signature
+
+```go
+func(c *gin.Context, data any) bool
+```
+
+- `c *gin.Context`: The Gin context containing request information
+- `data any`: User identity data returned by `IdentityHandler`
+- Returns `bool`: `true` for authorized access, `false` to deny access
+
+### Basic Usage Examples
+
+#### Example 1: Role-Based Authorization
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        if v, ok := data.(*User); ok && v.UserName == "admin" {
+            return true  // Only admin users can access
+        }
+        return false
+    }
+}
+```
+
+#### Example 2: Path-Based Authorization
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        user, ok := data.(*User)
+        if !ok {
+            return false
+        }
+
+        path := c.Request.URL.Path
+
+        // Admin can access all routes
+        if user.Role == "admin" {
+            return true
+        }
+
+        // Regular users can only access /auth/profile and /auth/hello
+        allowedPaths := []string{"/auth/profile", "/auth/hello"}
+        for _, allowedPath := range allowedPaths {
+            if path == allowedPath {
+                return true
+            }
+        }
+
+        return false
+    }
+}
+```
+
+#### Example 3: Method and Path Based Authorization
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        user, ok := data.(*User)
+        if !ok {
+            return false
+        }
+
+        path := c.Request.URL.Path
+        method := c.Request.Method
+
+        // Admins have full access
+        if user.Role == "admin" {
+            return true
+        }
+
+        // Users can only GET their own profile
+        if path == "/auth/profile" && method == "GET" {
+            return true
+        }
+
+        // Users cannot modify or delete resources
+        if method == "POST" || method == "PUT" || method == "DELETE" {
+            return false
+        }
+
+        return true // Allow other GET requests
+    }
+}
+```
+
+### Setting Up Different Authorization for Different Routes
+
+To implement different authorization rules for different route groups, you can create multiple middleware instances or use path checking within a single Authorizer:
+
+#### Method 1: Multiple Middleware Instances
+
+```go
+// Admin-only middleware
+adminMiddleware, _ := jwt.New(&jwt.GinJWTMiddleware{
+    // ... other config
+    Authorizer: func(c *gin.Context, data any) bool {
+        if user, ok := data.(*User); ok {
+            return user.Role == "admin"
+        }
+        return false
+    },
+})
+
+// Regular user middleware
+userMiddleware, _ := jwt.New(&jwt.GinJWTMiddleware{
+    // ... other config
+    Authorizer: func(c *gin.Context, data any) bool {
+        if user, ok := data.(*User); ok {
+            return user.Role == "user" || user.Role == "admin"
+        }
+        return false
+    },
+})
+
+// Route setup
+adminRoutes := r.Group("/admin", adminMiddleware.MiddlewareFunc())
+userRoutes := r.Group("/user", userMiddleware.MiddlewareFunc())
+```
+
+#### Method 2: Single Authorizer with Path Logic
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        user, ok := data.(*User)
+        if !ok {
+            return false
+        }
+
+        path := c.Request.URL.Path
+
+        // Admin routes - only admins allowed
+        if strings.HasPrefix(path, "/admin/") {
+            return user.Role == "admin"
+        }
+
+        // User routes - users and admins allowed
+        if strings.HasPrefix(path, "/user/") {
+            return user.Role == "user" || user.Role == "admin"
+        }
+
+        // Public authenticated routes - all authenticated users
+        return true
+    }
+}
+```
+
+### Advanced Authorization Patterns
+
+#### Using Claims for Fine-Grained Control
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        // Extract additional claims
+        claims := jwt.ExtractClaims(c)
+
+        // Get user permissions from claims
+        permissions, ok := claims["permissions"].([]interface{})
+        if !ok {
+            return false
+        }
+
+        // Check if user has required permission for this route
+        requiredPermission := getRequiredPermission(c.Request.URL.Path)
+
+        for _, perm := range permissions {
+            if perm.(string) == requiredPermission {
+                return true
+            }
+        }
+
+        return false
+    }
+}
+
+func getRequiredPermission(path string) string {
+    permissionMap := map[string]string{
+        "/auth/users":    "read_users",
+        "/auth/reports":  "read_reports",
+        "/auth/settings": "admin",
+    }
+    return permissionMap[path]
+}
+```
+
+### Common Patterns and Best Practices
+
+1. **Always validate the data type**: Check if the user data can be cast to your expected type
+2. **Use claims for additional context**: Access JWT claims using `jwt.ExtractClaims(c)`
+3. **Consider the request context**: Use `c.Request.URL.Path`, `c.Request.Method`, etc.
+4. **Fail securely**: Return `false` by default and explicitly allow access
+5. **Log authorization failures**: Add logging for debugging authorization issues
+
+### Complete Example
+
+See the [authorization example](_example/authorization/) for a complete implementation showing different authorization scenarios.
 
 ### Logout
 

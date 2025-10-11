@@ -41,6 +41,20 @@
     - [刷新 Token](#刷新-token)
     - [Hello World](#hello-world)
     - [授權範例](#授權範例)
+  - [理解 Authorizer](#理解-authorizer)
+    - [Authorizer 工作原理](#authorizer-工作原理)
+    - [Authorizer 函式簽名](#authorizer-函式簽名)
+    - [基本用法範例](#基本用法範例)
+      - [範例 1：基於角色的授權](#範例-1基於角色的授權)
+      - [範例 2：基於路徑的授權](#範例-2基於路徑的授權)
+      - [範例 3：基於方法和路徑的授權](#範例-3基於方法和路徑的授權)
+    - [為不同路由設定不同授權](#為不同路由設定不同授權)
+      - [方法 1：多個中介軟體實例](#方法-1多個中介軟體實例)
+      - [方法 2：帶路徑邏輯的單一 Authorizer](#方法-2帶路徑邏輯的單一-authorizer)
+    - [進階授權模式](#進階授權模式)
+      - [使用 Claims 進行細緻度控制](#使用-claims-進行細緻度控制)
+    - [常見模式和最佳實踐](#常見模式和最佳實踐)
+    - [完整範例](#完整範例)
     - [登出](#登出)
   - [Cookie Token](#cookie-token)
     - [登入流程（LoginHandler）](#登入流程loginhandler)
@@ -431,6 +445,222 @@ http -f GET localhost:8000/auth/hello "Authorization:Bearer xxxxxxxxx"  "Content
   "message": "You don't have permission to access."
 }
 ```
+
+---
+
+## 理解 Authorizer
+
+`Authorizer` 函式是在應用程式中實作基於角色的存取控制的關鍵組件。它決定已驗證使用者是否有權限存取特定的受保護路由。
+
+### Authorizer 工作原理
+
+`Authorizer` 在使用 `MiddlewareFunc()` 的任何路由的 JWT 中介軟體處理過程中**自動呼叫**。執行流程如下：
+
+1. **Token 驗證**：JWT 中介軟體驗證 token
+2. **身份提取**：`IdentityHandler` 從 token claims 中提取使用者身份
+3. **授權檢查**：`Authorizer` 決定使用者是否可以存取資源
+4. **路由存取**：如果授權通過，請求繼續；否則呼叫 `Unauthorized`
+
+### Authorizer 函式簽名
+
+```go
+func(c *gin.Context, data any) bool
+```
+
+- `c *gin.Context`：包含請求資訊的 Gin 上下文
+- `data any`：由 `IdentityHandler` 回傳的使用者身份資料
+- 回傳 `bool`：`true` 表示授權存取，`false` 表示拒絕存取
+
+### 基本用法範例
+
+#### 範例 1：基於角色的授權
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        if v, ok := data.(*User); ok && v.UserName == "admin" {
+            return true  // 只有 admin 使用者可以存取
+        }
+        return false
+    }
+}
+```
+
+#### 範例 2：基於路徑的授權
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        user, ok := data.(*User)
+        if !ok {
+            return false
+        }
+
+        path := c.Request.URL.Path
+
+        // Admin 可以存取所有路由
+        if user.Role == "admin" {
+            return true
+        }
+
+        // 普通使用者只能存取 /auth/profile 和 /auth/hello
+        allowedPaths := []string{"/auth/profile", "/auth/hello"}
+        for _, allowedPath := range allowedPaths {
+            if path == allowedPath {
+                return true
+            }
+        }
+
+        return false
+    }
+}
+```
+
+#### 範例 3：基於方法和路徑的授權
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        user, ok := data.(*User)
+        if !ok {
+            return false
+        }
+
+        path := c.Request.URL.Path
+        method := c.Request.Method
+
+        // 管理員擁有完全存取權限
+        if user.Role == "admin" {
+            return true
+        }
+
+        // 使用者只能 GET 自己的資料
+        if path == "/auth/profile" && method == "GET" {
+            return true
+        }
+
+        // 使用者不能修改或刪除資源
+        if method == "POST" || method == "PUT" || method == "DELETE" {
+            return false
+        }
+
+        return true // 允許其他 GET 請求
+    }
+}
+```
+
+### 為不同路由設定不同授權
+
+要為不同的路由群組實作不同的授權規則，可以建立多個中介軟體實例或在單個 Authorizer 中使用路徑檢查：
+
+#### 方法 1：多個中介軟體實例
+
+```go
+// 僅限管理員的中介軟體
+adminMiddleware, _ := jwt.New(&jwt.GinJWTMiddleware{
+    // ... 其他設定
+    Authorizer: func(c *gin.Context, data any) bool {
+        if user, ok := data.(*User); ok {
+            return user.Role == "admin"
+        }
+        return false
+    },
+})
+
+// 普通使用者中介軟體
+userMiddleware, _ := jwt.New(&jwt.GinJWTMiddleware{
+    // ... 其他設定
+    Authorizer: func(c *gin.Context, data any) bool {
+        if user, ok := data.(*User); ok {
+            return user.Role == "user" || user.Role == "admin"
+        }
+        return false
+    },
+})
+
+// 路由設定
+adminRoutes := r.Group("/admin", adminMiddleware.MiddlewareFunc())
+userRoutes := r.Group("/user", userMiddleware.MiddlewareFunc())
+```
+
+#### 方法 2：帶路徑邏輯的單一 Authorizer
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        user, ok := data.(*User)
+        if !ok {
+            return false
+        }
+
+        path := c.Request.URL.Path
+
+        // 管理員路由 - 只允許管理員
+        if strings.HasPrefix(path, "/admin/") {
+            return user.Role == "admin"
+        }
+
+        // 使用者路由 - 允許使用者和管理員
+        if strings.HasPrefix(path, "/user/") {
+            return user.Role == "user" || user.Role == "admin"
+        }
+
+        // 公開認證路由 - 所有已認證使用者
+        return true
+    }
+}
+```
+
+### 進階授權模式
+
+#### 使用 Claims 進行細緻度控制
+
+```go
+func authorizeHandler() func(c *gin.Context, data any) bool {
+    return func(c *gin.Context, data any) bool {
+        // 提取額外的 claims
+        claims := jwt.ExtractClaims(c)
+
+        // 從 claims 取得使用者權限
+        permissions, ok := claims["permissions"].([]interface{})
+        if !ok {
+            return false
+        }
+
+        // 檢查使用者是否擁有此路由所需的權限
+        requiredPermission := getRequiredPermission(c.Request.URL.Path)
+
+        for _, perm := range permissions {
+            if perm.(string) == requiredPermission {
+                return true
+            }
+        }
+
+        return false
+    }
+}
+
+func getRequiredPermission(path string) string {
+    permissionMap := map[string]string{
+        "/auth/users":    "read_users",
+        "/auth/reports":  "read_reports",
+        "/auth/settings": "admin",
+    }
+    return permissionMap[path]
+}
+```
+
+### 常見模式和最佳實踐
+
+1. **始終驗證資料類型**：檢查使用者資料是否可以轉換為您期望的類型
+2. **使用 claims 取得額外上下文**：使用 `jwt.ExtractClaims(c)` 存取 JWT claims
+3. **考慮請求上下文**：使用 `c.Request.URL.Path`、`c.Request.Method` 等
+4. **安全優先**：預設回傳 `false`，明確允許存取
+5. **記錄授權失敗**：新增日誌以除錯授權問題
+
+### 完整範例
+
+查看[授權範例](_example/authorization/)了解展示不同授權情境的完整實作。
 
 ### 登出
 
