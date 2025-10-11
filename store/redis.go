@@ -13,9 +13,10 @@ import (
 
 // RedisRefreshTokenStore provides a Redis-based refresh token store with client-side caching
 type RedisRefreshTokenStore struct {
-	client rueidis.Client
-	prefix string
-	ctx    context.Context
+	client   rueidis.Client
+	prefix   string
+	ctx      context.Context
+	cacheTTL time.Duration
 }
 
 // RedisConfig holds the configuration for Redis store
@@ -87,9 +88,10 @@ func NewRedisRefreshTokenStore(config *RedisConfig) (*RedisRefreshTokenStore, er
 	}
 
 	return &RedisRefreshTokenStore{
-		client: client,
-		prefix: config.KeyPrefix,
-		ctx:    ctx,
+		client:   client,
+		prefix:   config.KeyPrefix,
+		ctx:      ctx,
+		cacheTTL: config.CacheTTL,
 	}, nil
 }
 
@@ -150,7 +152,7 @@ func (s *RedisRefreshTokenStore) Get(token string) (interface{}, error) {
 
 	// Use client-side cache by default
 	cmd := s.client.B().Get().Key(key).Cache()
-	result := s.client.DoCache(s.ctx, cmd, time.Minute)
+	result := s.client.DoCache(s.ctx, cmd, s.cacheTTL)
 
 	if result.Error() != nil {
 		if rueidis.IsRedisNil(result.Error()) {
