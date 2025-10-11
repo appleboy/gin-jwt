@@ -17,7 +17,7 @@ func main() {
 		Key:        []byte("secret key"),
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		PayloadFunc: func(data interface{}) gojwt.MapClaims {
+		PayloadFunc: func(data any) gojwt.MapClaims {
 			return gojwt.MapClaims{
 				"user_id": data,
 			}

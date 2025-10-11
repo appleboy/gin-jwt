@@ -192,8 +192,8 @@ func initParams() *jwt.GinJWTMiddleware {
   }
 }
 
-func payloadFunc() func(data interface{}) jwt.MapClaims {
-  return func(data interface{}) jwt.MapClaims {
+func payloadFunc() func(data any) jwt.MapClaims {
+  return func(data any) jwt.MapClaims {
     if v, ok := data.(*User); ok {
       return jwt.MapClaims{
         identityKey: v.UserName,
@@ -203,8 +203,8 @@ func payloadFunc() func(data interface{}) jwt.MapClaims {
   }
 }
 
-func identityHandler() func(c *gin.Context) interface{} {
-  return func(c *gin.Context) interface{} {
+func identityHandler() func(c *gin.Context) any {
+  return func(c *gin.Context) any {
     claims := jwt.ExtractClaims(c)
     return &User{
       UserName: claims[identityKey].(string),
@@ -212,8 +212,8 @@ func identityHandler() func(c *gin.Context) interface{} {
   }
 }
 
-func authenticator() func(c *gin.Context) (interface{}, error) {
-  return func(c *gin.Context) (interface{}, error) {
+func authenticator() func(c *gin.Context) (any, error) {
+  return func(c *gin.Context) (any, error) {
     var loginVals login
     if err := c.ShouldBind(&loginVals); err != nil {
       return "", jwt.ErrMissingLoginValues
@@ -232,8 +232,8 @@ func authenticator() func(c *gin.Context) (interface{}, error) {
   }
 }
 
-func authorizator() func(data interface{}, c *gin.Context) bool {
-  return func(data interface{}, c *gin.Context) bool {
+func authorizator() func(data any, c *gin.Context) bool {
+  return func(data any, c *gin.Context) bool {
     if v, ok := data.(*User); ok && v.UserName == "admin" {
       return true
     }
@@ -295,7 +295,7 @@ func main() {
         Key:        []byte("secret key"),
         Timeout:    time.Hour,
         MaxRefresh: time.Hour * 24,
-        PayloadFunc: func(data interface{}) gojwt.MapClaims {
+        PayloadFunc: func(data any) gojwt.MapClaims {
             return gojwt.MapClaims{
                 "user_id": data,
             }
@@ -469,8 +469,8 @@ func main() {
         MaxRefresh:  time.Hour * 24,
         IdentityKey: "id",
 
-        PayloadFunc: func(data interface{}) jwt.MapClaims {
-            if v, ok := data.(map[string]interface{}); ok {
+        PayloadFunc: func(data any) jwt.MapClaims {
+            if v, ok := data.(map[string]any); ok {
                 return jwt.MapClaims{
                     "id": v["username"],
                 }
@@ -478,7 +478,7 @@ func main() {
             return jwt.MapClaims{}
         },
 
-        Authenticator: func(c *gin.Context) (interface{}, error) {
+        Authenticator: func(c *gin.Context) (any, error) {
             var loginVals struct {
                 Username string `json:"username"`
                 Password string `json:"password"`
@@ -489,7 +489,7 @@ func main() {
             }
 
             if loginVals.Username == "admin" && loginVals.Password == "admin" {
-                return map[string]interface{}{
+                return map[string]any{
                     "username": loginVals.Username,
                 }, nil
             }
@@ -650,7 +650,7 @@ This function should verify the user credentials given the gin context (i.e. pas
 
 OPTIONAL: `PayloadFunc`
 
-This function is called after having successfully authenticated (logged in). It should take whatever was returned from `Authenticator` and convert it into `MapClaims` (i.e. map[string]interface{}). A typical use case of this function is for when `Authenticator` returns a struct which holds the user identifiers, and that struct needs to be converted into a map. `MapClaims` should include one element that is [`IdentityKey` (default is "identity"): some_user_identity]. The elements of `MapClaims` returned in `PayloadFunc` will be embedded within the jwt token (as token claims). When users pass in their token on subsequent requests, you can get these claims back by using `ExtractClaims`.
+This function is called after having successfully authenticated (logged in). It should take whatever was returned from `Authenticator` and convert it into `MapClaims` (i.e. map[string]any). A typical use case of this function is for when `Authenticator` returns a struct which holds the user identifiers, and that struct needs to be converted into a map. `MapClaims` should include one element that is [`IdentityKey` (default is "identity"): some_user_identity]. The elements of `MapClaims` returned in `PayloadFunc` will be embedded within the jwt token (as token claims). When users pass in their token on subsequent requests, you can get these claims back by using `ExtractClaims`.
 
 OPTIONAL: `LoginResponse`
 

@@ -93,8 +93,8 @@ func initParams() *jwt.GinJWTMiddleware {
 	}
 }
 
-func payloadFunc() func(data interface{}) gojwt.MapClaims {
-	return func(data interface{}) gojwt.MapClaims {
+func payloadFunc() func(data any) gojwt.MapClaims {
+	return func(data any) gojwt.MapClaims {
 		if v, ok := data.(*User); ok {
 			return gojwt.MapClaims{
 				identityKey: v.UserName,
@@ -104,8 +104,8 @@ func payloadFunc() func(data interface{}) gojwt.MapClaims {
 	}
 }
 
-func identityHandler() func(c *gin.Context) interface{} {
-	return func(c *gin.Context) interface{} {
+func identityHandler() func(c *gin.Context) any {
+	return func(c *gin.Context) any {
 		claims := jwt.ExtractClaims(c)
 		return &User{
 			UserName: claims[identityKey].(string),
@@ -113,8 +113,8 @@ func identityHandler() func(c *gin.Context) interface{} {
 	}
 }
 
-func authenticator() func(c *gin.Context) (interface{}, error) {
-	return func(c *gin.Context) (interface{}, error) {
+func authenticator() func(c *gin.Context) (any, error) {
+	return func(c *gin.Context) (any, error) {
 		var loginVals login
 		if err := c.ShouldBind(&loginVals); err != nil {
 			return "", jwt.ErrMissingLoginValues
@@ -133,8 +133,8 @@ func authenticator() func(c *gin.Context) (interface{}, error) {
 	}
 }
 
-func authorizator() func(data interface{}, c *gin.Context) bool {
-	return func(data interface{}, c *gin.Context) bool {
+func authorizator() func(data any, c *gin.Context) bool {
+	return func(data any, c *gin.Context) bool {
 		if v, ok := data.(*User); ok && v.UserName == "admin" {
 			return true
 		}

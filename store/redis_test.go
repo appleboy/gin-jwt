@@ -83,8 +83,8 @@ func TestRedisRefreshTokenStore_Integration(t *testing.T) {
 func testBasicOperations(t *testing.T, store *RedisRefreshTokenStore) {
 	ctx := context.Background()
 	token := "test-token-basic"
-	userData := map[string]interface{}{
-		"user_id": 123,
+	userData := map[string]any{
+		"user_id":  123,
 		"username": "testuser",
 	}
 	expiry := time.Now().Add(time.Hour)

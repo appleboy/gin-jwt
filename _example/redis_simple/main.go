@@ -30,7 +30,7 @@ func main() {
 		MaxRefresh:  time.Hour,
 		IdentityKey: identityKey,
 
-		PayloadFunc: func(data interface{}) gojwt.MapClaims {
+		PayloadFunc: func(data any) gojwt.MapClaims {
 			if v, ok := data.(*User); ok {
 				return gojwt.MapClaims{
 					identityKey: v.UserName,
@@ -39,14 +39,14 @@ func main() {
 			return gojwt.MapClaims{}
 		},
 
-		IdentityHandler: func(c *gin.Context) interface{} {
+		IdentityHandler: func(c *gin.Context) any {
 			claims := jwt.ExtractClaims(c)
 			return &User{
 				UserName: claims[identityKey].(string),
 			}
 		},
 
-		Authenticator: func(c *gin.Context) (interface{}, error) {
+		Authenticator: func(c *gin.Context) (any, error) {
 			var loginVals User
 			if err := c.ShouldBind(&loginVals); err != nil {
 				return "", jwt.ErrMissingLoginValues
@@ -65,7 +65,7 @@ func main() {
 			return nil, jwt.ErrFailedAuthentication
 		},
 
-		Authorizator: func(data interface{}, c *gin.Context) bool {
+		Authorizator: func(data any, c *gin.Context) bool {
 			if v, ok := data.(*User); ok && v.UserName == "admin" {
 				return true
 			}
@@ -91,7 +91,6 @@ func main() {
 
 	// Create the JWT middleware
 	authMiddleware, err := jwt.New(middleware)
-
 	// Alternative initialization methods using functional options:
 	//
 	// Method 1: Simple enable with defaults
@@ -115,7 +114,6 @@ func main() {
 	//     jwt.WithRedisPool(20, time.Hour, 2*time.Hour),
 	//     jwt.WithRedisKeyPrefix("myapp:jwt:"),
 	// ))
-
 	if err != nil {
 		log.Fatal("JWT Error:" + err.Error())
 	}

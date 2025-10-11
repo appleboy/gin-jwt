@@ -296,7 +296,7 @@ func createTestMiddleware(t *testing.T, redisAddr string) *GinJWTMiddleware {
 	return middleware
 }
 
-func testAuthenticator(c *gin.Context) (interface{}, error) {
+func testAuthenticator(c *gin.Context) (any, error) {
 	var loginVals struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -306,7 +306,7 @@ func testAuthenticator(c *gin.Context) (interface{}, error) {
 	}
 
 	if loginVals.Username == "admin" && loginVals.Password == "admin" {
-		return map[string]interface{}{
+		return map[string]any{
 			"username": "admin",
 			"userid":   1,
 		}, nil
@@ -315,8 +315,8 @@ func testAuthenticator(c *gin.Context) (interface{}, error) {
 	return nil, ErrFailedAuthentication
 }
 
-func testPayloadFunc(data interface{}) gojwt.MapClaims {
-	if v, ok := data.(map[string]interface{}); ok {
+func testPayloadFunc(data any) gojwt.MapClaims {
+	if v, ok := data.(map[string]any); ok {
 		return gojwt.MapClaims{
 			"id":       v["userid"],
 			"username": v["username"],
@@ -337,7 +337,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 	assert.Contains(t, w.Body.String(), "refresh_token", "response should contain refresh token")
 
 	// Extract tokens from response
-	var loginResp map[string]interface{}
+	var loginResp map[string]any
 	err := parseJSON(w.Body.String(), &loginResp)
 	require.NoError(t, err, "should be able to parse login response")
 
@@ -370,7 +370,7 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
-	var loginResp map[string]interface{}
+	var loginResp map[string]any
 	err := parseJSON(w.Body.String(), &loginResp)
 	require.NoError(t, err)
 
@@ -388,7 +388,7 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 		assert.Equal(t, 200, w.Code, fmt.Sprintf("refresh %d should succeed", i+1))
 
 		// Update refresh token for next iteration
-		var refreshResp map[string]interface{}
+		var refreshResp map[string]any
 		err := parseJSON(w.Body.String(), &refreshResp)
 		require.NoError(t, err, fmt.Sprintf("should parse refresh response %d", i+1))
 		refreshToken = refreshResp["refresh_token"].(string)
@@ -402,7 +402,7 @@ func testRedisStoreOperations(t *testing.T, middleware *GinJWTMiddleware) {
 
 	// Test store operations directly
 	testToken := "direct-test-token"
-	testData := map[string]interface{}{"test": "data"}
+	testData := map[string]any{"test": "data"}
 	expiry := time.Now().Add(time.Hour)
 
 	// Test Set
@@ -432,6 +432,6 @@ func testRedisStoreOperations(t *testing.T, middleware *GinJWTMiddleware) {
 }
 
 // Helper function to parse JSON response
-func parseJSON(jsonStr string, v interface{}) error {
+func parseJSON(jsonStr string, v any) error {
 	return json.Unmarshal([]byte(jsonStr), v)
 }

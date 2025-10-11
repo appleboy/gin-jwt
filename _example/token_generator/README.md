@@ -20,7 +20,7 @@ go run main.go
 
 ## Key Methods
 
-### `GenerateTokenPair(userData interface{}) (*core.Token, error)`
+### `GenerateTokenPair(userData any) (*core.Token, error)`
 
 Generates a complete token pair containing:
 
@@ -39,7 +39,7 @@ fmt.Printf("Refresh Token: %s\n", tokenPair.RefreshToken)
 fmt.Printf("Expires In: %d seconds\n", tokenPair.ExpiresIn())
 ```
 
-### `GenerateTokenPairWithRevocation(userData interface{}, oldRefreshToken string) (*core.Token, error)`
+### `GenerateTokenPairWithRevocation(userData any, oldRefreshToken string) (*core.Token, error)`
 
 Generates a new token pair and automatically revokes the old refresh token:
 

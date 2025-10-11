@@ -130,7 +130,7 @@ func main() {
         Key:        []byte("secret key"),
         Timeout:    time.Hour,
         MaxRefresh: time.Hour * 24,
-        PayloadFunc: func(data interface{}) gojwt.MapClaims {
+        PayloadFunc: func(data any) gojwt.MapClaims {
             return gojwt.MapClaims{
                 "user_id": data,
             }
@@ -304,8 +304,8 @@ func main() {
         MaxRefresh:  time.Hour * 24,
         IdentityKey: "id",
 
-        PayloadFunc: func(data interface{}) jwt.MapClaims {
-            if v, ok := data.(map[string]interface{}); ok {
+        PayloadFunc: func(data any) jwt.MapClaims {
+            if v, ok := data.(map[string]any); ok {
                 return jwt.MapClaims{
                     "id": v["username"],
                 }
@@ -313,7 +313,7 @@ func main() {
             return jwt.MapClaims{}
         },
 
-        Authenticator: func(c *gin.Context) (interface{}, error) {
+        Authenticator: func(c *gin.Context) (any, error) {
             var loginVals struct {
                 Username string `json:"username"`
                 Password string `json:"password"`
@@ -324,7 +324,7 @@ func main() {
             }
 
             if loginVals.Username == "admin" && loginVals.Password == "admin" {
-                return map[string]interface{}{
+                return map[string]any{
                     "username": loginVals.Username,
                 }, nil
             }
@@ -484,7 +484,7 @@ CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxM
   验证 Gin context 内的用户凭证。验证成功后返回要嵌入 JWT Token 的用户数据（如账号、角色等）。失败则调用 `Unauthorized`。
 
 - **可选：** `PayloadFunc`  
-  将认证通过的用户数据转为 `MapClaims`（map[string]interface{}），必须包含 `IdentityKey`（默认 `"identity"`）。
+  将认证通过的用户数据转为 `MapClaims`（map[string]any），必须包含 `IdentityKey`（默认 `"identity"`）。
 
 - **可选：** `LoginResponse`  
   处理登录后逻辑，例如返回 Token JSON。

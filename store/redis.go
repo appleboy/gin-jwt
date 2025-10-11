@@ -22,9 +22,9 @@ type RedisRefreshTokenStore struct {
 // RedisConfig holds the configuration for Redis store
 type RedisConfig struct {
 	// Redis connection configuration
-	Addr     string        // Redis server address (default: "localhost:6379")
-	Password string        // Redis password (default: "")
-	DB       int           // Redis database number (default: 0)
+	Addr     string // Redis server address (default: "localhost:6379")
+	Password string // Redis password (default: "")
+	DB       int    // Redis database number (default: 0)
 
 	// Client-side cache configuration
 	CacheSize int           // Client-side cache size in bytes (default: 128MB)
@@ -107,7 +107,7 @@ func (s *RedisRefreshTokenStore) buildKey(token string) string {
 }
 
 // Set stores a refresh token with associated user data and expiration
-func (s *RedisRefreshTokenStore) Set(token string, userData interface{}, expiry time.Time) error {
+func (s *RedisRefreshTokenStore) Set(token string, userData any, expiry time.Time) error {
 	if token == "" {
 		return errors.New("token cannot be empty")
 	}
@@ -143,7 +143,7 @@ func (s *RedisRefreshTokenStore) Set(token string, userData interface{}, expiry 
 
 // Get retrieves user data associated with a refresh token
 // This method benefits from client-side caching for frequently accessed tokens
-func (s *RedisRefreshTokenStore) Get(token string) (interface{}, error) {
+func (s *RedisRefreshTokenStore) Get(token string) (any, error) {
 	if token == "" {
 		return nil, core.ErrRefreshTokenNotFound
 	}

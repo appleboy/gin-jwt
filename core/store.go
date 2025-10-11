@@ -18,11 +18,11 @@ var (
 type TokenStore interface {
 	// Set stores a refresh token with associated user data and expiration
 	// Returns an error if the operation fails
-	Set(token string, userData interface{}, expiry time.Time) error
+	Set(token string, userData any, expiry time.Time) error
 
 	// Get retrieves user data associated with a refresh token
 	// Returns ErrRefreshTokenNotFound if token doesn't exist or is expired
-	Get(token string) (interface{}, error)
+	Get(token string) (any, error)
 
 	// Delete removes a refresh token from storage
 	// Returns an error if the operation fails, but should not error if token doesn't exist
@@ -39,9 +39,9 @@ type TokenStore interface {
 
 // RefreshTokenData holds the data stored with each refresh token
 type RefreshTokenData struct {
-	UserData interface{} `json:"user_data"`
-	Expiry   time.Time   `json:"expiry"`
-	Created  time.Time   `json:"created"`
+	UserData any       `json:"user_data"`
+	Expiry   time.Time `json:"expiry"`
+	Created  time.Time `json:"created"`
 }
 
 // IsExpired checks if the token data has expired

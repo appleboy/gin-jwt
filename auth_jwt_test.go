@@ -27,7 +27,7 @@ type Login struct {
 
 var (
 	key                  = []byte("secret key")
-	defaultAuthenticator = func(c *gin.Context) (interface{}, error) {
+	defaultAuthenticator = func(c *gin.Context) (any, error) {
 		var loginVals Login
 		userID := loginVals.Username
 		password := loginVals.Password
@@ -62,7 +62,7 @@ func makeTokenString(SigningAlgorithm string, username string) string {
 	return tokenString
 }
 
-func keyFunc(token *jwt.Token) (interface{}, error) {
+func keyFunc(token *jwt.Token) (any, error) {
 	cert, err := os.ReadFile("testdata/jwtRS256.key.pub")
 	if err != nil {
 		return nil, err
@@ -256,11 +256,11 @@ func TestLoginHandler(t *testing.T) {
 	authMiddleware, err := New(&GinJWTMiddleware{
 		Realm: "test zone",
 		Key:   key,
-		PayloadFunc: func(data interface{}) jwt.MapClaims {
+		PayloadFunc: func(data any) jwt.MapClaims {
 			// Set custom claim, to be checked in Authorizator method
 			return jwt.MapClaims{"testkey": "testval", "exp": 0}
 		},
-		Authenticator: func(c *gin.Context) (interface{}, error) {
+		Authenticator: func(c *gin.Context) (any, error) {
 			var loginVals Login
 			if binderr := c.ShouldBind(&loginVals); binderr != nil {
 				return "", ErrMissingLoginValues
@@ -272,7 +272,7 @@ func TestLoginHandler(t *testing.T) {
 			}
 			return "", ErrFailedAuthentication
 		},
-		Authorizator: func(user interface{}, c *gin.Context) bool {
+		Authorizator: func(user any, c *gin.Context) bool {
 			return true
 		},
 		LoginResponse: func(c *gin.Context, code int, token string, t time.Time) {
@@ -609,12 +609,12 @@ func TestRefreshHandler(t *testing.T) {
 func TestValidRefreshToken(t *testing.T) {
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
-		Realm:                "test zone",
-		Key:                  key,
-		Timeout:              time.Hour,
-		MaxRefresh:           2 * time.Hour,
-		RefreshTokenTimeout:  24 * time.Hour, // Long refresh token timeout
-		Authenticator:        defaultAuthenticator,
+		Realm:               "test zone",
+		Key:                 key,
+		Timeout:             time.Hour,
+		MaxRefresh:          2 * time.Hour,
+		RefreshTokenTimeout: 24 * time.Hour, // Long refresh token timeout
+		Authenticator:       defaultAuthenticator,
 	})
 
 	handler := ginHandler(authMiddleware)
@@ -637,11 +637,11 @@ func TestValidRefreshToken(t *testing.T) {
 func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
-		Realm:                "test zone",
-		Key:                  key,
-		Timeout:              time.Hour,
-		RefreshTokenTimeout:  time.Millisecond, // Very short refresh token timeout
-		Authenticator:        defaultAuthenticator,
+		Realm:               "test zone",
+		Key:                 key,
+		Timeout:             time.Hour,
+		RefreshTokenTimeout: time.Millisecond, // Very short refresh token timeout
+		Authenticator:       defaultAuthenticator,
 	})
 
 	handler := ginHandler(authMiddleware)
@@ -672,7 +672,7 @@ func TestAuthorizator(t *testing.T) {
 		Timeout:       time.Hour,
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
-		Authorizator: func(data interface{}, c *gin.Context) bool {
+		Authorizator: func(data any, c *gin.Context) bool {
 			return data.(string) == "admin"
 		},
 	})
@@ -731,7 +731,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		PayloadFunc: func(data interface{}) jwt.MapClaims {
+		PayloadFunc: func(data any) jwt.MapClaims {
 			if v, ok := data.(jwt.MapClaims); ok {
 				return v
 			}
@@ -759,7 +759,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 				"nbf":      now.Unix(),
 			}
 		},
-		Authenticator: func(c *gin.Context) (interface{}, error) {
+		Authenticator: func(c *gin.Context) (any, error) {
 			var loginVals Login
 
 			if err := c.BindJSON(&loginVals); err != nil {
@@ -779,7 +779,7 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 
 			return "Guest", ErrFailedAuthentication
 		},
-		Authorizator: func(user interface{}, c *gin.Context) bool {
+		Authorizator: func(user any, c *gin.Context) bool {
 			jwtClaims := ExtractClaims(c)
 
 			if jwtClaims["identity"] == "administrator" {
@@ -852,8 +852,8 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 		})
 }
 
-func ConvertClaims(claims jwt.MapClaims) map[string]interface{} {
-	return map[string]interface{}{}
+func ConvertClaims(claims jwt.MapClaims) map[string]any {
+	return map[string]any{}
 }
 
 func TestEmptyClaims(t *testing.T) {
@@ -863,7 +863,7 @@ func TestEmptyClaims(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(c *gin.Context) (interface{}, error) {
+		Authenticator: func(c *gin.Context) (any, error) {
 			var loginVals Login
 			userID := loginVals.Username
 			password := loginVals.Password
@@ -1147,7 +1147,7 @@ func TestSendAuthorizationBool(t *testing.T) {
 		MaxRefresh:        time.Hour * 24,
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
-		Authorizator: func(data interface{}, c *gin.Context) bool {
+		Authorizator: func(data any, c *gin.Context) bool {
 			return data.(string) == "admin"
 		},
 	})
@@ -1185,7 +1185,7 @@ func TestExpiredTokenOnAuth(t *testing.T) {
 		MaxRefresh:        time.Hour * 24,
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
-		Authorizator: func(data interface{}, c *gin.Context) bool {
+		Authorizator: func(data any, c *gin.Context) bool {
 			return data.(string) == "admin"
 		},
 		TimeFunc: func() time.Time {
@@ -1332,7 +1332,7 @@ func TestCheckTokenString(t *testing.T) {
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.String(code, message)
 		},
-		PayloadFunc: func(data interface{}) jwt.MapClaims {
+		PayloadFunc: func(data any) jwt.MapClaims {
 			if v, ok := data.(jwt.MapClaims); ok {
 				return v
 			}
@@ -1445,15 +1445,15 @@ func TestGenerateTokenPair(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(c *gin.Context) (interface{}, error) {
+		Authenticator: func(c *gin.Context) (any, error) {
 			return "admin", nil
 		},
-		PayloadFunc: func(data interface{}) jwt.MapClaims {
+		PayloadFunc: func(data any) jwt.MapClaims {
 			return jwt.MapClaims{
 				"identity": data,
 			}
 		},
-		Authorizator: func(data interface{}, c *gin.Context) bool {
+		Authorizator: func(data any, c *gin.Context) bool {
 			return data == "admin"
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
@@ -1494,10 +1494,10 @@ func TestGenerateTokenPairWithRevocation(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(c *gin.Context) (interface{}, error) {
+		Authenticator: func(c *gin.Context) (any, error) {
 			return "admin", nil
 		},
-		PayloadFunc: func(data interface{}) jwt.MapClaims {
+		PayloadFunc: func(data any) jwt.MapClaims {
 			return jwt.MapClaims{
 				"identity": data,
 			}
@@ -1551,7 +1551,7 @@ func TestTokenStruct(t *testing.T) {
 		Key:        key,
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
-		Authenticator: func(c *gin.Context) (interface{}, error) {
+		Authenticator: func(c *gin.Context) (any, error) {
 			return "admin", nil
 		},
 	})

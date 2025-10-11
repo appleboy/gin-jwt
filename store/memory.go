@@ -24,7 +24,7 @@ func NewInMemoryRefreshTokenStore() *InMemoryRefreshTokenStore {
 }
 
 // Set stores a refresh token with associated user data and expiration
-func (s *InMemoryRefreshTokenStore) Set(token string, userData interface{}, expiry time.Time) error {
+func (s *InMemoryRefreshTokenStore) Set(token string, userData any, expiry time.Time) error {
 	if token == "" {
 		return errors.New("token cannot be empty")
 	}
@@ -42,7 +42,7 @@ func (s *InMemoryRefreshTokenStore) Set(token string, userData interface{}, expi
 }
 
 // Get retrieves user data associated with a refresh token
-func (s *InMemoryRefreshTokenStore) Get(token string) (interface{}, error) {
+func (s *InMemoryRefreshTokenStore) Get(token string) (any, error) {
 	if token == "" {
 		return nil, ErrRefreshTokenNotFound
 	}
