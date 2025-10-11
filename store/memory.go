@@ -8,6 +8,8 @@ import (
 	"github.com/appleboy/gin-jwt/v3/core"
 )
 
+var _ core.TokenStore = &InMemoryRefreshTokenStore{}
+
 // InMemoryRefreshTokenStore provides a simple in-memory refresh token store
 // This implementation is thread-safe and suitable for single-instance applications
 // For distributed systems, consider using Redis or database-based implementations

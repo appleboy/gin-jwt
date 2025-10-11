@@ -11,6 +11,8 @@ import (
 	"github.com/redis/rueidis"
 )
 
+var _ core.TokenStore = &RedisRefreshTokenStore{}
+
 // RedisRefreshTokenStore provides a Redis-based refresh token store with client-side caching
 type RedisRefreshTokenStore struct {
 	client   rueidis.Client
