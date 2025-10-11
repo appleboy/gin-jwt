@@ -23,11 +23,16 @@ Easily add login, token refresh, and authorization to your Gin applications.
   - [Installation](#installation)
     - [Using Go Modules (Recommended)](#using-go-modules-recommended)
   - [Quick Start Example](#quick-start-example)
+  - [Token Generator (Direct Token Creation)](#token-generator-direct-token-creation)
+    - [Basic Usage](#basic-usage)
+    - [Token Structure](#token-structure)
+    - [Refresh Token Management](#refresh-token-management)
   - [Demo](#demo)
     - [Login](#login)
     - [Refresh Token](#refresh-token)
     - [Hello World](#hello-world)
     - [Authorization Example](#authorization-example)
+    - [Logout](#logout)
   - [Cookie Token](#cookie-token)
     - [Login request flow (using the LoginHandler)](#login-request-flow-using-the-loginhandler)
     - [Subsequent requests on endpoints requiring jwt token (using MiddlewareFunc)](#subsequent-requests-on-endpoints-requiring-jwt-token-using-middlewarefunc)
@@ -46,6 +51,8 @@ Easily add login, token refresh, and authorization to your Gin applications.
 - 📝 Easy integration and clear API
 - 🔐 RFC 6749 compliant refresh tokens (OAuth 2.0 standard)
 - 🗄️ Pluggable refresh token storage (in-memory, Redis, etc.)
+- 🏭 Direct token generation without HTTP middleware
+- 📦 Structured Token type with metadata
 
 ---
 
@@ -251,6 +258,101 @@ func helloHandler(c *gin.Context) {
 }
 
 ```
+
+---
+
+## Token Generator (Direct Token Creation)
+
+The new `GenerateTokenPair` functionality allows you to create JWT tokens directly without HTTP middleware, perfect for programmatic authentication, testing, and custom flows.
+
+### Basic Usage
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "time"
+
+    jwt "github.com/appleboy/gin-jwt/v2"
+    gojwt "github.com/golang-jwt/jwt/v5"
+)
+
+func main() {
+    // Initialize the middleware
+    authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+        Realm:      "example zone",
+        Key:        []byte("secret key"),
+        Timeout:    time.Hour,
+        MaxRefresh: time.Hour * 24,
+        PayloadFunc: func(data interface{}) gojwt.MapClaims {
+            return gojwt.MapClaims{
+                "user_id": data,
+            }
+        },
+    })
+    if err != nil {
+        log.Fatal("JWT Error:" + err.Error())
+    }
+
+    // Generate a complete token pair (access + refresh tokens)
+    userData := "user123"
+    tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+    if err != nil {
+        log.Fatal("Failed to generate token pair:", err)
+    }
+
+    fmt.Printf("Access Token: %s\n", tokenPair.AccessToken)
+    fmt.Printf("Refresh Token: %s\n", tokenPair.RefreshToken)
+    fmt.Printf("Expires In: %d seconds\n", tokenPair.ExpiresIn())
+}
+```
+
+### Token Structure
+
+The `GenerateTokenPair` method returns a structured `core.Token`:
+
+```go
+type Token struct {
+    AccessToken  string `json:"access_token"`   // JWT access token
+    TokenType    string `json:"token_type"`     // Always "Bearer"
+    RefreshToken string `json:"refresh_token"`  // Opaque refresh token
+    ExpiresAt    int64  `json:"expires_at"`     // Unix timestamp
+    CreatedAt    int64  `json:"created_at"`     // Unix timestamp
+}
+
+// Helper method
+func (t *Token) ExpiresIn() int64 // Returns seconds until expiry
+```
+
+### Refresh Token Management
+
+Use `GenerateTokenPairWithRevocation` to refresh tokens and automatically revoke old ones:
+
+```go
+// Refresh with automatic revocation of old token
+newTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldRefreshToken)
+if err != nil {
+    log.Fatal("Failed to refresh token:", err)
+}
+
+// Old refresh token is now invalid
+fmt.Printf("New Access Token: %s\n", newTokenPair.AccessToken)
+fmt.Printf("New Refresh Token: %s\n", newTokenPair.RefreshToken)
+```
+
+**Use Cases:**
+
+- 🔧 **Programmatic Authentication**: Service-to-service communication
+- 🧪 **Testing**: Generate tokens for testing authenticated endpoints
+- 📝 **Registration Flow**: Issue tokens immediately after user signup
+- ⚙️ **Background Jobs**: Create tokens for automated processes
+- 🎛️ **Custom Auth Flows**: Build custom authentication logic
+
+See the [complete example](_example/token_generator/) for more details.
+
+---
 
 ## Demo
 

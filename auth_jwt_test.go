@@ -1438,3 +1438,140 @@ func TestSetCookie(t *testing.T) {
 	assert.Equal(t, "example.com", cookie.Domain)
 	assert.Equal(t, true, cookie.HttpOnly)
 }
+
+func TestGenerateTokenPair(t *testing.T) {
+	authMiddleware, err := New(&GinJWTMiddleware{
+		Realm:      "test zone",
+		Key:        key,
+		Timeout:    time.Hour,
+		MaxRefresh: time.Hour * 24,
+		Authenticator: func(c *gin.Context) (interface{}, error) {
+			return "admin", nil
+		},
+		PayloadFunc: func(data interface{}) jwt.MapClaims {
+			return jwt.MapClaims{
+				"identity": data,
+			}
+		},
+		Authorizator: func(data interface{}, c *gin.Context) bool {
+			return data == "admin"
+		},
+		Unauthorized: func(c *gin.Context, code int, message string) {
+			c.JSON(code, gin.H{
+				"code":    code,
+				"message": message,
+			})
+		},
+	})
+
+	assert.NoError(t, err)
+
+	userData := "admin"
+	tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenPair)
+	assert.NotEmpty(t, tokenPair.AccessToken)
+	assert.NotEmpty(t, tokenPair.RefreshToken)
+	assert.Equal(t, "Bearer", tokenPair.TokenType)
+	assert.True(t, tokenPair.ExpiresAt > time.Now().Unix())
+	assert.True(t, tokenPair.CreatedAt <= time.Now().Unix())
+	assert.True(t, tokenPair.ExpiresIn() > 0)
+
+	// Validate that the access token is properly signed
+	token, err := authMiddleware.ParseTokenString(tokenPair.AccessToken)
+	assert.NoError(t, err)
+	assert.True(t, token.Valid)
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	assert.True(t, ok)
+	assert.Equal(t, userData, claims["identity"])
+}
+
+func TestGenerateTokenPairWithRevocation(t *testing.T) {
+	authMiddleware, err := New(&GinJWTMiddleware{
+		Realm:      "test zone",
+		Key:        key,
+		Timeout:    time.Hour,
+		MaxRefresh: time.Hour * 24,
+		Authenticator: func(c *gin.Context) (interface{}, error) {
+			return "admin", nil
+		},
+		PayloadFunc: func(data interface{}) jwt.MapClaims {
+			return jwt.MapClaims{
+				"identity": data,
+			}
+		},
+	})
+
+	assert.NoError(t, err)
+
+	userData := "admin"
+
+	// Generate first token pair
+	oldTokenPair, err := authMiddleware.GenerateTokenPair(userData)
+	assert.NoError(t, err)
+
+	// Verify old refresh token exists in store
+	storedData, err := authMiddleware.validateRefreshToken(oldTokenPair.RefreshToken)
+	assert.NoError(t, err)
+	assert.Equal(t, userData, storedData)
+
+	// Generate new token pair with revocation
+	newTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldTokenPair.RefreshToken)
+	assert.NoError(t, err)
+	assert.NotNil(t, newTokenPair)
+
+	// Verify refresh tokens are different (access tokens might be the same if generated in same second)
+	assert.NotEqual(t, oldTokenPair.RefreshToken, newTokenPair.RefreshToken)
+
+	// Verify old refresh token is revoked
+	_, err = authMiddleware.validateRefreshToken(oldTokenPair.RefreshToken)
+	assert.Error(t, err)
+
+	// Verify new refresh token works
+	storedData, err = authMiddleware.validateRefreshToken(newTokenPair.RefreshToken)
+	assert.NoError(t, err)
+	assert.Equal(t, userData, storedData)
+
+	// Test revoking already revoked token (should not fail)
+	anotherTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldTokenPair.RefreshToken)
+	assert.NoError(t, err)
+	assert.NotNil(t, anotherTokenPair)
+
+	// Test revoking non-existent token (should not fail)
+	finalTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, "non_existent_token")
+	assert.NoError(t, err)
+	assert.NotNil(t, finalTokenPair)
+}
+
+func TestTokenStruct(t *testing.T) {
+	authMiddleware, err := New(&GinJWTMiddleware{
+		Realm:      "test zone",
+		Key:        key,
+		Timeout:    time.Hour,
+		MaxRefresh: time.Hour * 24,
+		Authenticator: func(c *gin.Context) (interface{}, error) {
+			return "admin", nil
+		},
+	})
+
+	assert.NoError(t, err)
+
+	userData := "admin"
+	tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+	assert.NoError(t, err)
+
+	// Test ExpiresIn method
+	expiresIn := tokenPair.ExpiresIn()
+	assert.True(t, expiresIn > 3500) // Should be close to 3600 (1 hour)
+	assert.True(t, expiresIn <= 3600)
+
+	// Test Token struct fields directly
+	assert.NotEmpty(t, tokenPair.AccessToken)
+	assert.Equal(t, "Bearer", tokenPair.TokenType)
+	assert.NotEmpty(t, tokenPair.RefreshToken)
+	assert.True(t, tokenPair.ExpiresAt > time.Now().Unix())
+	assert.True(t, tokenPair.CreatedAt > 0)
+	assert.True(t, tokenPair.CreatedAt <= time.Now().Unix())
+}

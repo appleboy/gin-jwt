@@ -23,11 +23,16 @@
   - [安裝](#安裝)
     - [使用 Go Modules（推薦）](#使用-go-modules推薦)
   - [快速開始範例](#快速開始範例)
+  - [Token 產生器（直接建立 Token）](#token-產生器直接建立-token)
+    - [基本用法](#基本用法)
+    - [Token 結構](#token-結構)
+    - [刷新 Token 管理](#刷新-token-管理)
   - [Demo](#demo)
     - [登入](#登入)
     - [刷新 Token](#刷新-token)
     - [Hello World](#hello-world)
     - [授權範例](#授權範例)
+    - [登出](#登出)
   - [Cookie Token](#cookie-token)
     - [登入流程（LoginHandler）](#登入流程loginhandler)
     - [需要 JWT Token 的端點（MiddlewareFunc）](#需要-jwt-token-的端點middlewarefunc)
@@ -48,6 +53,8 @@
 - 📝 易於整合，API 清晰
 - 🔐 符合 RFC 6749 規範的刷新 Token（OAuth 2.0 標準）
 - 🗄️ 可插拔的刷新 Token 儲存（記憶體、Redis 等）
+- 🏭 直接產生 Token，無需 HTTP 中介軟體
+- 📦 結構化 Token 類型與中繼資料
 
 ---
 
@@ -86,6 +93,99 @@ import "github.com/appleboy/gin-jwt/v2"
 ```go
 // ...（完整範例請見 _example/basic/server.go）
 ```
+
+---
+
+## Token 產生器（直接建立 Token）
+
+新的 `GenerateTokenPair` 功能讓你可以直接建立 JWT Token 而無需 HTTP 中介軟體，非常適合程式化驗證、測試和自訂流程。
+
+### 基本用法
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    "time"
+
+    jwt "github.com/appleboy/gin-jwt/v2"
+    gojwt "github.com/golang-jwt/jwt/v5"
+)
+
+func main() {
+    // 初始化中介軟體
+    authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+        Realm:      "example zone",
+        Key:        []byte("secret key"),
+        Timeout:    time.Hour,
+        MaxRefresh: time.Hour * 24,
+        PayloadFunc: func(data interface{}) gojwt.MapClaims {
+            return gojwt.MapClaims{
+                "user_id": data,
+            }
+        },
+    })
+    if err != nil {
+        log.Fatal("JWT Error:" + err.Error())
+    }
+
+    // 產生完整的 Token 組（存取 + 刷新 Token）
+    userData := "user123"
+    tokenPair, err := authMiddleware.GenerateTokenPair(userData)
+    if err != nil {
+        log.Fatal("Failed to generate token pair:", err)
+    }
+
+    fmt.Printf("Access Token: %s\n", tokenPair.AccessToken)
+    fmt.Printf("Refresh Token: %s\n", tokenPair.RefreshToken)
+    fmt.Printf("Expires In: %d seconds\n", tokenPair.ExpiresIn())
+}
+```
+
+### Token 結構
+
+`GenerateTokenPair` 方法回傳結構化的 `core.Token`：
+
+```go
+type Token struct {
+    AccessToken  string `json:"access_token"`   // JWT 存取 Token
+    TokenType    string `json:"token_type"`     // 總是 "Bearer"
+    RefreshToken string `json:"refresh_token"`  // 不透明刷新 Token
+    ExpiresAt    int64  `json:"expires_at"`     // Unix 時間戳
+    CreatedAt    int64  `json:"created_at"`     // Unix 時間戳
+}
+
+// 輔助方法
+func (t *Token) ExpiresIn() int64 // 回傳到期前的秒數
+```
+
+### 刷新 Token 管理
+
+使用 `GenerateTokenPairWithRevocation` 來刷新 Token 並自動撤銷舊 Token：
+
+```go
+// 刷新並自動撤銷舊 Token
+newTokenPair, err := authMiddleware.GenerateTokenPairWithRevocation(userData, oldRefreshToken)
+if err != nil {
+    log.Fatal("Failed to refresh token:", err)
+}
+
+// 舊刷新 Token 現在已失效
+fmt.Printf("New Access Token: %s\n", newTokenPair.AccessToken)
+fmt.Printf("New Refresh Token: %s\n", newTokenPair.RefreshToken)
+```
+
+**使用情境：**
+
+- 🔧 **程式化驗證**：服務間通訊
+- 🧪 **測試**：為測試驗證端點產生 Token
+- 📝 **註冊流程**：使用者註冊後立即發放 Token
+- ⚙️ **背景作業**：為自動化流程建立 Token
+- 🎛️ **自訂驗證流程**：建立自訂驗證邏輯
+
+詳見[完整範例](_example/token_generator/)。
 
 ---
 
