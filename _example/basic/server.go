@@ -84,6 +84,7 @@ func initParams() *jwt.GinJWTMiddleware {
 		Authenticator:   authenticator(),
 		Authorizator:    authorizator(),
 		Unauthorized:    unauthorized(),
+		LogoutResponse:  logoutResponse(),
 		TokenLookup:     "header: Authorization, query: token, cookie: jwt",
 		// TokenLookup: "query:token",
 		// TokenLookup: "cookie:token",
@@ -147,6 +148,29 @@ func unauthorized() func(c *gin.Context, code int, message string) {
 			"code":    code,
 			"message": message,
 		})
+	}
+}
+
+func logoutResponse() func(c *gin.Context, code int) {
+	return func(c *gin.Context, code int) {
+		// This demonstrates that claims are now accessible during logout
+		claims := jwt.ExtractClaims(c)
+		user, exists := c.Get(identityKey)
+
+		response := gin.H{
+			"code":    code,
+			"message": "Successfully logged out",
+		}
+
+		// Show that we can access user information during logout
+		if len(claims) > 0 {
+			response["logged_out_user"] = claims[identityKey]
+		}
+		if exists {
+			response["user_info"] = user.(*User).UserName
+		}
+
+		c.JSON(code, response)
 	}
 }
 

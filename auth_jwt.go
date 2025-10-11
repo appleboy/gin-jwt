@@ -626,6 +626,17 @@ func (mw *GinJWTMiddleware) extractRefreshToken(c *gin.Context) string {
 
 // LogoutHandler can be used by clients to remove the jwt cookie and revoke refresh token
 func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
+	// Extract JWT claims to make them available in LogoutResponse
+	// This allows developers to access user information during logout
+	claims, err := mw.GetClaimsFromJWT(c)
+	if err == nil {
+		c.Set("JWT_PAYLOAD", claims)
+		identity := mw.IdentityHandler(c)
+		if identity != nil {
+			c.Set(mw.IdentityKey, identity)
+		}
+	}
+
 	// Handle refresh token revocation (RFC 6749 compliant)
 	refreshToken := mw.extractRefreshToken(c)
 	if refreshToken != "" {
