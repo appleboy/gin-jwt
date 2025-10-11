@@ -713,12 +713,6 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	mw.RefreshResponse(c, http.StatusOK, tokenPair.AccessToken, expire)
 }
 
-// RefreshToken is deprecated. Use RefreshHandler instead for RFC 6749 compliant refresh tokens.
-// This method now returns an error to encourage migration to the proper refresh token flow.
-func (mw *GinJWTMiddleware) RefreshToken(c *gin.Context) (string, time.Time, error) {
-	return "", time.Now(), errors.New("RefreshToken method is deprecated: use RefreshHandler with refresh_token parameter for RFC 6749 compliant behavior")
-}
-
 // CheckIfTokenExpire check if token expire
 func (mw *GinJWTMiddleware) CheckIfTokenExpire(c *gin.Context) (jwt.MapClaims, error) {
 	token, err := mw.ParseToken(c)
