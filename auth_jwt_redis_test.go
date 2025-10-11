@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/appleboy/gin-jwt/v2/store"
+	"github.com/appleboy/gin-jwt/v3/store"
 	"github.com/gin-gonic/gin"
 	gojwt "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"

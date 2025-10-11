@@ -2,7 +2,7 @@
 package store
 
 import (
-	"github.com/appleboy/gin-jwt/v2/core"
+	"github.com/appleboy/gin-jwt/v3/core"
 )
 
 // Re-export types from core for backward compatibility

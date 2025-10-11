@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/appleboy/gin-jwt/v2/core"
+	"github.com/appleboy/gin-jwt/v3/core"
 )
 
 // InMemoryRefreshTokenStore provides a simple in-memory refresh token store

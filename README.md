@@ -139,7 +139,7 @@ authMiddleware := &jwt.GinJWTMiddleware{
 ## Installation
 
 ```go
-import "github.com/appleboy/gin-jwt/v2"
+import "github.com/appleboy/gin-jwt/v3"
 ```
 
 ---
@@ -157,7 +157,7 @@ import (
   "os"
   "time"
 
-  jwt "github.com/appleboy/gin-jwt/v2"
+  jwt "github.com/appleboy/gin-jwt/v3"
   "github.com/gin-gonic/gin"
   "github.com/golang-jwt/jwt/v5"
 )
@@ -335,7 +335,7 @@ import (
     "log"
     "time"
 
-    jwt "github.com/appleboy/gin-jwt/v2"
+    jwt "github.com/appleboy/gin-jwt/v3"
     gojwt "github.com/golang-jwt/jwt/v5"
 )
 
@@ -506,7 +506,7 @@ import (
     "net/http"
     "time"
 
-    jwt "github.com/appleboy/gin-jwt/v2"
+    jwt "github.com/appleboy/gin-jwt/v3"
     "github.com/gin-gonic/gin"
 )
 

@@ -3,7 +3,7 @@ package store
 import (
 	"fmt"
 
-	"github.com/appleboy/gin-jwt/v2/core"
+	"github.com/appleboy/gin-jwt/v3/core"
 )
 
 // StoreType represents the type of store to create

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/appleboy/gin-jwt/v2/core"
-	"github.com/appleboy/gin-jwt/v2/store"
+	"github.com/appleboy/gin-jwt/v3/core"
+	"github.com/appleboy/gin-jwt/v3/store"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"

@@ -3,7 +3,7 @@ module example
 go 1.25.1
 
 require (
-	github.com/appleboy/gin-jwt/v2 v2.10.3
+	github.com/appleboy/gin-jwt/v3 v3.0.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
 )
@@ -44,4 +44,4 @@ require (
 	google.golang.org/protobuf v1.36.10 // indirect
 )
 
-replace github.com/appleboy/gin-jwt/v2 => ../../
+replace github.com/appleboy/gin-jwt/v3 => ../../

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/appleboy/gin-jwt/v2/core"
+	"github.com/appleboy/gin-jwt/v3/core"
 	"github.com/redis/rueidis"
 )
 

@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/appleboy/gin-jwt/v2/store"
+	"github.com/appleboy/gin-jwt/v3/store"
 )
 
 // RedisOption defines a function type for configuring Redis store
