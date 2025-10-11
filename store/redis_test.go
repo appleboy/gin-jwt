@@ -53,7 +53,11 @@ func TestRedisRefreshTokenStore_Integration(t *testing.T) {
 
 	store, err := NewRedisRefreshTokenStore(config)
 	require.NoError(t, err, "failed to create Redis store")
-	defer store.Close()
+	defer func() {
+		if closeErr := store.Close(); closeErr != nil {
+			t.Logf("failed to close Redis store: %v", closeErr)
+		}
+	}()
 
 	t.Run("BasicOperations", func(t *testing.T) {
 		testBasicOperations(t, store)
@@ -270,7 +274,11 @@ func TestRedisRefreshTokenStore_InvalidToken(t *testing.T) {
 
 	store, err := NewRedisRefreshTokenStore(config)
 	require.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		if closeErr := store.Close(); closeErr != nil {
+			t.Logf("failed to close Redis store: %v", closeErr)
+		}
+	}()
 
 	// Test with expired token in past
 	expiredTime := time.Now().Add(-time.Hour)
