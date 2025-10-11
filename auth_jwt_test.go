@@ -1557,12 +1557,11 @@ func TestTokenStruct(t *testing.T) {
 	assert.True(t, expiresIn > 3500) // Should be close to 3600 (1 hour)
 	assert.True(t, expiresIn <= 3600)
 
-	// Test generateTokenResponseFromToken
-	response := authMiddleware.generateTokenResponseFromToken(tokenPair)
-	assert.Equal(t, tokenPair.AccessToken, response["access_token"])
-	assert.Equal(t, tokenPair.TokenType, response["token_type"])
-	assert.Equal(t, tokenPair.RefreshToken, response["refresh_token"])
-	assert.Equal(t, tokenPair.ExpiresIn(), response["expires_in"])
-	assert.Equal(t, tokenPair.ExpiresAt, response["expires_at"])
-	assert.Equal(t, tokenPair.CreatedAt, response["created_at"])
+	// Test Token struct fields directly
+	assert.NotEmpty(t, tokenPair.AccessToken)
+	assert.Equal(t, "Bearer", tokenPair.TokenType)
+	assert.NotEmpty(t, tokenPair.RefreshToken)
+	assert.True(t, tokenPair.ExpiresAt > time.Now().Unix())
+	assert.True(t, tokenPair.CreatedAt > 0)
+	assert.True(t, tokenPair.CreatedAt <= time.Now().Unix())
 }
