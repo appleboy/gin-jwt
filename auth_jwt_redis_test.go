@@ -227,7 +227,8 @@ func createTestMiddleware(t *testing.T, redisAddr string) *GinJWTMiddleware {
 			Addr:      redisAddr,
 			Password:  "",
 			DB:        0,
-			CacheSize: 1024 * 1024, // 1MB for testing
+			CacheSize: 1024 * 1024,    // 1MB for testing
+			CacheTTL:  50 * time.Millisecond, // Very short TTL for testing
 			KeyPrefix: "test-jwt:",
 		},
 	}
@@ -360,7 +361,10 @@ func testRedisStoreOperations(t *testing.T, middleware *GinJWTMiddleware) {
 	err = redisStore.Delete(testToken)
 	assert.NoError(t, err, "direct delete should succeed")
 
-	// Verify deletion
+	// Verify deletion - wait for cache TTL to expire
+	time.Sleep(100 * time.Millisecond)
+
+	// The Get method should return an error for deleted tokens
 	_, err = redisStore.Get(testToken)
 	assert.Error(t, err, "token should not exist after deletion")
 }
