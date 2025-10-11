@@ -654,7 +654,9 @@ This function is called after having successfully authenticated (logged in). It 
 
 OPTIONAL: `LoginResponse`
 
-After having successfully authenticated with `Authenticator`, created the jwt token using the identifiers from map returned from `PayloadFunc`, and set it as a cookie if `SendCookie` is enabled, this function is called. It is used to handle any post-login logic. This might look something like using the gin context to return a JSON of the token back to the user.
+After having successfully authenticated with `Authenticator`, created the jwt token using the identifiers from map returned from `PayloadFunc`, and set it as a cookie if `SendCookie` is enabled, this function is called. It receives the complete token information (including access token, refresh token, expiry, etc.) as a structured `core.Token` object. This function is used to handle any post-login logic and return the token response to the user.
+
+Signature: `func(c *gin.Context, token *core.Token)`
 
 ### Subsequent requests on endpoints requiring jwt token (using MiddlewareFunc)
 
@@ -678,7 +680,9 @@ This is a provided function to be called on any logout endpoint, which will clea
 
 OPTIONAL: `LogoutResponse`
 
-This should likely just return back to the user the http status code, if logout was successful or not.
+This function is called after logout processing is complete. It should return the appropriate HTTP response to indicate logout success or failure. Since logout doesn't generate new tokens, this function only receives the gin context.
+
+Signature: `func(c *gin.Context)`
 
 ### Refresh Request flow (using RefreshHandler)
 
@@ -688,7 +692,9 @@ This is a provided function to be called on any refresh token endpoint. The hand
 
 OPTIONAL: `RefreshResponse`:
 
-This should return a JSON response containing the new `access_token`, `token_type`, `expires_in`, and `refresh_token` fields, following RFC 6749 token response format.
+This function is called after successfully refreshing tokens. It receives the complete new token information as a structured `core.Token` object and should return a JSON response containing the new `access_token`, `token_type`, `expires_in`, and `refresh_token` fields, following RFC 6749 token response format.
+
+Signature: `func(c *gin.Context, token *core.Token)`
 
 ### Failures with logging in, bad tokens, or lacking privileges
 

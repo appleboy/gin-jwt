@@ -151,14 +151,14 @@ func unauthorized() func(c *gin.Context, code int, message string) {
 	}
 }
 
-func logoutResponse() func(c *gin.Context, code int) {
-	return func(c *gin.Context, code int) {
+func logoutResponse() func(c *gin.Context) {
+	return func(c *gin.Context) {
 		// This demonstrates that claims are now accessible during logout
 		claims := jwt.ExtractClaims(c)
 		user, exists := c.Get(identityKey)
 
 		response := gin.H{
-			"code":    code,
+			"code":    http.StatusOK,
 			"message": "Successfully logged out",
 		}
 
@@ -170,7 +170,7 @@ func logoutResponse() func(c *gin.Context, code int) {
 			response["user_info"] = user.(*User).UserName
 		}
 
-		c.JSON(code, response)
+		c.JSON(http.StatusOK, response)
 	}
 }
 

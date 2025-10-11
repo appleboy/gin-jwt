@@ -486,8 +486,10 @@ CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxM
 - **可选：** `PayloadFunc`  
   将认证通过的用户数据转为 `MapClaims`（map[string]any），必须包含 `IdentityKey`（默认 `"identity"`）。
 
-- **可选：** `LoginResponse`  
-  处理登录后逻辑，例如返回 Token JSON。
+- **可选：** `LoginResponse`
+  在成功验证后处理登录后逻辑。此函数接收完整的 token 信息（包括访问 token、刷新 token、过期时间等）作为结构化的 `core.Token` 对象，用于处理登录后逻辑并返回 token 响应给用户。
+
+  函数签名：`func(c *gin.Context, token *core.Token)`
 
 ---
 
@@ -514,8 +516,10 @@ CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxM
 - **内置：** `LogoutHandler`  
   用于登出端点。会清除 Cookie（若 `SendCookie` 设置为 true）并调用 `LogoutResponse`。
 
-- **可选：** `LogoutResponse`  
-  返回登出结果的 HTTP 状态码。
+- **可选：** `LogoutResponse`
+  在登出处理完成后调用此函数。应返回适当的 HTTP 响应以表示登出成功或失败。由于登出不会生成新的 token，此函数只接收 gin context。
+
+  函数签名：`func(c *gin.Context)`
 
 ---
 
@@ -524,8 +528,10 @@ CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxM
 - **内置：** `RefreshHandler`  
   用于刷新 Token 端点。若 Token 在 `MaxRefreshTime` 内，会发新 Token 并调用 `RefreshResponse`。
 
-- **可选：** `RefreshResponse`  
-  返回新 Token 的 JSON。
+- **可选：** `RefreshResponse`
+  在成功刷新 token 后调用此函数。接收完整的新 token 信息作为结构化的 `core.Token` 对象，应返回包含新 `access_token`、`token_type`、`expires_in` 和 `refresh_token` 字段的 JSON 响应，遵循 RFC 6749 token 响应格式。
+
+  函数签名：`func(c *gin.Context, token *core.Token)`
 
 ---
 

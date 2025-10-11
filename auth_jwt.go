@@ -72,13 +72,13 @@ type GinJWTMiddleware struct {
 	Unauthorized func(c *gin.Context, code int, message string)
 
 	// User can define own LoginResponse func.
-	LoginResponse func(c *gin.Context, code int, message string, time time.Time)
+	LoginResponse func(c *gin.Context, token *core.Token)
 
 	// User can define own LogoutResponse func.
-	LogoutResponse func(c *gin.Context, code int)
+	LogoutResponse func(c *gin.Context)
 
 	// User can define own RefreshResponse func.
-	RefreshResponse func(c *gin.Context, code int, message string, time time.Time)
+	RefreshResponse func(c *gin.Context, token *core.Token)
 
 	// Set the identity handler function
 	IdentityHandler func(*gin.Context) any
@@ -398,14 +398,14 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.LoginResponse == nil {
-		mw.LoginResponse = func(c *gin.Context, code int, token string, expire time.Time) {
-			response := mw.generateTokenResponse(c, token, expire)
+		mw.LoginResponse = func(c *gin.Context, token *core.Token) {
+			response := mw.generateTokenResponse(c, token)
 			c.JSON(http.StatusOK, response)
 		}
 	}
 
 	if mw.LogoutResponse == nil {
-		mw.LogoutResponse = func(c *gin.Context, code int) {
+		mw.LogoutResponse = func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"code": http.StatusOK,
 			})
@@ -413,8 +413,8 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.RefreshResponse == nil {
-		mw.RefreshResponse = func(c *gin.Context, code int, token string, expire time.Time) {
-			response := mw.generateTokenResponse(c, token, expire)
+		mw.RefreshResponse = func(c *gin.Context, token *core.Token) {
+			response := mw.generateTokenResponse(c, token)
 			c.JSON(http.StatusOK, response)
 		}
 	}
@@ -574,12 +574,10 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Set cookie and context for response generation
+	// Set cookie
 	mw.SetCookie(c, tokenPair.AccessToken)
-	c.Set("REFRESH_TOKEN", tokenPair.RefreshToken)
 
-	expire := time.Unix(tokenPair.ExpiresAt, 0)
-	mw.LoginResponse(c, http.StatusOK, tokenPair.AccessToken, expire)
+	mw.LoginResponse(c, tokenPair)
 }
 
 func (mw *GinJWTMiddleware) extractRefreshToken(c *gin.Context) string {
@@ -636,7 +634,7 @@ func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
 		)
 	}
 
-	mw.LogoutResponse(c, http.StatusOK)
+	mw.LogoutResponse(c)
 }
 
 func (mw *GinJWTMiddleware) signedString(token *jwt.Token) (string, error) {
@@ -707,12 +705,10 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	// Set cookie and context for response generation
+	// Set cookie
 	mw.SetCookie(c, tokenPair.AccessToken)
-	c.Set("REFRESH_TOKEN", tokenPair.RefreshToken)
 
-	expire := time.Unix(tokenPair.ExpiresAt, 0)
-	mw.RefreshResponse(c, http.StatusOK, tokenPair.AccessToken, expire)
+	mw.RefreshResponse(c, tokenPair)
 }
 
 // CheckIfTokenExpire check if token expire
@@ -1037,16 +1033,16 @@ func (mw *GinJWTMiddleware) handleTokenError(c *gin.Context, err error) {
 }
 
 // generateTokenResponse creates a RFC 6749 compliant token response with refresh token
-func (mw *GinJWTMiddleware) generateTokenResponse(c *gin.Context, token string, expire time.Time) gin.H {
+func (mw *GinJWTMiddleware) generateTokenResponse(_ *gin.Context, token *core.Token) gin.H {
 	response := gin.H{
-		"access_token": token,
-		"token_type":   "Bearer",
-		"expires_in":   int(time.Until(expire).Seconds()),
+		"access_token": token.AccessToken,
+		"token_type":   token.TokenType,
+		"expires_in":   token.ExpiresIn(),
 	}
 
-	// Always include refresh token from context (RFC 6749 compliant)
-	if refreshToken, exists := c.Get("REFRESH_TOKEN"); exists {
-		response["refresh_token"] = refreshToken
+	// Include refresh token if present
+	if token.RefreshToken != "" {
+		response["refresh_token"] = token.RefreshToken
 	}
 
 	return response

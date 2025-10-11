@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/appleboy/gofight/v2"
+	"github.com/appleboy/gin-jwt/v2/core"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -275,16 +276,17 @@ func TestLoginHandler(t *testing.T) {
 		Authorizator: func(user any, c *gin.Context) bool {
 			return true
 		},
-		LoginResponse: func(c *gin.Context, code int, token string, t time.Time) {
+		LoginResponse: func(c *gin.Context, token *core.Token) {
 			cookie, err := c.Cookie("jwt")
 			if err != nil {
 				log.Println(err)
 			}
 
+			expire := time.Unix(token.ExpiresAt, 0)
 			c.JSON(http.StatusOK, gin.H{
 				"code":    http.StatusOK,
-				"token":   token,
-				"expire":  t.Format(time.RFC3339),
+				"token":   token.AccessToken,
+				"expire":  expire.Format(time.RFC3339),
 				"message": "login successfully",
 				"cookie":  cookie,
 			})
@@ -503,16 +505,17 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		SendCookie:       true,
 		CookieName:       "jwt",
 		Authenticator:    defaultAuthenticator,
-		RefreshResponse: func(c *gin.Context, code int, token string, t time.Time) {
+		RefreshResponse: func(c *gin.Context, token *core.Token) {
 			cookie, err := c.Cookie("jwt")
 			if err != nil {
 				log.Println(err)
 			}
 
+			expire := time.Unix(token.ExpiresAt, 0)
 			c.JSON(http.StatusOK, gin.H{
 				"code":    http.StatusOK,
-				"token":   token,
-				"expire":  t.Format(time.RFC3339),
+				"token":   token.AccessToken,
+				"expire":  expire.Format(time.RFC3339),
 				"message": "refresh successfully",
 				"cookie":  cookie,
 			})
