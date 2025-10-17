@@ -166,6 +166,7 @@ import "github.com/appleboy/gin-jwt/v3"
 package main
 
 import (
+    "context"
     "fmt"
     "log"
     "time"
@@ -191,9 +192,12 @@ func main() {
         log.Fatal("JWT Error:" + err.Error())
     }
 
+    // 建立 Token 操作的 context
+    ctx := context.Background()
+
     // 產生完整的 Token 組（存取 + 刷新 Token）
     userData := "user123"
-    tokenPair, err := authMiddleware.TokenGenerator(userData)
+    tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
     if err != nil {
         log.Fatal("Failed to generate token pair:", err)
     }
@@ -227,7 +231,7 @@ func (t *Token) ExpiresIn() int64 // 回傳到期前的秒數
 
 ```go
 // 刷新並自動撤銷舊 Token
-newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, oldRefreshToken)
+newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(ctx, userData, oldRefreshToken)
 if err != nil {
     log.Fatal("Failed to refresh token:", err)
 }

@@ -166,6 +166,7 @@ import "github.com/appleboy/gin-jwt/v3"
 package main
 
 import (
+    "context"
     "fmt"
     "log"
     "time"
@@ -191,9 +192,12 @@ func main() {
         log.Fatal("JWT Error:" + err.Error())
     }
 
+    // 创建 Token 操作的 context
+    ctx := context.Background()
+
     // 生成完整的 Token 组（访问 + 刷新 Token）
     userData := "user123"
-    tokenPair, err := authMiddleware.TokenGenerator(userData)
+    tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
     if err != nil {
         log.Fatal("Failed to generate token pair:", err)
     }

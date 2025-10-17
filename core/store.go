@@ -2,6 +2,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -18,23 +19,23 @@ var (
 type TokenStore interface {
 	// Set stores a refresh token with associated user data and expiration
 	// Returns an error if the operation fails
-	Set(token string, userData any, expiry time.Time) error
+	Set(ctx context.Context, token string, userData any, expiry time.Time) error
 
 	// Get retrieves user data associated with a refresh token
 	// Returns ErrRefreshTokenNotFound if token doesn't exist or is expired
-	Get(token string) (any, error)
+	Get(ctx context.Context, token string) (any, error)
 
 	// Delete removes a refresh token from storage
 	// Returns an error if the operation fails, but should not error if token doesn't exist
-	Delete(token string) error
+	Delete(ctx context.Context, token string) error
 
 	// Cleanup removes expired tokens (optional, for cleanup routines)
 	// Returns the number of tokens cleaned up and any error encountered
-	Cleanup() (int, error)
+	Cleanup(ctx context.Context) (int, error)
 
 	// Count returns the total number of active refresh tokens
 	// Useful for monitoring and debugging
-	Count() (int, error)
+	Count(ctx context.Context) (int, error)
 }
 
 // RefreshTokenData holds the data stored with each refresh token
