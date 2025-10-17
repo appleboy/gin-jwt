@@ -109,7 +109,7 @@ func (s *RedisRefreshTokenStore) buildKey(token string) string {
 }
 
 // Set stores a refresh token with associated user data and expiration
-func (s *RedisRefreshTokenStore) Set(token string, userData any, expiry time.Time) error {
+func (s *RedisRefreshTokenStore) Set(ctx context.Context, token string, userData any, expiry time.Time) error {
 	if token == "" {
 		return errors.New("token cannot be empty")
 	}
@@ -136,7 +136,7 @@ func (s *RedisRefreshTokenStore) Set(token string, userData any, expiry time.Tim
 
 	// Store in Redis with expiration
 	cmd := s.client.B().Setex().Key(key).Seconds(int64(ttl.Seconds())).Value(string(data)).Build()
-	if err := s.client.Do(s.ctx, cmd).Error(); err != nil {
+	if err := s.client.Do(ctx, cmd).Error(); err != nil {
 		return fmt.Errorf("failed to store token in Redis: %w", err)
 	}
 
@@ -145,7 +145,7 @@ func (s *RedisRefreshTokenStore) Set(token string, userData any, expiry time.Tim
 
 // Get retrieves user data associated with a refresh token
 // This method benefits from client-side caching for frequently accessed tokens
-func (s *RedisRefreshTokenStore) Get(token string) (any, error) {
+func (s *RedisRefreshTokenStore) Get(ctx context.Context, token string) (any, error) {
 	if token == "" {
 		return nil, core.ErrRefreshTokenNotFound
 	}
@@ -154,7 +154,7 @@ func (s *RedisRefreshTokenStore) Get(token string) (any, error) {
 
 	// Use client-side cache by default
 	cmd := s.client.B().Get().Key(key).Cache()
-	result := s.client.DoCache(s.ctx, cmd, s.cacheTTL)
+	result := s.client.DoCache(ctx, cmd, s.cacheTTL)
 
 	if result.Error() != nil {
 		if rueidis.IsRedisNil(result.Error()) {
@@ -187,7 +187,7 @@ func (s *RedisRefreshTokenStore) Get(token string) (any, error) {
 }
 
 // Delete removes a refresh token from storage
-func (s *RedisRefreshTokenStore) Delete(token string) error {
+func (s *RedisRefreshTokenStore) Delete(ctx context.Context, token string) error {
 	if token == "" {
 		return nil // No error for empty token deletion
 	}
@@ -195,7 +195,7 @@ func (s *RedisRefreshTokenStore) Delete(token string) error {
 	key := s.buildKey(token)
 	cmd := s.client.B().Del().Key(key).Build()
 
-	if err := s.client.Do(s.ctx, cmd).Error(); err != nil {
+	if err := s.client.Do(ctx, cmd).Error(); err != nil {
 		return fmt.Errorf("failed to delete token from Redis: %w", err)
 	}
 
@@ -204,7 +204,7 @@ func (s *RedisRefreshTokenStore) Delete(token string) error {
 
 // Cleanup removes expired tokens and returns the number of tokens cleaned up
 // Note: Redis automatically handles expiration, so this method scans for manually expired tokens
-func (s *RedisRefreshTokenStore) Cleanup() (int, error) {
+func (s *RedisRefreshTokenStore) Cleanup(ctx context.Context) (int, error) {
 	pattern := s.buildKey("*")
 	var cleaned int
 	var cursor uint64
@@ -212,7 +212,7 @@ func (s *RedisRefreshTokenStore) Cleanup() (int, error) {
 	for {
 		// Scan for keys with our prefix
 		cmd := s.client.B().Scan().Cursor(cursor).Match(pattern).Count(100).Build()
-		result := s.client.Do(s.ctx, cmd)
+		result := s.client.Do(ctx, cmd)
 
 		if result.Error() != nil {
 			return cleaned, fmt.Errorf("failed to scan Redis keys: %w", result.Error())
@@ -226,7 +226,7 @@ func (s *RedisRefreshTokenStore) Cleanup() (int, error) {
 		// Check each key for expiration
 		for _, key := range scanResult.Elements {
 			getCmd := s.client.B().Get().Key(key).Build()
-			getResult := s.client.Do(s.ctx, getCmd)
+			getResult := s.client.Do(ctx, getCmd)
 
 			if rueidis.IsRedisNil(getResult.Error()) {
 				// Key already expired/deleted
@@ -249,7 +249,7 @@ func (s *RedisRefreshTokenStore) Cleanup() (int, error) {
 
 			if tokenData.IsExpired() {
 				deleteCmd := s.client.B().Del().Key(key).Build()
-				if s.client.Do(s.ctx, deleteCmd).Error() == nil {
+				if s.client.Do(ctx, deleteCmd).Error() == nil {
 					cleaned++
 				}
 			}
@@ -265,14 +265,14 @@ func (s *RedisRefreshTokenStore) Cleanup() (int, error) {
 }
 
 // Count returns the total number of active refresh tokens
-func (s *RedisRefreshTokenStore) Count() (int, error) {
+func (s *RedisRefreshTokenStore) Count(ctx context.Context) (int, error) {
 	pattern := s.buildKey("*")
 	var count int
 	var cursor uint64
 
 	for {
 		cmd := s.client.B().Scan().Cursor(cursor).Match(pattern).Count(100).Build()
-		result := s.client.Do(s.ctx, cmd)
+		result := s.client.Do(ctx, cmd)
 
 		if result.Error() != nil {
 			return 0, fmt.Errorf("failed to scan Redis keys: %w", result.Error())

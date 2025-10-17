@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -1470,7 +1471,8 @@ func TestTokenGenerator(t *testing.T) {
 	assert.NoError(t, err)
 
 	userData := "admin"
-	tokenPair, err := authMiddleware.TokenGenerator(userData)
+	ctx := context.Background()
+	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, tokenPair)
@@ -1510,18 +1512,19 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 	assert.NoError(t, err)
 
 	userData := "admin"
+	ctx := context.Background()
 
 	// Generate first token pair
-	oldTokenPair, err := authMiddleware.TokenGenerator(userData)
+	oldTokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
 	assert.NoError(t, err)
 
 	// Verify old refresh token exists in store
-	storedData, err := authMiddleware.validateRefreshToken(oldTokenPair.RefreshToken)
+	storedData, err := authMiddleware.validateRefreshToken(ctx, oldTokenPair.RefreshToken)
 	assert.NoError(t, err)
 	assert.Equal(t, userData, storedData)
 
 	// Generate new token pair with revocation
-	newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, oldTokenPair.RefreshToken)
+	newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(ctx, userData, oldTokenPair.RefreshToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, newTokenPair)
 
@@ -1529,21 +1532,21 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 	assert.NotEqual(t, oldTokenPair.RefreshToken, newTokenPair.RefreshToken)
 
 	// Verify old refresh token is revoked
-	_, err = authMiddleware.validateRefreshToken(oldTokenPair.RefreshToken)
+	_, err = authMiddleware.validateRefreshToken(ctx, oldTokenPair.RefreshToken)
 	assert.Error(t, err)
 
 	// Verify new refresh token works
-	storedData, err = authMiddleware.validateRefreshToken(newTokenPair.RefreshToken)
+	storedData, err = authMiddleware.validateRefreshToken(ctx, newTokenPair.RefreshToken)
 	assert.NoError(t, err)
 	assert.Equal(t, userData, storedData)
 
 	// Test revoking already revoked token (should not fail)
-	anotherTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, oldTokenPair.RefreshToken)
+	anotherTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(ctx, userData, oldTokenPair.RefreshToken)
 	assert.NoError(t, err)
 	assert.NotNil(t, anotherTokenPair)
 
 	// Test revoking non-existent token (should not fail)
-	finalTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, "non_existent_token")
+	finalTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(ctx, userData, "non_existent_token")
 	assert.NoError(t, err)
 	assert.NotNil(t, finalTokenPair)
 }
@@ -1562,7 +1565,8 @@ func TestTokenStruct(t *testing.T) {
 	assert.NoError(t, err)
 
 	userData := "admin"
-	tokenPair, err := authMiddleware.TokenGenerator(userData)
+	ctx := context.Background()
+	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
 	assert.NoError(t, err)
 
 	// Test ExpiresIn method

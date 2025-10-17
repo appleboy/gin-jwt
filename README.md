@@ -331,6 +331,7 @@ The `TokenGenerator` functionality allows you to create JWT tokens directly with
 package main
 
 import (
+    "context"
     "fmt"
     "log"
     "time"
@@ -356,9 +357,12 @@ func main() {
         log.Fatal("JWT Error:" + err.Error())
     }
 
+    // Create context for token operations
+    ctx := context.Background()
+
     // Generate a complete token pair (access + refresh tokens)
     userData := "user123"
-    tokenPair, err := authMiddleware.TokenGenerator(userData)
+    tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
     if err != nil {
         log.Fatal("Failed to generate token pair:", err)
     }
@@ -392,7 +396,7 @@ Use `TokenGeneratorWithRevocation` to refresh tokens and automatically revoke ol
 
 ```go
 // Refresh with automatic revocation of old token
-newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(userData, oldRefreshToken)
+newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(ctx, userData, oldRefreshToken)
 if err != nil {
     log.Fatal("Failed to refresh token:", err)
 }

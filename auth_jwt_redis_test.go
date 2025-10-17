@@ -401,33 +401,34 @@ func testRedisStoreOperations(t *testing.T, middleware *GinJWTMiddleware) {
 	require.True(t, ok, "should be using Redis store")
 
 	// Test store operations directly
+	ctx := context.Background()
 	testToken := "direct-test-token"
 	testData := map[string]any{"test": "data"}
 	expiry := time.Now().Add(time.Hour)
 
 	// Test Set
-	err := redisStore.Set(testToken, testData, expiry)
+	err := redisStore.Set(ctx, testToken, testData, expiry)
 	assert.NoError(t, err, "direct set should succeed")
 
 	// Test Get
-	retrievedData, err := redisStore.Get(testToken)
+	retrievedData, err := redisStore.Get(ctx, testToken)
 	assert.NoError(t, err, "direct get should succeed")
 	assert.Equal(t, testData, retrievedData, "retrieved data should match")
 
 	// Test Count
-	count, err := redisStore.Count()
+	count, err := redisStore.Count(ctx)
 	assert.NoError(t, err, "count should succeed")
 	assert.GreaterOrEqual(t, count, 1, "count should include our test token")
 
 	// Test Delete
-	err = redisStore.Delete(testToken)
+	err = redisStore.Delete(ctx, testToken)
 	assert.NoError(t, err, "direct delete should succeed")
 
 	// Verify deletion - wait for cache TTL to expire
 	time.Sleep(100 * time.Millisecond)
 
 	// The Get method should return an error for deleted tokens
-	_, err = redisStore.Get(testToken)
+	_, err = redisStore.Get(ctx, testToken)
 	assert.Error(t, err, "token should not exist after deletion")
 }
 

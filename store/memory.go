@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -26,7 +27,7 @@ func NewInMemoryRefreshTokenStore() *InMemoryRefreshTokenStore {
 }
 
 // Set stores a refresh token with associated user data and expiration
-func (s *InMemoryRefreshTokenStore) Set(token string, userData any, expiry time.Time) error {
+func (s *InMemoryRefreshTokenStore) Set(ctx context.Context, token string, userData any, expiry time.Time) error {
 	if token == "" {
 		return errors.New("token cannot be empty")
 	}
@@ -44,7 +45,7 @@ func (s *InMemoryRefreshTokenStore) Set(token string, userData any, expiry time.
 }
 
 // Get retrieves user data associated with a refresh token
-func (s *InMemoryRefreshTokenStore) Get(token string) (any, error) {
+func (s *InMemoryRefreshTokenStore) Get(ctx context.Context, token string) (any, error) {
 	if token == "" {
 		return nil, ErrRefreshTokenNotFound
 	}
@@ -69,7 +70,7 @@ func (s *InMemoryRefreshTokenStore) Get(token string) (any, error) {
 }
 
 // Delete removes a refresh token from storage
-func (s *InMemoryRefreshTokenStore) Delete(token string) error {
+func (s *InMemoryRefreshTokenStore) Delete(ctx context.Context, token string) error {
 	if token == "" {
 		return nil // No error for empty token deletion
 	}
@@ -82,7 +83,7 @@ func (s *InMemoryRefreshTokenStore) Delete(token string) error {
 }
 
 // Cleanup removes expired tokens and returns the number of tokens cleaned up
-func (s *InMemoryRefreshTokenStore) Cleanup() (int, error) {
+func (s *InMemoryRefreshTokenStore) Cleanup(ctx context.Context) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -100,7 +101,7 @@ func (s *InMemoryRefreshTokenStore) Cleanup() (int, error) {
 }
 
 // Count returns the total number of active refresh tokens
-func (s *InMemoryRefreshTokenStore) Count() (int, error) {
+func (s *InMemoryRefreshTokenStore) Count(ctx context.Context) (int, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
