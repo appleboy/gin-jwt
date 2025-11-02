@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/appleboy/gofight/v2"
 	"github.com/appleboy/gin-jwt/v3/core"
+	"github.com/appleboy/gofight/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -1581,4 +1581,232 @@ func TestTokenStruct(t *testing.T) {
 	assert.True(t, tokenPair.ExpiresAt > time.Now().Unix())
 	assert.True(t, tokenPair.CreatedAt > 0)
 	assert.True(t, tokenPair.CreatedAt <= time.Now().Unix())
+}
+
+func TestWWWAuthenticateHeader(t *testing.T) {
+	testCases := []struct {
+		name           string
+		realm          string
+		expectedHeader string
+		authHeader     string
+		tokenLookup    string
+		setupRequest   func(r *gofight.RequestConfig)
+		endpoint       string
+	}{
+		{
+			name:           "default realm with invalid token",
+			realm:          "test zone",
+			expectedHeader: `JWT realm="test zone"`,
+			authHeader:     "Bearer invalid_token",
+			endpoint:       "/auth/hello",
+			setupRequest: func(r *gofight.RequestConfig) {
+				r.SetHeader(gofight.H{
+					"Authorization": "Bearer invalid_token",
+				})
+			},
+		},
+		{
+			name:           "custom realm with empty auth header",
+			realm:          "my custom realm",
+			expectedHeader: `JWT realm="my custom realm"`,
+			authHeader:     "",
+			endpoint:       "/auth/hello",
+			setupRequest: func(r *gofight.RequestConfig) {
+				// No Authorization header set
+			},
+		},
+		{
+			name:           "realm with special characters",
+			realm:          `test-zone_123`,
+			expectedHeader: `JWT realm="test-zone_123"`,
+			authHeader:     "Bearer invalid",
+			endpoint:       "/auth/hello",
+			setupRequest: func(r *gofight.RequestConfig) {
+				r.SetHeader(gofight.H{
+					"Authorization": "Bearer invalid",
+				})
+			},
+		},
+		{
+			name:           "expired token",
+			realm:          "test zone",
+			expectedHeader: `JWT realm="test zone"`,
+			endpoint:       "/auth/hello",
+			setupRequest: func(r *gofight.RequestConfig) {
+				// Create an expired token
+				token := jwt.New(jwt.GetSigningMethod("HS256"))
+				claims := token.Claims.(jwt.MapClaims)
+				claims["identity"] = "admin"
+				claims["exp"] = time.Now().Add(-time.Hour).Unix() // Expired 1 hour ago
+				claims["orig_iat"] = time.Now().Add(-2 * time.Hour).Unix()
+				tokenString, _ := token.SignedString(key)
+				r.SetHeader(gofight.H{
+					"Authorization": "Bearer " + tokenString,
+				})
+			},
+		},
+		{
+			name:           "malformed token",
+			realm:          "api realm",
+			expectedHeader: `JWT realm="api realm"`,
+			endpoint:       "/auth/hello",
+			setupRequest: func(r *gofight.RequestConfig) {
+				r.SetHeader(gofight.H{
+					"Authorization": "Bearer not.a.valid.jwt.token",
+				})
+			},
+		},
+		{
+			name:           "missing Bearer prefix",
+			realm:          "test zone",
+			expectedHeader: `JWT realm="test zone"`,
+			endpoint:       "/auth/hello",
+			setupRequest: func(r *gofight.RequestConfig) {
+				r.SetHeader(gofight.H{
+					"Authorization": "invalid_token_without_bearer",
+				})
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			authMiddleware, err := New(&GinJWTMiddleware{
+				Realm:         tc.realm,
+				Key:           key,
+				Timeout:       time.Hour,
+				MaxRefresh:    time.Hour * 24,
+				Authenticator: defaultAuthenticator,
+			})
+			assert.NoError(t, err)
+
+			handler := ginHandler(authMiddleware)
+			r := gofight.New()
+
+			request := r.GET(tc.endpoint)
+			if tc.setupRequest != nil {
+				tc.setupRequest(request)
+			}
+
+			request.Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				assert.Equal(t, http.StatusUnauthorized, r.Code)
+				assert.Equal(t, tc.expectedHeader, r.HeaderMap.Get("WWW-Authenticate")) //nolint:staticcheck
+			})
+		})
+	}
+}
+
+func TestWWWAuthenticateHeaderOnRefresh(t *testing.T) {
+	authMiddleware, err := New(&GinJWTMiddleware{
+		Realm:         "refresh realm",
+		Key:           key,
+		Timeout:       time.Hour,
+		MaxRefresh:    time.Hour * 24,
+		Authenticator: defaultAuthenticator,
+	})
+	assert.NoError(t, err)
+
+	handler := ginHandler(authMiddleware)
+	r := gofight.New()
+
+	// Test with invalid refresh token
+	r.POST("/auth/refresh_token").
+		SetJSON(gofight.D{
+			"refresh_token": "invalid_refresh_token",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+			//nolint:staticcheck
+			assert.Equal(t, `JWT realm="refresh realm"`, r.HeaderMap.Get("WWW-Authenticate"))
+		})
+}
+
+func TestWWWAuthenticateHeaderNotSetOnSuccess(t *testing.T) {
+	authMiddleware, err := New(&GinJWTMiddleware{
+		Realm:      "test zone",
+		Key:        key,
+		Timeout:    time.Hour,
+		MaxRefresh: time.Hour * 24,
+		Authenticator: func(c *gin.Context) (any, error) {
+			var loginVals Login
+			if err := c.ShouldBind(&loginVals); err != nil {
+				return "", ErrMissingLoginValues
+			}
+
+			if loginVals.Username == "admin" && loginVals.Password == "admin" {
+				return loginVals.Username, nil
+			}
+
+			return "", ErrFailedAuthentication
+		},
+	})
+	assert.NoError(t, err)
+
+	handler := ginHandler(authMiddleware)
+	r := gofight.New()
+
+	// Test successful login - WWW-Authenticate should not be set
+	r.POST("/login").
+		SetJSON(gofight.D{
+			"username": "admin",
+			"password": "admin",
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+			assert.Empty(t, r.HeaderMap.Get("WWW-Authenticate")) //nolint:staticcheck
+		})
+
+	// Get a valid token for authenticated request
+	token := makeTokenString("HS256", "admin")
+
+	// Test successful authenticated request - WWW-Authenticate should not be set
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + token,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+			assert.Empty(t, r.HeaderMap.Get("WWW-Authenticate")) //nolint:staticcheck
+		})
+}
+
+func TestWWWAuthenticateHeaderWithDifferentRealms(t *testing.T) {
+	realms := []string{
+		"gin jwt",    // default
+		"API Server", // with space
+		"my-api",     // with dash
+		"realm_test", // with underscore
+		"MyApp v1.0", // with version
+		"",           // empty (should use default)
+	}
+
+	for _, realm := range realms {
+		t.Run(fmt.Sprintf("realm=%q", realm), func(t *testing.T) {
+			authMiddleware, err := New(&GinJWTMiddleware{
+				Realm:         realm,
+				Key:           key,
+				Timeout:       time.Hour,
+				MaxRefresh:    time.Hour * 24,
+				Authenticator: defaultAuthenticator,
+			})
+			assert.NoError(t, err)
+
+			handler := ginHandler(authMiddleware)
+			r := gofight.New()
+
+			expectedRealm := realm
+			if expectedRealm == "" {
+				expectedRealm = "gin jwt" // default realm
+			}
+
+			r.GET("/auth/hello").
+				SetHeader(gofight.H{
+					"Authorization": "Bearer invalid",
+				}).
+				Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+					assert.Equal(t, http.StatusUnauthorized, r.Code)
+					assert.Equal(t, fmt.Sprintf(`JWT realm="%s"`, expectedRealm), r.HeaderMap.Get("WWW-Authenticate")) //nolint:staticcheck
+				})
+		})
+	}
 }
