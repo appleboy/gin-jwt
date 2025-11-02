@@ -340,7 +340,13 @@ func TestLoginHandler(t *testing.T) {
 			//nolint:staticcheck
 			assert.True(t, strings.HasPrefix(r.HeaderMap.Get("Set-Cookie"), "jwt="))
 			//nolint:staticcheck
-			assert.True(t, strings.HasSuffix(r.HeaderMap.Get("Set-Cookie"), "; Path=/; Domain=example.com; Max-Age=3600"))
+			assert.True(
+				t,
+				strings.HasSuffix(
+					r.HeaderMap.Get("Set-Cookie"),
+					"; Path=/; Domain=example.com; Max-Age=3600",
+				),
+			)
 		})
 }
 
@@ -558,7 +564,11 @@ func TestRefreshHandlerRS256(t *testing.T) {
 				newRefreshToken := gjson.Get(r.Body.String(), "refresh_token")
 				assert.NotEmpty(t, accessToken.String())
 				assert.NotEmpty(t, newRefreshToken.String())
-				assert.NotEqual(t, refreshToken, newRefreshToken.String()) // New refresh token should be different
+				assert.NotEqual(
+					t,
+					refreshToken,
+					newRefreshToken.String(),
+				) // New refresh token should be different
 			})
 	}
 }
@@ -1403,7 +1413,11 @@ func TestLogout(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
 			//nolint:staticcheck
-			assert.Equal(t, fmt.Sprintf("%s=; Path=/; Domain=%s; Max-Age=0", cookieName, cookieDomain), r.HeaderMap.Get("Set-Cookie"))
+			assert.Equal(
+				t,
+				fmt.Sprintf("%s=; Path=/; Domain=%s; Max-Age=0", cookieName, cookieDomain),
+				r.HeaderMap.Get("Set-Cookie"),
+			)
 		})
 }
 
@@ -1524,7 +1538,11 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 	assert.Equal(t, userData, storedData)
 
 	// Generate new token pair with revocation
-	newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(ctx, userData, oldTokenPair.RefreshToken)
+	newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(
+		ctx,
+		userData,
+		oldTokenPair.RefreshToken,
+	)
 	assert.NoError(t, err)
 	assert.NotNil(t, newTokenPair)
 
@@ -1541,12 +1559,20 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 	assert.Equal(t, userData, storedData)
 
 	// Test revoking already revoked token (should not fail)
-	anotherTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(ctx, userData, oldTokenPair.RefreshToken)
+	anotherTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(
+		ctx,
+		userData,
+		oldTokenPair.RefreshToken,
+	)
 	assert.NoError(t, err)
 	assert.NotNil(t, anotherTokenPair)
 
 	// Test revoking non-existent token (should not fail)
-	finalTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(ctx, userData, "non_existent_token")
+	finalTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(
+		ctx,
+		userData,
+		"non_existent_token",
+	)
 	assert.NoError(t, err)
 	assert.NotNil(t, finalTokenPair)
 }
@@ -1690,7 +1716,11 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 
 			request.Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 				assert.Equal(t, http.StatusUnauthorized, r.Code)
-				assert.Equal(t, tc.expectedHeader, r.HeaderMap.Get("WWW-Authenticate")) //nolint:staticcheck
+				assert.Equal(
+					t,
+					tc.expectedHeader,
+					r.HeaderMap.Get("WWW-Authenticate"),
+				) //nolint:staticcheck
 			})
 		})
 	}
@@ -1805,7 +1835,11 @@ func TestWWWAuthenticateHeaderWithDifferentRealms(t *testing.T) {
 				}).
 				Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 					assert.Equal(t, http.StatusUnauthorized, r.Code)
-					assert.Equal(t, fmt.Sprintf(`JWT realm="%s"`, expectedRealm), r.HeaderMap.Get("WWW-Authenticate")) //nolint:staticcheck
+					assert.Equal(
+						t,
+						fmt.Sprintf(`JWT realm="%s"`, expectedRealm),
+						r.HeaderMap.Get("WWW-Authenticate"),
+					) //nolint:staticcheck
 				})
 		})
 	}

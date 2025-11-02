@@ -208,7 +208,9 @@ var (
 	ErrFailedTokenCreation = errors.New("failed to create JWT Token")
 
 	// ErrExpiredToken indicates JWT token has expired. Can't refresh.
-	ErrExpiredToken = errors.New("token is expired") // in practice, this is generated from the jwt library not by us
+	ErrExpiredToken = errors.New(
+		"token is expired",
+	) // in practice, this is generated from the jwt library not by us
 
 	// ErrEmptyAuthHeader can be thrown if authing with a HTTP header, the Auth header needs to be set
 	ErrEmptyAuthHeader = errors.New("auth header is empty")
@@ -510,7 +512,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 
 	// For backwards compatibility since technically exp is not required in the spec but has been in gin-jwt
 	if claims["exp"] == nil {
-		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(c,ErrMissingExpField))
+		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(c, ErrMissingExpField))
 		return
 	}
 
@@ -522,7 +524,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	}
 
 	if !mw.Authorizer(c, identity) {
-		mw.unauthorized(c, http.StatusForbidden, mw.HTTPStatusMessageFunc(c,ErrForbidden))
+		mw.unauthorized(c, http.StatusForbidden, mw.HTTPStatusMessageFunc(c, ErrForbidden))
 		return
 	}
 
@@ -558,20 +560,28 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, err
 // Reply will be of the form {"token": "TOKEN"}.
 func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 	if mw.Authenticator == nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(c,ErrMissingAuthenticatorFunc))
+		mw.unauthorized(
+			c,
+			http.StatusInternalServerError,
+			mw.HTTPStatusMessageFunc(c, ErrMissingAuthenticatorFunc),
+		)
 		return
 	}
 
 	data, err := mw.Authenticator(c)
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(c,err))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(c, err))
 		return
 	}
 
 	// Generate complete token pair
 	tokenPair, err := mw.TokenGenerator(c.Request.Context(), data)
 	if err != nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(c,ErrFailedTokenCreation))
+		mw.unauthorized(
+			c,
+			http.StatusInternalServerError,
+			mw.HTTPStatusMessageFunc(c, ErrFailedTokenCreation),
+		)
 		return
 	}
 
@@ -659,7 +669,11 @@ func (mw *GinJWTMiddleware) generateRefreshToken() (string, error) {
 }
 
 // storeRefreshToken stores a refresh token with user data
-func (mw *GinJWTMiddleware) storeRefreshToken(ctx context.Context, token string, userData any) error {
+func (mw *GinJWTMiddleware) storeRefreshToken(
+	ctx context.Context,
+	token string,
+	userData any,
+) error {
 	expiry := mw.TimeFunc().Add(mw.RefreshTokenTimeout)
 	return mw.RefreshTokenStore.Set(ctx, token, userData, expiry)
 }
@@ -695,14 +709,14 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	// Validate refresh token
 	userData, err := mw.validateRefreshToken(c.Request.Context(), refreshToken)
 	if err != nil {
-		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(c,err))
+		mw.unauthorized(c, http.StatusUnauthorized, mw.HTTPStatusMessageFunc(c, err))
 		return
 	}
 
 	// Generate new token pair and revoke old refresh token
 	tokenPair, err := mw.TokenGeneratorWithRevocation(c.Request.Context(), userData, refreshToken)
 	if err != nil {
-		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(c,err))
+		mw.unauthorized(c, http.StatusInternalServerError, mw.HTTPStatusMessageFunc(c, err))
 		return
 	}
 
@@ -825,7 +839,11 @@ func (mw *GinJWTMiddleware) TokenGenerator(ctx context.Context, data any) (*core
 }
 
 // TokenGeneratorWithRevocation generates a new token pair and revokes the old refresh token
-func (mw *GinJWTMiddleware) TokenGeneratorWithRevocation(ctx context.Context, data any, oldRefreshToken string) (*core.Token, error) {
+func (mw *GinJWTMiddleware) TokenGeneratorWithRevocation(
+	ctx context.Context,
+	data any,
+	oldRefreshToken string,
+) (*core.Token, error) {
 	// Generate new token pair
 	tokenPair, err := mw.TokenGenerator(ctx, data)
 	if err != nil {
@@ -833,7 +851,8 @@ func (mw *GinJWTMiddleware) TokenGeneratorWithRevocation(ctx context.Context, da
 	}
 
 	// Revoke old refresh token, ignore if token already doesn't exist
-	if err := mw.revokeRefreshToken(ctx, oldRefreshToken); err != nil && !errors.Is(err, core.ErrRefreshTokenNotFound) {
+	if err := mw.revokeRefreshToken(ctx, oldRefreshToken); err != nil &&
+		!errors.Is(err, core.ErrRefreshTokenNotFound) {
 		return nil, err
 	}
 

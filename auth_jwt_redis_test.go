@@ -105,7 +105,12 @@ func TestGinJWTMiddleware_RedisStoreFallback(t *testing.T) {
 
 	// Verify that it fell back to in-memory store
 	assert.NotNil(t, middleware.inMemoryStore, "should have created in-memory store as fallback")
-	assert.Equal(t, middleware.RefreshTokenStore, middleware.inMemoryStore, "should use in-memory store as fallback")
+	assert.Equal(
+		t,
+		middleware.RefreshTokenStore,
+		middleware.inMemoryStore,
+		"should use in-memory store as fallback",
+	)
 }
 
 func TestGinJWTMiddleware_FunctionalOptions(t *testing.T) {
@@ -212,8 +217,18 @@ func TestGinJWTMiddleware_FunctionalOptions(t *testing.T) {
 		assert.Equal(t, middleware, result, "should return self for chaining")
 		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
 		assert.Equal(t, poolSize, middleware.RedisConfig.PoolSize, "should set pool size")
-		assert.Equal(t, maxIdleTime, middleware.RedisConfig.ConnMaxIdleTime, "should set max idle time")
-		assert.Equal(t, maxLifetime, middleware.RedisConfig.ConnMaxLifetime, "should set max lifetime")
+		assert.Equal(
+			t,
+			maxIdleTime,
+			middleware.RedisConfig.ConnMaxIdleTime,
+			"should set max idle time",
+		)
+		assert.Equal(
+			t,
+			maxLifetime,
+			middleware.RedisConfig.ConnMaxLifetime,
+			"should set max lifetime",
+		)
 	})
 
 	t.Run("EnableRedisStoreWithKeyPrefix", func(t *testing.T) {
@@ -264,8 +279,18 @@ func TestGinJWTMiddleware_FunctionalOptions(t *testing.T) {
 		assert.Equal(t, 32*1024*1024, middleware.RedisConfig.CacheSize, "should set cache size")
 		assert.Equal(t, 15*time.Second, middleware.RedisConfig.CacheTTL, "should set cache TTL")
 		assert.Equal(t, 25, middleware.RedisConfig.PoolSize, "should set pool size")
-		assert.Equal(t, 2*time.Hour, middleware.RedisConfig.ConnMaxIdleTime, "should set max idle time")
-		assert.Equal(t, 4*time.Hour, middleware.RedisConfig.ConnMaxLifetime, "should set max lifetime")
+		assert.Equal(
+			t,
+			2*time.Hour,
+			middleware.RedisConfig.ConnMaxIdleTime,
+			"should set max idle time",
+		)
+		assert.Equal(
+			t,
+			4*time.Hour,
+			middleware.RedisConfig.ConnMaxLifetime,
+			"should set max lifetime",
+		)
 		assert.Equal(t, "test-app:", middleware.RedisConfig.KeyPrefix, "should set key prefix")
 
 		// Test that it actually works (but use working address for actual initialization)
@@ -289,7 +314,10 @@ func createTestMiddleware(t *testing.T, redisAddr string) *GinJWTMiddleware {
 	// Configure Redis using functional options
 	middleware.EnableRedisStore(
 		WithRedisAddr(redisAddr),
-		WithRedisCache(1024*1024, 50*time.Millisecond), // 1MB for testing, very short TTL for testing
+		WithRedisCache(
+			1024*1024,
+			50*time.Millisecond,
+		), // 1MB for testing, very short TTL for testing
 		WithRedisKeyPrefix("test-jwt:"),
 	)
 
@@ -328,7 +356,11 @@ func testPayloadFunc(data any) gojwt.MapClaims {
 func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 	// Test login
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/login", strings.NewReader(`{"username":"admin","password":"admin"}`))
+	req, _ := http.NewRequest(
+		"POST",
+		"/login",
+		strings.NewReader(`{"username":"admin","password":"admin"}`),
+	)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -354,19 +386,37 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 
 	// Test refresh token
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest("POST", "/refresh", strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)))
+	req, _ = http.NewRequest(
+		"POST",
+		"/refresh",
+		strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)),
+	)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, 200, w.Code, "refresh should succeed")
-	assert.Contains(t, w.Body.String(), "access_token", "refresh response should contain new access token")
-	assert.Contains(t, w.Body.String(), "refresh_token", "refresh response should contain new refresh token")
+	assert.Contains(
+		t,
+		w.Body.String(),
+		"access_token",
+		"refresh response should contain new access token",
+	)
+	assert.Contains(
+		t,
+		w.Body.String(),
+		"refresh_token",
+		"refresh response should contain new refresh token",
+	)
 }
 
 func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 	// Login and get refresh token
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/login", strings.NewReader(`{"username":"admin","password":"admin"}`))
+	req, _ := http.NewRequest(
+		"POST",
+		"/login",
+		strings.NewReader(`{"username":"admin","password":"admin"}`),
+	)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 
@@ -381,7 +431,11 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 		time.Sleep(10 * time.Millisecond) // Small delay to simulate real usage
 
 		w = httptest.NewRecorder()
-		req, _ = http.NewRequest("POST", "/refresh", strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)))
+		req, _ = http.NewRequest(
+			"POST",
+			"/refresh",
+			strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)),
+		)
 		req.Header.Set("Content-Type", "application/json")
 		r.ServeHTTP(w, req)
 

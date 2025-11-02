@@ -117,8 +117,18 @@ func TestGinJWTMiddleware_FunctionalOptionsOnly(t *testing.T) {
 		assert.Equal(t, middleware, result, "should return self for chaining")
 		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
 		assert.Equal(t, poolSize, middleware.RedisConfig.PoolSize, "should set pool size")
-		assert.Equal(t, maxIdleTime, middleware.RedisConfig.ConnMaxIdleTime, "should set max idle time")
-		assert.Equal(t, maxLifetime, middleware.RedisConfig.ConnMaxLifetime, "should set max lifetime")
+		assert.Equal(
+			t,
+			maxIdleTime,
+			middleware.RedisConfig.ConnMaxIdleTime,
+			"should set max idle time",
+		)
+		assert.Equal(
+			t,
+			maxLifetime,
+			middleware.RedisConfig.ConnMaxLifetime,
+			"should set max lifetime",
+		)
 	})
 
 	t.Run("EnableRedisStoreWithKeyPrefix", func(t *testing.T) {
@@ -177,8 +187,18 @@ func TestGinJWTMiddleware_FunctionalOptionsOnly(t *testing.T) {
 		assert.Equal(t, cacheSize, middleware.RedisConfig.CacheSize, "should set cache size")
 		assert.Equal(t, cacheTTL, middleware.RedisConfig.CacheTTL, "should set cache TTL")
 		assert.Equal(t, poolSize, middleware.RedisConfig.PoolSize, "should set pool size")
-		assert.Equal(t, maxIdleTime, middleware.RedisConfig.ConnMaxIdleTime, "should set max idle time")
-		assert.Equal(t, maxLifetime, middleware.RedisConfig.ConnMaxLifetime, "should set max lifetime")
+		assert.Equal(
+			t,
+			maxIdleTime,
+			middleware.RedisConfig.ConnMaxIdleTime,
+			"should set max idle time",
+		)
+		assert.Equal(
+			t,
+			maxLifetime,
+			middleware.RedisConfig.ConnMaxLifetime,
+			"should set max lifetime",
+		)
 		assert.Equal(t, keyPrefix, middleware.RedisConfig.KeyPrefix, "should set key prefix")
 	})
 
@@ -206,8 +226,18 @@ func TestGinJWTMiddleware_FunctionalOptionsOnly(t *testing.T) {
 
 		assert.Equal(t, middleware, result, "should return self for chaining")
 		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
-		assert.Equal(t, "second.redis.com:6379", middleware.RedisConfig.Addr, "should use second address")
-		assert.Equal(t, "second-pass", middleware.RedisConfig.Password, "should use second password")
+		assert.Equal(
+			t,
+			"second.redis.com:6379",
+			middleware.RedisConfig.Addr,
+			"should use second address",
+		)
+		assert.Equal(
+			t,
+			"second-pass",
+			middleware.RedisConfig.Password,
+			"should use second password",
+		)
 		assert.Equal(t, 2, middleware.RedisConfig.DB, "should use second DB")
 		assert.Equal(t, "second:", middleware.RedisConfig.KeyPrefix, "should use second key prefix")
 	})
