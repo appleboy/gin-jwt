@@ -111,7 +111,12 @@ func testBasicOperations(t *testing.T, store *RedisRefreshTokenStore) {
 	assert.Error(t, err, "Set with empty token should return error")
 
 	_, err = store.Get(ctx, "")
-	assert.ErrorIs(t, err, core.ErrRefreshTokenNotFound, "Get with empty token should return not found error")
+	assert.ErrorIs(
+		t,
+		err,
+		core.ErrRefreshTokenNotFound,
+		"Get with empty token should return not found error",
+	)
 
 	err = store.Delete(ctx, "")
 	assert.NoError(t, err, "Delete with empty token should not return error")
@@ -259,7 +264,12 @@ func TestRedisRefreshTokenStore_ConnectionFailure(t *testing.T) {
 
 	_, err := NewRedisRefreshTokenStore(config)
 	assert.Error(t, err, "Should return error for invalid Redis configuration")
-	assert.Contains(t, err.Error(), "failed to create Redis client", "Error should mention Redis client creation failure")
+	assert.Contains(
+		t,
+		err.Error(),
+		"failed to create Redis client",
+		"Error should mention Redis client creation failure",
+	)
 }
 
 func TestRedisRefreshTokenStore_InvalidToken(t *testing.T) {
@@ -284,7 +294,12 @@ func TestRedisRefreshTokenStore_InvalidToken(t *testing.T) {
 	expiredTime := time.Now().Add(-time.Hour)
 	err = store.Set(context.Background(), "expired-token", "data", expiredTime)
 	assert.Error(t, err, "Should return error when setting token with past expiry time")
-	assert.Contains(t, err.Error(), "expiry time must be in the future", "Error should mention future expiry requirement")
+	assert.Contains(
+		t,
+		err.Error(),
+		"expiry time must be in the future",
+		"Error should mention future expiry requirement",
+	)
 }
 
 func TestDefaultRedisConfig(t *testing.T) {

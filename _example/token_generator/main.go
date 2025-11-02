@@ -50,14 +50,21 @@ func main() {
 
 	// Simulate refresh token usage
 	fmt.Println("\n=== Refreshing Token Pair ===")
-	newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(ctx, userData, tokenPair.RefreshToken)
+	newTokenPair, err := authMiddleware.TokenGeneratorWithRevocation(
+		ctx,
+		userData,
+		tokenPair.RefreshToken,
+	)
 	if err != nil {
 		log.Fatal("Failed to refresh token pair:", err)
 	}
 
 	fmt.Printf("New Access Token: %s\n", newTokenPair.AccessToken[:50]+"...")
 	fmt.Printf("New Refresh Token: %s\n", newTokenPair.RefreshToken)
-	fmt.Printf("Old refresh token revoked: %t\n", tokenPair.RefreshToken != newTokenPair.RefreshToken)
+	fmt.Printf(
+		"Old refresh token revoked: %t\n",
+		tokenPair.RefreshToken != newTokenPair.RefreshToken,
+	)
 
 	// Verify old refresh token is invalid
 	fmt.Println("\n=== Verifying Old Token Revocation ===")

@@ -58,7 +58,11 @@ func TestTokenExpiresIn(t *testing.T) {
 
 			// Allow for some time difference due to test execution
 			diff := expiresIn - tc.expected
-			assert.True(t, diff >= -5 && diff <= 5, "ExpiresIn should be within 5 seconds of expected")
+			assert.True(
+				t,
+				diff >= -5 && diff <= 5,
+				"ExpiresIn should be within 5 seconds of expected",
+			)
 		})
 	}
 }

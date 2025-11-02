@@ -116,7 +116,12 @@ func (s *RedisRefreshTokenStore) buildKey(token string) string {
 }
 
 // Set stores a refresh token with associated user data and expiration
-func (s *RedisRefreshTokenStore) Set(ctx context.Context, token string, userData any, expiry time.Time) error {
+func (s *RedisRefreshTokenStore) Set(
+	ctx context.Context,
+	token string,
+	userData any,
+	expiry time.Time,
+) error {
 	if token == "" {
 		return errors.New("token cannot be empty")
 	}

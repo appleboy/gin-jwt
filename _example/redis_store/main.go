@@ -51,7 +51,8 @@ func main() {
 			userID := loginVals.UserName
 			password := loginVals.Password
 
-			if (userID == "admin" && password == "admin") || (userID == "test" && password == "test") {
+			if (userID == "admin" && password == "admin") ||
+				(userID == "test" && password == "test") {
 				return &User{
 					UserName:  userID,
 					LastName:  "Bo-Yi",

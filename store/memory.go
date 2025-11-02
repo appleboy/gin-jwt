@@ -27,7 +27,12 @@ func NewInMemoryRefreshTokenStore() *InMemoryRefreshTokenStore {
 }
 
 // Set stores a refresh token with associated user data and expiration
-func (s *InMemoryRefreshTokenStore) Set(ctx context.Context, token string, userData any, expiry time.Time) error {
+func (s *InMemoryRefreshTokenStore) Set(
+	ctx context.Context,
+	token string,
+	userData any,
+	expiry time.Time,
+) error {
 	if token == "" {
 		return errors.New("token cannot be empty")
 	}

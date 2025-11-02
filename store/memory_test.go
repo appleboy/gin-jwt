@@ -91,7 +91,8 @@ func TestInMemoryRefreshTokenStore_Get(t *testing.T) {
 		t.Fatal("Retrieved user data is not of type *User")
 	}
 
-	if retrievedUser.ID != user.ID || retrievedUser.Username != user.Username || retrievedUser.Email != user.Email {
+	if retrievedUser.ID != user.ID || retrievedUser.Username != user.Username ||
+		retrievedUser.Email != user.Email {
 		t.Fatalf("Retrieved user data doesn't match. Expected: %+v, Got: %+v", user, retrievedUser)
 	}
 }

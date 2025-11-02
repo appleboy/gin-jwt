@@ -76,7 +76,11 @@ func registerRoutes(r *gin.Engine, authMiddleware *jwt.GinJWTMiddleware) {
 			"message": "Authorization Example API",
 			"users": gin.H{
 				"admin": gin.H{"password": "admin", "role": "admin", "access": "All routes"},
-				"user":  gin.H{"password": "user", "role": "user", "access": "/user/* and /auth/profile"},
+				"user": gin.H{
+					"password": "user",
+					"role":     "user",
+					"access":   "/user/* and /auth/profile",
+				},
 				"guest": gin.H{"password": "guest", "role": "guest", "access": "/auth/hello only"},
 			},
 			"routes": gin.H{
@@ -109,10 +113,10 @@ func registerRoutes(r *gin.Engine, authMiddleware *jwt.GinJWTMiddleware) {
 	// General auth routes - different permissions based on path
 	authRoutes := r.Group("/auth", authMiddleware.MiddlewareFunc())
 	{
-		authRoutes.GET("/hello", helloHandler)           // All authenticated users
-		authRoutes.GET("/profile", profileHandler)       // User and admin only
-		authRoutes.POST("/logout", authMiddleware.LogoutHandler)
-		authRoutes.GET("/whoami", whoAmIHandler)         // All authenticated users
+		authRoutes.GET("/hello", helloHandler)                   // All authenticated users
+		authRoutes.GET("/profile", profileHandler)               // User and admin only
+		authRoutes.POST("/logout", authMiddleware.LogoutHandler) // User Logout
+		authRoutes.GET("/whoami", whoAmIHandler)                 // All authenticated users
 	}
 }
 
