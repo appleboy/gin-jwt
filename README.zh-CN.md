@@ -302,12 +302,25 @@ middleware := &jwt.GinJWTMiddleware{
     jwt.WithRedisPool(20, time.Hour, 2*time.Hour),      // 连接池配置
     jwt.WithRedisKeyPrefix("myapp:jwt:"),               // 键前缀
 )
+
+// 方法 5：使用 TLS 启用 Redis（用于安全连接）
+tlsConfig := &tls.Config{
+    MinVersion: tls.VersionTLS12,
+}
+middleware := &jwt.GinJWTMiddleware{
+    // ... 其他配置
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6380"),        // TLS 端口
+    jwt.WithRedisAuth("password", 0),
+    jwt.WithRedisTLS(tlsConfig),                        // 启用 TLS
+)
 ```
 
 #### 可用选项
 
 - `WithRedisAddr(addr string)` - 设置 Redis 服务器地址
 - `WithRedisAuth(password string, db int)` - 设置认证和数据库
+- `WithRedisTLS(tlsConfig *tls.Config)` - 设置 TLS 配置以进行安全连接
 - `WithRedisCache(size int, ttl time.Duration)` - 配置客户端缓存
 - `WithRedisPool(poolSize int, maxIdleTime, maxLifetime time.Duration)` - 配置连接池
 - `WithRedisKeyPrefix(prefix string)` - 设置 Redis 键的前缀
@@ -319,6 +332,7 @@ middleware := &jwt.GinJWTMiddleware{
 - **Addr**：Redis 服务器地址（默认：`"localhost:6379"`）
 - **Password**：Redis 密码（默认：`""`）
 - **DB**：Redis 数据库编号（默认：`0`）
+- **TLSConfig**：用于安全连接的 TLS 配置（默认：`nil`）
 - **CacheSize**：客户端缓存大小（字节）（默认：`128MB`）
 - **CacheTTL**：客户端缓存 TTL（默认：`1 分钟`）
 - **KeyPrefix**：所有 Redis 键的前缀（默认：`"gin-jwt:"`）

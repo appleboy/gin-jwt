@@ -467,12 +467,25 @@ middleware := &jwt.GinJWTMiddleware{
     jwt.WithRedisPool(20, time.Hour, 2*time.Hour),      // Pool config
     jwt.WithRedisKeyPrefix("myapp:jwt:"),               // Key prefix
 )
+
+// Method 5: Enable Redis with TLS (for secure connections)
+tlsConfig := &tls.Config{
+    MinVersion: tls.VersionTLS12,
+}
+middleware := &jwt.GinJWTMiddleware{
+    // ... other configuration
+}.EnableRedisStore(
+    jwt.WithRedisAddr("redis.example.com:6380"),        // TLS port
+    jwt.WithRedisAuth("password", 0),
+    jwt.WithRedisTLS(tlsConfig),                        // Enable TLS
+)
 ```
 
 #### Available Options
 
 - `WithRedisAddr(addr string)` - Sets Redis server address
 - `WithRedisAuth(password string, db int)` - Sets authentication and database
+- `WithRedisTLS(tlsConfig *tls.Config)` - Sets TLS configuration for secure connections
 - `WithRedisCache(size int, ttl time.Duration)` - Configures client-side cache
 - `WithRedisPool(poolSize int, maxIdleTime, maxLifetime time.Duration)` - Configures connection pool
 - `WithRedisKeyPrefix(prefix string)` - Sets key prefix for Redis keys
@@ -484,6 +497,7 @@ middleware := &jwt.GinJWTMiddleware{
 - **Addr**: Redis server address (default: `"localhost:6379"`)
 - **Password**: Redis password (default: `""`)
 - **DB**: Redis database number (default: `0`)
+- **TLSConfig**: TLS configuration for secure connections (default: `nil`)
 - **CacheSize**: Client-side cache size in bytes (default: `128MB`)
 - **CacheTTL**: Client-side cache TTL (default: `1 minute`)
 - **KeyPrefix**: Prefix for all Redis keys (default: `"gin-jwt:"`)

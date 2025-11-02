@@ -1,8 +1,11 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	jwt "github.com/appleboy/gin-jwt/v3"
@@ -84,47 +87,19 @@ func main() {
 		TimeFunc:      time.Now,
 	}
 
-	// Configure Redis store using functional options pattern
+	// Configure TLS for secure Redis connection
+	tlsConfig := createTLSConfig()
+
+	// Configure Redis store with TLS enabled
 	middleware.EnableRedisStore(
+		jwt.WithRedisAddr("redis.example.com:6380"), // Use TLS port (usually 6380)
+		jwt.WithRedisAuth("your-password", 0),
+		jwt.WithRedisTLS(tlsConfig),
 		jwt.WithRedisCache(64*1024*1024, 30*time.Second), // 64MB cache, 30s TTL
 	)
 
 	// Create the JWT middleware
 	authMiddleware, err := jwt.New(middleware)
-	// Alternative initialization methods using functional options:
-	//
-	// Method 1: Simple enable with defaults
-	// }.EnableRedisStore())
-	//
-	// Method 2: Enable with custom address
-	// }.EnableRedisStore(jwt.WithRedisAddr("redis:6379")))
-	//
-	// Method 3: Enable with full options
-	// }.EnableRedisStore(
-	//     jwt.WithRedisAddr("localhost:6379"),
-	//     jwt.WithRedisAuth("", 0),
-	//     jwt.WithRedisCache(128*1024*1024, time.Minute),
-	// ))
-	//
-	// Method 4: Enable with comprehensive configuration
-	// }.EnableRedisStore(
-	//     jwt.WithRedisAddr("localhost:6379"),
-	//     jwt.WithRedisAuth("password", 1),
-	//     jwt.WithRedisCache(128*1024*1024, time.Minute),
-	//     jwt.WithRedisPool(20, time.Hour, 2*time.Hour),
-	//     jwt.WithRedisKeyPrefix("myapp:jwt:"),
-	// ))
-	//
-	// Method 5: Enable with TLS configuration (for secure Redis connections)
-	// tlsConfig := &tls.Config{
-	//     MinVersion: tls.VersionTLS12,
-	//     // Add your certificates here if needed
-	// }
-	// }.EnableRedisStore(
-	//     jwt.WithRedisAddr("redis.example.com:6380"),
-	//     jwt.WithRedisAuth("password", 0),
-	//     jwt.WithRedisTLS(tlsConfig),
-	// ))
 	if err != nil {
 		log.Fatal("JWT Error:" + err.Error())
 	}
@@ -153,7 +128,7 @@ func main() {
 	}
 
 	log.Println("Server starting on :8000")
-	log.Println("Redis store is enabled - will fall back to memory if Redis is not available")
+	log.Println("Redis TLS store is enabled")
 	if err := http.ListenAndServe(":8000", r); err != nil {
 		log.Fatal(err)
 	}
@@ -167,4 +142,63 @@ func helloHandler(c *gin.Context) {
 		"userName": user.(*User).UserName,
 		"text":     "Hello World.",
 	})
+}
+
+// createTLSConfig creates a TLS configuration for Redis connection
+func createTLSConfig() *tls.Config {
+	// Example 1: Basic TLS with system CA certificates
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		MaxVersion: tls.VersionTLS13,
+	}
+
+	// Example 2: TLS with custom CA certificate (uncomment to use)
+	// caCert, err := os.ReadFile("/path/to/ca.crt")
+	// if err != nil {
+	// 	log.Fatalf("Failed to read CA certificate: %v", err)
+	// }
+	//
+	// caCertPool := x509.NewCertPool()
+	// if !caCertPool.AppendCertsFromPEM(caCert) {
+	// 	log.Fatal("Failed to parse CA certificate")
+	// }
+	//
+	// tlsConfig.RootCAs = caCertPool
+
+	// Example 3: TLS with client certificate (mutual TLS) (uncomment to use)
+	// cert, err := tls.LoadX509KeyPair("/path/to/client.crt", "/path/to/client.key")
+	// if err != nil {
+	// 	log.Fatalf("Failed to load client certificate: %v", err)
+	// }
+	//
+	// tlsConfig.Certificates = []tls.Certificate{cert}
+
+	// Example 4: Skip certificate verification (NOT recommended for production)
+	// tlsConfig.InsecureSkipVerify = true
+
+	return tlsConfig
+}
+
+// Example helper function to load custom CA certificate
+func loadCACertificate(caPath string) *x509.CertPool {
+	caCert, err := os.ReadFile(caPath)
+	if err != nil {
+		log.Fatalf("Failed to read CA certificate: %v", err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	if !caCertPool.AppendCertsFromPEM(caCert) {
+		log.Fatal("Failed to parse CA certificate")
+	}
+
+	return caCertPool
+}
+
+// Example helper function to load client certificate for mutual TLS
+func loadClientCertificate(certPath, keyPath string) tls.Certificate {
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		log.Fatalf("Failed to load client certificate: %v", err)
+	}
+	return cert
 }
