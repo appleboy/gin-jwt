@@ -964,7 +964,7 @@ func (mw *GinJWTMiddleware) ParseTokenString(token string) (*jwt.Token, error) {
 }
 
 func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message string) {
-	c.Header("WWW-Authenticate", "JWT realm="+mw.Realm)
+	c.Header("WWW-Authenticate", "JWT realm=\""+mw.Realm+"\"")
 	if !mw.DisabledAbort {
 		c.Abort()
 	}
