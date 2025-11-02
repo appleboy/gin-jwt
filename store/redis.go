@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,9 @@ type RedisConfig struct {
 	Addr     string // Redis server address (default: "localhost:6379")
 	Password string // Redis password (default: "")
 	DB       int    // Redis database number (default: 0)
+
+	// TLS configuration
+	TLSConfig *tls.Config // TLS configuration for secure connections (optional, default: nil)
 
 	// Client-side cache configuration
 	CacheSize int           // Client-side cache size in bytes (default: 128MB)
@@ -67,6 +71,9 @@ func NewRedisRefreshTokenStore(config *RedisConfig) (*RedisRefreshTokenStore, er
 		InitAddress: []string{config.Addr},
 		Password:    config.Password,
 		SelectDB:    config.DB,
+
+		// TLS configuration
+		TLSConfig: config.TLSConfig,
 
 		// Connection configuration
 		ConnWriteTimeout: 10 * time.Second,

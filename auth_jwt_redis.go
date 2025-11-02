@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"crypto/tls"
 	"log"
 	"time"
 
@@ -46,6 +47,13 @@ func WithRedisPool(poolSize int, maxIdleTime, maxLifetime time.Duration) RedisOp
 func WithRedisKeyPrefix(prefix string) RedisOption {
 	return func(config *store.RedisConfig) {
 		config.KeyPrefix = prefix
+	}
+}
+
+// WithRedisTLS sets the TLS configuration for secure connections
+func WithRedisTLS(tlsConfig *tls.Config) RedisOption {
+	return func(config *store.RedisConfig) {
+		config.TLSConfig = tlsConfig
 	}
 }
 
