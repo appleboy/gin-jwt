@@ -333,9 +333,9 @@ func testAuthenticator(c *gin.Context) (any, error) {
 		return "", ErrMissingLoginValues
 	}
 
-	if loginVals.Username == "admin" && loginVals.Password == "admin" {
+	if loginVals.Username == testAdmin && loginVals.Password == testAdmin {
 		return map[string]any{
-			"username": "admin",
+			"username": testAdmin,
 			"userid":   1,
 		}, nil
 	}
@@ -360,7 +360,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 		context.Background(),
 		"POST",
 		"/login",
-		strings.NewReader(`{"username":"admin","password":"admin"}`),
+		strings.NewReader(`{"username":"` + testAdmin + `","password":"` + testAdmin + `"}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
@@ -418,7 +418,7 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 		context.Background(),
 		"POST",
 		"/login",
-		strings.NewReader(`{"username":"admin","password":"admin"}`),
+		strings.NewReader(`{"username":"` + testAdmin + `","password":"` + testAdmin + `"}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)

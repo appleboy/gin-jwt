@@ -199,8 +199,8 @@ func getRefreshTokenFromLogin(handler *gin.Engine) string {
 
 	r.POST("/login").
 		SetJSON(gofight.D{
-			"username": "admin",
-			"password": "admin",
+			"username": testAdmin,
+			"password": testAdmin,
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			if r.Code == http.StatusOK {
@@ -248,8 +248,8 @@ func TestMissingAuthenticatorForLoginHandler(t *testing.T) {
 
 	r.POST("/login").
 		SetJSON(gofight.D{
-			"username": "admin",
-			"password": "admin",
+			"username": testAdmin,
+			"password": testAdmin,
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
@@ -314,7 +314,7 @@ func TestLoginHandler(t *testing.T) {
 
 	r.POST("/login").
 		SetJSON(gofight.D{
-			"username": "admin",
+			"username": testAdmin,
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
@@ -327,7 +327,7 @@ func TestLoginHandler(t *testing.T) {
 
 	r.POST("/login").
 		SetJSON(gofight.D{
-			"username": "admin",
+			"username": testAdmin,
 			"password": "test",
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
@@ -338,8 +338,8 @@ func TestLoginHandler(t *testing.T) {
 
 	r.POST("/login").
 		SetJSON(gofight.D{
-			"username": "admin",
-			"password": "admin",
+			"username": testAdmin,
+			"password": testAdmin,
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			message := gjson.Get(r.Body.String(), "message")
@@ -390,7 +390,7 @@ func TestParseToken(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS384", "admin"),
+			"Authorization": "Bearer " + makeTokenString("HS384", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
@@ -398,7 +398,7 @@ func TestParseToken(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+			"Authorization": "Bearer " + makeTokenString("HS256", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
@@ -440,7 +440,7 @@ func TestParseTokenRS256(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS384", "admin"),
+			"Authorization": "Bearer " + makeTokenString("HS384", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
@@ -448,7 +448,7 @@ func TestParseTokenRS256(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("RS256", "admin"),
+			"Authorization": "Bearer " + makeTokenString("RS256", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
@@ -492,7 +492,7 @@ func TestParseTokenKeyFunc(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS384", "admin"),
+			"Authorization": "Bearer " + makeTokenString("HS384", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
@@ -500,7 +500,7 @@ func TestParseTokenKeyFunc(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("RS256", "admin"),
+			"Authorization": "Bearer " + makeTokenString("RS256", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
@@ -713,7 +713,7 @@ func TestAuthorizer(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+			"Authorization": "Bearer " + makeTokenString("HS256", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
@@ -739,7 +739,7 @@ func TestParseTokenWithJsonNumber(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+			"Authorization": "Bearer " + makeTokenString("HS256", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
@@ -837,8 +837,8 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 
 	r.POST("/login").
 		SetJSON(gofight.D{
-			"username": "admin",
-			"password": "admin",
+			"username": testAdmin,
+			"password": testAdmin,
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			token := gjson.Get(r.Body.String(), "access_token")
@@ -989,7 +989,7 @@ func TestTokenFromQueryString(t *testing.T) {
 	r := gofight.New()
 
 	userToken, _, _ := authMiddleware.generateAccessToken(jwt.MapClaims{
-		"identity": "admin",
+		"identity": testAdmin,
 	})
 
 	r.GET("/auth/hello").
@@ -1027,7 +1027,7 @@ func TestTokenFromParamPath(t *testing.T) {
 	r := gofight.New()
 
 	userToken, _, _ := authMiddleware.generateAccessToken(jwt.MapClaims{
-		"identity": "admin",
+		"identity": testAdmin,
 	})
 
 	r.GET("/auth/hello").
@@ -1062,7 +1062,7 @@ func TestTokenFromCookieString(t *testing.T) {
 	r := gofight.New()
 
 	userToken, _, _ := authMiddleware.generateAccessToken(jwt.MapClaims{
-		"identity": "admin",
+		"identity": testAdmin,
 	})
 
 	r.GET("/auth/hello").
@@ -1118,7 +1118,7 @@ func TestDefineTokenHeadName(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+			"Authorization": "Bearer " + makeTokenString("HS256", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
@@ -1188,12 +1188,12 @@ func TestSendAuthorizationBool(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+			"Authorization": "Bearer " + makeTokenString("HS256", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			//nolint:staticcheck
 			token := r.HeaderMap.Get("Authorization")
-			assert.Equal(t, "Bearer "+makeTokenString("HS256", "admin"), token)
+			assert.Equal(t, "Bearer "+makeTokenString("HS256", testAdmin), token)
 			assert.Equal(t, http.StatusOK, r.Code)
 		})
 }
@@ -1221,7 +1221,7 @@ func TestExpiredTokenOnAuth(t *testing.T) {
 
 	r.GET("/auth/hello").
 		SetHeader(gofight.H{
-			"Authorization": "Bearer " + makeTokenString("HS256", "admin"),
+			"Authorization": "Bearer " + makeTokenString("HS256", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
@@ -1266,7 +1266,7 @@ func TestExpiredField(t *testing.T) {
 
 	token := jwt.New(jwt.GetSigningMethod("HS256"))
 	claims := token.Claims.(jwt.MapClaims)
-	claims["identity"] = "admin"
+	claims["identity"] = testAdmin
 	claims["orig_iat"] = 0
 	tokenString, _ := token.SignedString(key)
 
@@ -1313,7 +1313,7 @@ func TestExpiredFieldRequiredParserOption(t *testing.T) {
 
 	token := jwt.New(jwt.GetSigningMethod("HS256"))
 	claims := token.Claims.(jwt.MapClaims)
-	claims["identity"] = "admin"
+	claims["identity"] = testAdmin
 	claims["orig_iat"] = 0
 	tokenString, _ := token.SignedString(key)
 
@@ -1368,7 +1368,7 @@ func TestCheckTokenString(t *testing.T) {
 	r := gofight.New()
 
 	userToken, _, _ := authMiddleware.generateAccessToken(jwt.MapClaims{
-		"identity": "admin",
+		"identity": testAdmin,
 	})
 
 	r.GET("/auth/hello").
@@ -1382,7 +1382,7 @@ func TestCheckTokenString(t *testing.T) {
 	token, err := authMiddleware.ParseTokenString(userToken)
 	assert.NoError(t, err)
 	claims := ExtractClaimsFromToken(token)
-	assert.Equal(t, "admin", claims["identity"])
+	assert.Equal(t, testAdmin, claims["identity"])
 
 	time.Sleep(2 * time.Second)
 
@@ -1447,7 +1447,7 @@ func TestSetCookie(t *testing.T) {
 		TimeFunc:       time.Now,
 	})
 
-	token := makeTokenString("HS384", "admin")
+	token := makeTokenString("HS384", testAdmin)
 
 	mw.SetCookie(c, token)
 
@@ -1470,7 +1470,7 @@ func TestTokenGenerator(t *testing.T) {
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
 		Authenticator: func(c *gin.Context) (any, error) {
-			return "admin", nil
+			return testAdmin, nil
 		},
 		PayloadFunc: func(data any) jwt.MapClaims {
 			return jwt.MapClaims{
@@ -1490,7 +1490,7 @@ func TestTokenGenerator(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	userData := "admin"
+	userData := testAdmin
 	ctx := context.Background()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
 
@@ -1520,7 +1520,7 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
 		Authenticator: func(c *gin.Context) (any, error) {
-			return "admin", nil
+			return testAdmin, nil
 		},
 		PayloadFunc: func(data any) jwt.MapClaims {
 			return jwt.MapClaims{
@@ -1531,7 +1531,7 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	userData := "admin"
+	userData := testAdmin
 	ctx := context.Background()
 
 	// Generate first token pair
@@ -1590,13 +1590,13 @@ func TestTokenStruct(t *testing.T) {
 		Timeout:    time.Hour,
 		MaxRefresh: time.Hour * 24,
 		Authenticator: func(c *gin.Context) (any, error) {
-			return "admin", nil
+			return testAdmin, nil
 		},
 	})
 
 	assert.NoError(t, err)
 
-	userData := "admin"
+	userData := testAdmin
 	ctx := context.Background()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
 	assert.NoError(t, err)
@@ -1668,7 +1668,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 				// Create an expired token
 				token := jwt.New(jwt.GetSigningMethod("HS256"))
 				claims := token.Claims.(jwt.MapClaims)
-				claims["identity"] = "admin"
+				claims["identity"] = testAdmin
 				claims["exp"] = time.Now().Add(-time.Hour).Unix() // Expired 1 hour ago
 				claims["orig_iat"] = time.Now().Add(-2 * time.Hour).Unix()
 				tokenString, _ := token.SignedString(key)
@@ -1784,8 +1784,8 @@ func TestWWWAuthenticateHeaderNotSetOnSuccess(t *testing.T) {
 	// Test successful login - WWW-Authenticate should not be set
 	r.POST("/login").
 		SetJSON(gofight.D{
-			"username": "admin",
-			"password": "admin",
+			"username": testAdmin,
+			"password": testAdmin,
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
@@ -1793,7 +1793,7 @@ func TestWWWAuthenticateHeaderNotSetOnSuccess(t *testing.T) {
 		})
 
 	// Get a valid token for authenticated request
-	token := makeTokenString("HS256", "admin")
+	token := makeTokenString("HS256", testAdmin)
 
 	// Test successful authenticated request - WWW-Authenticate should not be set
 	r.GET("/auth/hello").
