@@ -42,7 +42,7 @@ var (
 	}
 )
 
-func makeTokenString(SigningAlgorithm string, username string) string {
+func makeTokenString(SigningAlgorithm, username string) string {
 	if SigningAlgorithm == "" {
 		SigningAlgorithm = "HS256"
 	}

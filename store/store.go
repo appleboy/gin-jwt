@@ -6,8 +6,10 @@ import (
 )
 
 // Re-export types from core for backward compatibility
-type RefreshTokenStorer = core.TokenStore
-type RefreshTokenData = core.RefreshTokenData
+type (
+	RefreshTokenStorer = core.TokenStore
+	RefreshTokenData   = core.RefreshTokenData
+)
 
 // Re-export errors from core for backward compatibility
 var (
