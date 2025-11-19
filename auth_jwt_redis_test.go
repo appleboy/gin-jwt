@@ -360,7 +360,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 		context.Background(),
 		"POST",
 		"/login",
-		strings.NewReader(`{"username":"` + testAdmin + `","password":"` + testAdmin + `"}`),
+		strings.NewReader(`{"username":"`+testAdmin+`","password":"`+testAdmin+`"}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
@@ -418,7 +418,7 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 		context.Background(),
 		"POST",
 		"/login",
-		strings.NewReader(`{"username":"` + testAdmin + `","password":"` + testAdmin + `"}`),
+		strings.NewReader(`{"username":"`+testAdmin+`","password":"`+testAdmin+`"}`),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
