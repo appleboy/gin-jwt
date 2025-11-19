@@ -1725,7 +1725,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 				assert.Equal(
 					t,
 					tc.expectedHeader,
-					r.HeaderMap.Get("WWW-Authenticate"),
+					r.HeaderMap.Get("WWW-Authenticate"), //nolint:staticcheck
 				)
 			})
 		})
@@ -1844,7 +1844,7 @@ func TestWWWAuthenticateHeaderWithDifferentRealms(t *testing.T) {
 					assert.Equal(
 						t,
 						fmt.Sprintf(`JWT realm="%s"`, expectedRealm),
-						r.HeaderMap.Get("WWW-Authenticate"),
+						r.HeaderMap.Get("WWW-Authenticate"), //nolint:staticcheck
 					)
 				})
 		})
