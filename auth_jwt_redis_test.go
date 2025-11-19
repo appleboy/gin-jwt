@@ -356,7 +356,8 @@ func testPayloadFunc(data any) gojwt.MapClaims {
 func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 	// Test login
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(
+	req, _ := http.NewRequestWithContext(
+		context.Background(),
 		"POST",
 		"/login",
 		strings.NewReader(`{"username":"admin","password":"admin"}`),
@@ -378,7 +379,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 
 	// Test protected endpoint with access token
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest("GET", "/auth/hello", nil)
+	req, _ = http.NewRequestWithContext(context.Background(), "GET", "/auth/hello", nil)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	r.ServeHTTP(w, req)
 
@@ -386,7 +387,8 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 
 	// Test refresh token
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequest(
+	req, _ = http.NewRequestWithContext(
+		context.Background(),
 		"POST",
 		"/refresh",
 		strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)),
@@ -412,7 +414,8 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 	// Login and get refresh token
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(
+	req, _ := http.NewRequestWithContext(
+		context.Background(),
 		"POST",
 		"/login",
 		strings.NewReader(`{"username":"admin","password":"admin"}`),
@@ -431,7 +434,8 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 		time.Sleep(10 * time.Millisecond) // Small delay to simulate real usage
 
 		w = httptest.NewRecorder()
-		req, _ = http.NewRequest(
+		req, _ = http.NewRequestWithContext(
+			context.Background(),
 			"POST",
 			"/refresh",
 			strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)),

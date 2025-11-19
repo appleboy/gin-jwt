@@ -1720,7 +1720,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 					t,
 					tc.expectedHeader,
 					r.HeaderMap.Get("WWW-Authenticate"),
-				) //nolint:staticcheck
+				)
 			})
 		})
 	}
@@ -1839,7 +1839,7 @@ func TestWWWAuthenticateHeaderWithDifferentRealms(t *testing.T) {
 						t,
 						fmt.Sprintf(`JWT realm="%s"`, expectedRealm),
 						r.HeaderMap.Get("WWW-Authenticate"),
-					) //nolint:staticcheck
+					)
 				})
 		})
 	}
