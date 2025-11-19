@@ -27,6 +27,14 @@ type Login struct {
 	Password string `form:"password" json:"password" binding:"required"`
 }
 
+const (
+	testAdmin      = "admin"
+	testJWT        = "jwt"
+	testUser       = "test"
+	testPassword   = testAdmin
+	testUserPasswd = testUser
+)
+
 var (
 	key                  = []byte("secret key")
 	defaultAuthenticator = func(c *gin.Context) (any, error) {
@@ -34,7 +42,7 @@ var (
 		userID := loginVals.Username
 		password := loginVals.Password
 
-		if userID == "admin" && password == "admin" {
+		if userID == testAdmin && password == testPassword {
 			return userID, nil
 		}
 
@@ -42,18 +50,18 @@ var (
 	}
 )
 
-func makeTokenString(SigningAlgorithm, username string) string {
-	if SigningAlgorithm == "" {
-		SigningAlgorithm = "HS256"
+func makeTokenString(signingAlgorithm, username string) string {
+	if signingAlgorithm == "" {
+		signingAlgorithm = "HS256"
 	}
 
-	token := jwt.New(jwt.GetSigningMethod(SigningAlgorithm))
+	token := jwt.New(jwt.GetSigningMethod(signingAlgorithm))
 	claims := token.Claims.(jwt.MapClaims)
 	claims["identity"] = username
 	claims["exp"] = time.Now().Add(time.Hour).Unix()
 	claims["orig_iat"] = time.Now().Unix()
 	var tokenString string
-	if SigningAlgorithm == "RS256" {
+	if signingAlgorithm == "RS256" {
 		keyData, _ := os.ReadFile("testdata/jwtRS256.key")
 		signKey, _ := jwt.ParseRSAPrivateKeyFromPEM(keyData)
 		tokenString, _ = token.SignedString(signKey)
@@ -253,7 +261,7 @@ func TestMissingAuthenticatorForLoginHandler(t *testing.T) {
 
 func TestLoginHandler(t *testing.T) {
 	// the middleware to test
-	cookieName := "jwt"
+	cookieName := testJWT
 	cookieDomain := "example.com"
 	authMiddleware, err := New(&GinJWTMiddleware{
 		Realm: "test zone",
@@ -269,7 +277,7 @@ func TestLoginHandler(t *testing.T) {
 			}
 			userID := loginVals.Username
 			password := loginVals.Password
-			if userID == "admin" && password == "admin" {
+			if userID == testAdmin && password == testPassword {
 				return userID, nil
 			}
 			return "", ErrFailedAuthentication
@@ -278,7 +286,7 @@ func TestLoginHandler(t *testing.T) {
 			return true
 		},
 		LoginResponse: func(c *gin.Context, token *core.Token) {
-			cookie, err := c.Cookie("jwt")
+			cookie, err := c.Cookie(testJWT)
 			if err != nil {
 				log.Println(err)
 			}
@@ -510,10 +518,10 @@ func TestRefreshHandlerRS256(t *testing.T) {
 		PrivKeyFile:      "testdata/jwtRS256.key",
 		PubKeyFile:       "testdata/jwtRS256.key.pub",
 		SendCookie:       true,
-		CookieName:       "jwt",
+		CookieName:       testJWT,
 		Authenticator:    defaultAuthenticator,
 		RefreshResponse: func(c *gin.Context, token *core.Token) {
-			cookie, err := c.Cookie("jwt")
+			cookie, err := c.Cookie(testJWT)
 			if err != nil {
 				log.Println(err)
 			}
@@ -756,9 +764,9 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 
 			var testkey string
 			switch data.(string) {
-			case "admin":
+			case testAdmin:
 				testkey = "1234"
-			case "test":
+			case testUser:
 				testkey = "5678"
 			case "Guest":
 				testkey = ""
@@ -783,11 +791,11 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 			userID := loginVals.Username
 			password := loginVals.Password
 
-			if userID == "admin" && password == "admin" {
+			if userID == testAdmin && password == testPassword {
 				return userID, nil
 			}
 
-			if userID == "test" && password == "test" {
+			if userID == testUser && password == testUserPasswd {
 				return userID, nil
 			}
 
@@ -882,11 +890,11 @@ func TestEmptyClaims(t *testing.T) {
 			userID := loginVals.Username
 			password := loginVals.Password
 
-			if userID == "admin" && password == "admin" {
+			if userID == testAdmin && password == testPassword {
 				return "", nil
 			}
 
-			if userID == "test" && password == "test" {
+			if userID == testUser && password == testUserPasswd {
 				return "Administrator", nil
 			}
 
@@ -1392,7 +1400,7 @@ func TestCheckTokenString(t *testing.T) {
 }
 
 func TestLogout(t *testing.T) {
-	cookieName := "jwt"
+	cookieName := testJWT
 	cookieDomain := "example.com"
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
@@ -1431,14 +1439,12 @@ func TestSetCookie(t *testing.T) {
 		Timeout:        time.Hour,
 		Authenticator:  defaultAuthenticator,
 		SendCookie:     true,
-		CookieName:     "jwt",
+		CookieName:     testJWT,
 		CookieMaxAge:   time.Hour,
 		CookieDomain:   "example.com",
 		SecureCookie:   false,
 		CookieHTTPOnly: true,
-		TimeFunc: func() time.Time {
-			return time.Now()
-		},
+		TimeFunc:       time.Now,
 	})
 
 	token := makeTokenString("HS384", "admin")
@@ -1450,7 +1456,7 @@ func TestSetCookie(t *testing.T) {
 	assert.Len(t, cookies, 1)
 
 	cookie := cookies[0]
-	assert.Equal(t, "jwt", cookie.Name)
+	assert.Equal(t, testJWT, cookie.Name)
 	assert.Equal(t, token, cookie.Value)
 	assert.Equal(t, "/", cookie.Path)
 	assert.Equal(t, "example.com", cookie.Domain)
