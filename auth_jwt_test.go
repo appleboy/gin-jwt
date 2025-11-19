@@ -695,7 +695,7 @@ func TestAuthorizer(t *testing.T) {
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
 		Authorizer: func(c *gin.Context, data any) bool {
-			return data.(string) == "admin"
+			return data.(string) == testAdmin
 		},
 	})
 
@@ -808,11 +808,11 @@ func TestClaimsDuringAuthorization(t *testing.T) {
 				return true
 			}
 
-			if jwtClaims["testkey"] == "1234" && jwtClaims["identity"] == "admin" {
+			if jwtClaims["testkey"] == "1234" && jwtClaims["identity"] == testAdmin {
 				return true
 			}
 
-			if jwtClaims["testkey"] == "5678" && jwtClaims["identity"] == "test" {
+			if jwtClaims["testkey"] == "5678" && jwtClaims["identity"] == testUser {
 				return true
 			}
 
@@ -1170,7 +1170,7 @@ func TestSendAuthorizationBool(t *testing.T) {
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
 		Authorizer: func(c *gin.Context, data any) bool {
-			return data.(string) == "admin"
+			return data.(string) == testAdmin
 		},
 	})
 
@@ -1208,7 +1208,7 @@ func TestExpiredTokenOnAuth(t *testing.T) {
 		Authenticator:     defaultAuthenticator,
 		SendAuthorization: true,
 		Authorizer: func(c *gin.Context, data any) bool {
-			return data.(string) == "admin"
+			return data.(string) == testAdmin
 		},
 		TimeFunc: func() time.Time {
 			return time.Now().AddDate(0, 0, 1)
@@ -1478,7 +1478,7 @@ func TestTokenGenerator(t *testing.T) {
 			}
 		},
 		Authorizer: func(c *gin.Context, data any) bool {
-			return data == "admin"
+			return data == testAdmin
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.JSON(code, gin.H{
@@ -1769,7 +1769,7 @@ func TestWWWAuthenticateHeaderNotSetOnSuccess(t *testing.T) {
 				return "", ErrMissingLoginValues
 			}
 
-			if loginVals.Username == "admin" && loginVals.Password == "admin" {
+			if loginVals.Username == testAdmin && loginVals.Password == testPassword {
 				return loginVals.Username, nil
 			}
 

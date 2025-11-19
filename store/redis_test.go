@@ -131,7 +131,7 @@ func testBasicOperations(t *testing.T, store *RedisRefreshTokenStore) {
 
 func testExpiration(t *testing.T, store *RedisRefreshTokenStore) {
 	ctx := context.Background()
-	token := "test-token-expiry"
+	token := "test-token-expiry" // #nosec G101 -- This is a test token identifier, not a credential
 	userData := "test-data"
 
 	// Set token with very short expiry
