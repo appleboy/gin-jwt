@@ -18,7 +18,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/redis"
 )
 
-func setupRedisContainerForJWT(t *testing.T) (*redis.RedisContainer, string, string) {
+func setupRedisContainerForJWT(t *testing.T) (string, string) {
 	ctx := context.Background()
 	t.Helper()
 
@@ -39,16 +39,16 @@ func setupRedisContainerForJWT(t *testing.T) (*redis.RedisContainer, string, str
 		}
 	})
 
-	return redisContainer, host, mappedPort.Port()
+	return host, mappedPort.Port()
 }
 
 func TestGinJWTMiddleware_RedisStore_Integration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	_, host, port := setupRedisContainerForJWT(t)
+	host, port := setupRedisContainerForJWT(t)
 
 	// Create middleware with Redis store
-	middleware := createTestMiddleware(t, fmt.Sprintf("%s:%s", host, port))
+	middleware := createTestMiddleware(fmt.Sprintf("%s:%s", host, port))
 
 	// Initialize middleware
 	err := middleware.MiddlewareInit()
@@ -116,7 +116,7 @@ func TestGinJWTMiddleware_RedisStoreFallback(t *testing.T) {
 func TestGinJWTMiddleware_FunctionalOptions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	_, host, port := setupRedisContainerForJWT(t)
+	host, port := setupRedisContainerForJWT(t)
 
 	redisAddr := fmt.Sprintf("%s:%s", host, port)
 
@@ -300,7 +300,7 @@ func TestGinJWTMiddleware_FunctionalOptions(t *testing.T) {
 	})
 }
 
-func createTestMiddleware(t *testing.T, redisAddr string) *GinJWTMiddleware {
+func createTestMiddleware(redisAddr string) *GinJWTMiddleware {
 	middleware := &GinJWTMiddleware{
 		Realm:         "test zone",
 		Key:           []byte("secret key"),

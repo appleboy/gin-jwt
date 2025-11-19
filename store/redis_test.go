@@ -13,7 +13,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/redis"
 )
 
-func setupRedisContainer(t *testing.T) (*redis.RedisContainer, string, string) {
+func setupRedisContainer(t *testing.T) (string, string) {
 	ctx := context.Background()
 
 	// Start Redis container
@@ -35,11 +35,11 @@ func setupRedisContainer(t *testing.T) (*redis.RedisContainer, string, string) {
 		}
 	})
 
-	return redisContainer, host, mappedPort.Port()
+	return host, mappedPort.Port()
 }
 
 func TestRedisRefreshTokenStore_Integration(t *testing.T) {
-	_, host, port := setupRedisContainer(t)
+	host, port := setupRedisContainer(t)
 
 	// Create Redis store configuration
 	config := &RedisConfig{
@@ -273,7 +273,7 @@ func TestRedisRefreshTokenStore_ConnectionFailure(t *testing.T) {
 }
 
 func TestRedisRefreshTokenStore_InvalidToken(t *testing.T) {
-	_, host, port := setupRedisContainer(t)
+	host, port := setupRedisContainer(t)
 
 	config := &RedisConfig{
 		Addr:      fmt.Sprintf("%s:%s", host, port),
