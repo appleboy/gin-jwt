@@ -10,7 +10,7 @@
 [![codecov](https://codecov.io/gh/appleboy/gin-jwt/branch/master/graph/badge.svg)](https://codecov.io/gh/appleboy/gin-jwt)
 [![Sourcegraph](https://sourcegraph.com/github.com/appleboy/gin-jwt/-/badge.svg)](https://sourcegraph.com/github.com/appleboy/gin-jwt?badge)
 
-一個強大且靈活的 [Gin](https://github.com/gin-gonic/gin) Web 框架的 JWT 驗證中介軟體，基於 [jwt-go](https://github.com/golang-jwt/jwt) 實作。  
+一個強大且靈活的 [Gin](https://github.com/gin-gonic/gin) Web 框架的 JWT 驗證中介軟體，基於 [golang-jwt/jwt](https://github.com/golang-jwt/jwt) 實作。
 輕鬆為你的 Gin 應用程式加入登入、Token 更新與授權功能。
 
 ---
@@ -27,6 +27,7 @@
     - [💡 安全配置範例](#-安全配置範例)
   - [安裝](#安裝)
   - [快速開始範例](#快速開始範例)
+  - [配置](#配置)
   - [Token 產生器（直接建立 Token）](#token-產生器直接建立-token)
     - [基本用法](#基本用法)
     - [Token 結構](#token-結構)
@@ -141,6 +142,12 @@ authMiddleware := &jwt.GinJWTMiddleware{
 
 ## 安裝
 
+需要 Go 1.24+
+
+```bash
+go get -u github.com/appleboy/gin-jwt/v3
+```
+
 ```go
 import "github.com/appleboy/gin-jwt/v3"
 ```
@@ -152,8 +159,236 @@ import "github.com/appleboy/gin-jwt/v3"
 請參考 [`_example/basic/server.go`](./_example/basic/server.go) 範例檔案，並可使用 `ExtractClaims` 取得 JWT 內的使用者資料。
 
 ```go
-// ...（完整範例請見 _example/basic/server.go）
+package main
+
+import (
+  "log"
+  "net/http"
+  "os"
+  "time"
+
+  jwt "github.com/appleboy/gin-jwt/v3"
+  "github.com/gin-gonic/gin"
+  "github.com/golang-jwt/jwt/v5"
+)
+
+type login struct {
+  Username string `form:"username" json:"username" binding:"required"`
+  Password string `form:"password" json:"password" binding:"required"`
+}
+
+var (
+  identityKey = "id"
+  port        string
+)
+
+// User demo
+type User struct {
+  UserName  string
+  FirstName string
+  LastName  string
+}
+
+func init() {
+  port = os.Getenv("PORT")
+  if port == "" {
+    port = "8000"
+  }
+}
+
+func main() {
+  engine := gin.Default()
+  // the jwt middleware
+  authMiddleware, err := jwt.New(initParams())
+  if err != nil {
+    log.Fatal("JWT Error:" + err.Error())
+  }
+
+  // initialize middleware
+  errInit := authMiddleware.MiddlewareInit()
+  if errInit != nil {
+    log.Fatal("authMiddleware.MiddlewareInit() Error:" + errInit.Error())
+  }
+
+  // register route
+  registerRoute(engine, authMiddleware)
+
+  // start http server
+  if err = http.ListenAndServe(":"+port, engine); err != nil {
+    log.Fatal(err)
+  }
+}
+
+func registerRoute(r *gin.Engine, handle *jwt.GinJWTMiddleware) {
+  // Public routes
+  r.POST("/login", handle.LoginHandler)
+  r.POST("/refresh", handle.RefreshHandler) // RFC 6749 compliant refresh endpoint
+
+  r.NoRoute(handle.MiddlewareFunc(), handleNoRoute())
+
+  // Protected routes
+  auth := r.Group("/auth", handle.MiddlewareFunc())
+  auth.GET("/hello", helloHandler)
+  auth.POST("/logout", handle.LogoutHandler) // Logout with refresh token revocation
+}
+
+func initParams() *jwt.GinJWTMiddleware {
+  return &jwt.GinJWTMiddleware{
+    Realm:       "test zone",
+    Key:         []byte("secret key"),
+    Timeout:     time.Hour,
+    MaxRefresh:  time.Hour,
+    IdentityKey: identityKey,
+    PayloadFunc: payloadFunc(),
+
+    IdentityHandler: identityHandler(),
+    Authenticator:   authenticator(),
+    Authorizer:      authorizer(),
+    Unauthorized:    unauthorized(),
+    LogoutResponse:  logoutResponse(),
+    TokenLookup:     "header: Authorization, query: token, cookie: jwt",
+    // TokenLookup: "query:token",
+    // TokenLookup: "cookie:token",
+    TokenHeadName: "Bearer",
+    TimeFunc:      time.Now,
+  }
+}
+
+func payloadFunc() func(data any) jwt.MapClaims {
+  return func(data any) jwt.MapClaims {
+    if v, ok := data.(*User); ok {
+      return jwt.MapClaims{
+        identityKey: v.UserName,
+      }
+    }
+    return jwt.MapClaims{}
+  }
+}
+
+func identityHandler() func(c *gin.Context) any {
+  return func(c *gin.Context) any {
+    claims := jwt.ExtractClaims(c)
+    return &User{
+      UserName: claims[identityKey].(string),
+    }
+  }
+}
+
+func authenticator() func(c *gin.Context) (any, error) {
+  return func(c *gin.Context) (any, error) {
+    var loginVals login
+    if err := c.ShouldBind(&loginVals); err != nil {
+      return "", jwt.ErrMissingLoginValues
+    }
+    userID := loginVals.Username
+    password := loginVals.Password
+
+    if (userID == "admin" && password == "admin") || (userID == "test" && password == "test") {
+      return &User{
+        UserName:  userID,
+        LastName:  "Bo-Yi",
+        FirstName: "Wu",
+      }, nil
+    }
+    return nil, jwt.ErrFailedAuthentication
+  }
+}
+
+func authorizer() func(c *gin.Context, data any) bool {
+  return func(c *gin.Context, data any) bool {
+    if v, ok := data.(*User); ok && v.UserName == "admin" {
+      return true
+    }
+    return false
+  }
+}
+
+func unauthorized() func(c *gin.Context, code int, message string) {
+  return func(c *gin.Context, code int, message string) {
+    c.JSON(code, gin.H{
+      "code":    code,
+      "message": message,
+    })
+  }
+}
+
+func logoutResponse() func(c *gin.Context) {
+  return func(c *gin.Context) {
+    // This demonstrates that claims are now accessible during logout
+    claims := jwt.ExtractClaims(c)
+    user, exists := c.Get(identityKey)
+
+    response := gin.H{
+      "code":    http.StatusOK,
+      "message": "Successfully logged out",
+    }
+
+    // Show that we can access user information during logout
+    if len(claims) > 0 {
+      response["logged_out_user"] = claims[identityKey]
+    }
+    if exists {
+      response["user_info"] = user.(*User).UserName
+    }
+
+    c.JSON(http.StatusOK, response)
+  }
+}
+
+func handleNoRoute() func(c *gin.Context) {
+  return func(c *gin.Context) {
+    c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", "message": "Page not found"})
+  }
+}
+
+func helloHandler(c *gin.Context) {
+  claims := jwt.ExtractClaims(c)
+  user, _ := c.Get(identityKey)
+  c.JSON(200, gin.H{
+    "userID":   claims[identityKey],
+    "userName": user.(*User).UserName,
+    "text":     "Hello World.",
+  })
+}
 ```
+
+---
+
+## 配置
+
+`GinJWTMiddleware` 結構體提供以下配置選項：
+
+| 選項 | 類型 | 必填 | 預設值 | 描述 |
+|---|---|---|---|---|
+| Realm | `string` | 否 | `"gin jwt"` | 顯示給使用者的 Realm 名稱。 |
+| SigningAlgorithm | `string` | 否 | `"HS256"` | 簽名演算法 (HS256, HS384, HS512, RS256, RS384, RS512)。 |
+| Key | `[]byte` | 是 | - | 用於簽名的密鑰。 |
+| Timeout | `time.Duration` | 否 | `time.Hour` | JWT Token 的有效期。 |
+| MaxRefresh | `time.Duration` | 否 | `0` | 刷新 Token 的有效期。 |
+| Authenticator | `func(c *gin.Context) (any, error)` | 是 | - | 驗證使用者的回呼函數。回傳使用者資料。 |
+| Authorizer | `func(c *gin.Context, data any) bool` | 否 | `true` | 授權已驗證使用者的回呼函數。 |
+| PayloadFunc | `func(data any) jwt.MapClaims` | 否 | - | 向 Token 新增額外 Payload 資料的回呼函數。 |
+| Unauthorized | `func(c *gin.Context, code int, message string)` | 否 | - | 處理未授權請求的回呼函數。 |
+| LoginResponse | `func(c *gin.Context, token *core.Token)` | 否 | - | 處理成功登入回應的回呼函數。 |
+| LogoutResponse | `func(c *gin.Context)` | 否 | - | 處理成功登出回應的回呼函數。 |
+| RefreshResponse | `func(c *gin.Context, token *core.Token)` | 否 | - | 處理成功刷新回應的回呼函數。 |
+| IdentityHandler | `func(*gin.Context) any` | 否 | - | 從 Claims 檢索身分的回呼函數。 |
+| IdentityKey | `string` | 否 | `"identity"` | 用於在 Claims 中儲存身分的鍵。 |
+| TokenLookup | `string` | 否 | `"header:Authorization"` | 提取 Token 的來源（header, query, cookie）。 |
+| TokenHeadName | `string` | 否 | `"Bearer"` | Header 名稱前綴。 |
+| TimeFunc | `func() time.Time` | 否 | `time.Now` | 提供當前時間的函數。 |
+| PrivKeyFile | `string` | 否 | - | 私鑰檔案路徑（用於 RS 演算法）。 |
+| PubKeyFile | `string` | 否 | - | 公鑰檔案路徑（用於 RS 演算法）。 |
+| SendCookie | `bool` | 否 | `false` | 是否將 Token 作為 Cookie 發送。 |
+| CookieMaxAge | `time.Duration` | 否 | `Timeout` | Cookie 的有效期。 |
+| SecureCookie | `bool` | 否 | `false` | 是否使用安全 Cookie（僅限 HTTPS）。 |
+| CookieHTTPOnly | `bool` | 否 | `false` | 是否使用 HTTPOnly Cookie。 |
+| CookieDomain | `string` | 否 | - | Cookie 的網域。 |
+| CookieName | `string` | 否 | `"jwt"` | Cookie 的名稱。 |
+| CookieSameSite | `http.SameSite` | 否 | - | Cookie 的 SameSite 屬性。 |
+| SendAuthorization | `bool` | 否 | `false` | 是否為每個請求回傳授權 Header。 |
+| DisabledAbort | `bool` | 否 | `false` | 禁用 context 的 abort()。 |
+| ParseOptions | `[]jwt.ParserOption` | 否 | - | 解析 JWT 的選項。 |
 
 ---
 

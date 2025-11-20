@@ -10,7 +10,7 @@
 [![codecov](https://codecov.io/gh/appleboy/gin-jwt/branch/master/graph/badge.svg)](https://codecov.io/gh/appleboy/gin-jwt)
 [![Sourcegraph](https://sourcegraph.com/github.com/appleboy/gin-jwt/-/badge.svg)](https://sourcegraph.com/github.com/appleboy/gin-jwt?badge)
 
-A powerful and flexible JWT authentication middleware for the [Gin](https://github.com/gin-gonic/gin) web framework, built on top of [jwt-go](https://github.com/golang-jwt/jwt).
+A powerful and flexible JWT authentication middleware for the [Gin](https://github.com/gin-gonic/gin) web framework, built on top of [golang-jwt/jwt](https://github.com/golang-jwt/jwt).
 Easily add login, token refresh, and authorization to your Gin applications.
 
 ---
@@ -27,6 +27,7 @@ Easily add login, token refresh, and authorization to your Gin applications.
     - [💡 Secure Configuration Example](#-secure-configuration-example)
   - [Installation](#installation)
   - [Quick Start Example](#quick-start-example)
+  - [Configuration](#configuration)
   - [Token Generator (Direct Token Creation)](#token-generator-direct-token-creation)
     - [Basic Usage](#basic-usage)
     - [Token Structure](#token-structure)
@@ -139,6 +140,12 @@ authMiddleware := &jwt.GinJWTMiddleware{
 
 ## Installation
 
+Requires Go 1.24+
+
+```bash
+go get -u github.com/appleboy/gin-jwt/v3
+```
+
 ```go
 import "github.com/appleboy/gin-jwt/v3"
 ```
@@ -215,15 +222,15 @@ func registerRoute(r *gin.Engine, handle *jwt.GinJWTMiddleware) {
   r.POST("/login", handle.LoginHandler)
   r.POST("/refresh", handle.RefreshHandler) // RFC 6749 compliant refresh endpoint
 
+  r.NoRoute(handle.MiddlewareFunc(), handleNoRoute())
+
   // Protected routes
   auth := r.Group("/auth", handle.MiddlewareFunc())
   auth.GET("/hello", helloHandler)
   auth.POST("/logout", handle.LogoutHandler) // Logout with refresh token revocation
 }
 
-
 func initParams() *jwt.GinJWTMiddleware {
-
   return &jwt.GinJWTMiddleware{
     Realm:       "test zone",
     Key:         []byte("secret key"),
@@ -234,8 +241,9 @@ func initParams() *jwt.GinJWTMiddleware {
 
     IdentityHandler: identityHandler(),
     Authenticator:   authenticator(),
-    Authorizer:    authorizator(),
+    Authorizer:      authorizer(),
     Unauthorized:    unauthorized(),
+    LogoutResponse:  logoutResponse(),
     TokenLookup:     "header: Authorization, query: token, cookie: jwt",
     // TokenLookup: "query:token",
     // TokenLookup: "cookie:token",
@@ -284,8 +292,8 @@ func authenticator() func(c *gin.Context) (any, error) {
   }
 }
 
-func authorizator() func(data any, c *gin.Context) bool {
-  return func(data any, c *gin.Context) bool {
+func authorizer() func(c *gin.Context, data any) bool {
+  return func(c *gin.Context, data any) bool {
     if v, ok := data.(*User); ok && v.UserName == "admin" {
       return true
     }
@@ -299,6 +307,29 @@ func unauthorized() func(c *gin.Context, code int, message string) {
       "code":    code,
       "message": message,
     })
+  }
+}
+
+func logoutResponse() func(c *gin.Context) {
+  return func(c *gin.Context) {
+    // This demonstrates that claims are now accessible during logout
+    claims := jwt.ExtractClaims(c)
+    user, exists := c.Get(identityKey)
+
+    response := gin.H{
+      "code":    http.StatusOK,
+      "message": "Successfully logged out",
+    }
+
+    // Show that we can access user information during logout
+    if len(claims) > 0 {
+      response["logged_out_user"] = claims[identityKey]
+    }
+    if exists {
+      response["user_info"] = user.(*User).UserName
+    }
+
+    c.JSON(http.StatusOK, response)
   }
 }
 
@@ -319,6 +350,44 @@ func helloHandler(c *gin.Context) {
 }
 
 ```
+
+---
+
+## Configuration
+
+The `GinJWTMiddleware` struct provides the following configuration options:
+
+| Option | Type | Required | Default | Description |
+|---|---|---|---|---|
+| Realm | `string` | No | `"gin jwt"` | Realm name to display to the user. |
+| SigningAlgorithm | `string` | No | `"HS256"` | Signing algorithm (HS256, HS384, HS512, RS256, RS384, RS512). |
+| Key | `[]byte` | Yes | - | Secret key used for signing. |
+| Timeout | `time.Duration` | No | `time.Hour` | Duration that a jwt token is valid. |
+| MaxRefresh | `time.Duration` | No | `0` | Duration that a refresh token is valid. |
+| Authenticator | `func(c *gin.Context) (any, error)` | Yes | - | Callback to authenticate the user. Returns user data. |
+| Authorizer | `func(c *gin.Context, data any) bool` | No | `true` | Callback to authorize the authenticated user. |
+| PayloadFunc | `func(data any) jwt.MapClaims` | No | - | Callback to add additional payload data to the token. |
+| Unauthorized | `func(c *gin.Context, code int, message string)` | No | - | Callback for unauthorized requests. |
+| LoginResponse | `func(c *gin.Context, token *core.Token)` | No | - | Callback for successful login response. |
+| LogoutResponse | `func(c *gin.Context)` | No | - | Callback for successful logout response. |
+| RefreshResponse | `func(c *gin.Context, token *core.Token)` | No | - | Callback for successful refresh response. |
+| IdentityHandler | `func(*gin.Context) any` | No | - | Callback to retrieve identity from claims. |
+| IdentityKey | `string` | No | `"identity"` | Key used to store identity in claims. |
+| TokenLookup | `string` | No | `"header:Authorization"` | Source to extract token from (header, query, cookie). |
+| TokenHeadName | `string` | No | `"Bearer"` | Header name prefix. |
+| TimeFunc | `func() time.Time` | No | `time.Now` | Function to provide current time. |
+| PrivKeyFile | `string` | No | - | Path to private key file (for RS algorithms). |
+| PubKeyFile | `string` | No | - | Path to public key file (for RS algorithms). |
+| SendCookie | `bool` | No | `false` | Whether to send token as a cookie. |
+| CookieMaxAge | `time.Duration` | No | `Timeout` | Duration that the cookie is valid. |
+| SecureCookie | `bool` | No | `false` | Whether to use secure cookies (HTTPS only). |
+| CookieHTTPOnly | `bool` | No | `false` | Whether to use HTTPOnly cookies. |
+| CookieDomain | `string` | No | - | Domain for the cookie. |
+| CookieName | `string` | No | `"jwt"` | Name of the cookie. |
+| CookieSameSite | `http.SameSite` | No | - | SameSite attribute for the cookie. |
+| SendAuthorization | `bool` | No | `false` | Whether to return authorization header for every request. |
+| DisabledAbort | `bool` | No | `false` | Disable abort() of context. |
+| ParseOptions | `[]jwt.ParserOption` | No | - | Options for parsing the JWT. |
 
 ---
 
