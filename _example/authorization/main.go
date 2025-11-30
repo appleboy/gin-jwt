@@ -17,6 +17,8 @@ type login struct {
 	Password string `form:"password" json:"password" binding:"required"`
 }
 
+const roleAdmin = "admin"
+
 var (
 	identityKey = "id"
 	roleKey     = "role"
@@ -59,8 +61,13 @@ func main() {
 	log.Println("  user/user   (role: user)")
 	log.Println("  guest/guest (role: guest)")
 
-	// Start server
-	if err = http.ListenAndServe(":"+port, engine); err != nil {
+	// Start server with proper timeouts
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           engine,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	if err = srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -205,18 +212,18 @@ func authorizator() func(c *gin.Context, data any) bool {
 			user.UserName, user.Role, path, method)
 
 		// Admin has access to everything
-		if user.Role == "admin" {
+		if user.Role == roleAdmin {
 			return true
 		}
 
 		// Admin routes - only admin allowed (already handled above, but explicit for clarity)
 		if strings.HasPrefix(path, "/admin/") {
-			return user.Role == "admin"
+			return user.Role == roleAdmin
 		}
 
 		// User routes - user and admin roles allowed
 		if strings.HasPrefix(path, "/user/") {
-			return user.Role == "user" || user.Role == "admin"
+			return user.Role == "user" || user.Role == roleAdmin
 		}
 
 		// Auth routes with specific rules
@@ -227,7 +234,7 @@ func authorizator() func(c *gin.Context, data any) bool {
 				return true
 			case "/auth/profile":
 				// Only user and admin roles
-				return user.Role == "user" || user.Role == "admin"
+				return user.Role == "user" || user.Role == roleAdmin
 			}
 		}
 

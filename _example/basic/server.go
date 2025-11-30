@@ -16,6 +16,8 @@ type login struct {
 	Password string `form:"password" json:"password" binding:"required"`
 }
 
+const userAdmin = "admin"
+
 var (
 	identityKey = "id"
 	port        string
@@ -52,8 +54,13 @@ func main() {
 	// register route
 	registerRoute(engine, authMiddleware)
 
-	// start http server
-	if err = http.ListenAndServe(":"+port, engine); err != nil {
+	// start http server with proper timeouts
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           engine,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	if err = srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -122,7 +129,8 @@ func authenticator() func(c *gin.Context) (any, error) {
 		userID := loginVals.Username
 		password := loginVals.Password
 
-		if (userID == "admin" && password == "admin") || (userID == "test" && password == "test") {
+		if (userID == userAdmin && password == userAdmin) ||
+			(userID == "test" && password == "test") {
 			return &User{
 				UserName:  userID,
 				LastName:  "Bo-Yi",

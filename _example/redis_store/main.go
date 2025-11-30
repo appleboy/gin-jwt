@@ -17,6 +17,8 @@ type User struct {
 	LastName  string `json:"lastname"`
 }
 
+const userAdmin = "admin"
+
 var identityKey = "id"
 
 func main() {
@@ -51,7 +53,7 @@ func main() {
 			userID := loginVals.UserName
 			password := loginVals.Password
 
-			if (userID == "admin" && password == "admin") ||
+			if (userID == userAdmin && password == userAdmin) ||
 				(userID == "test" && password == "test") {
 				return &User{
 					UserName:  userID,
@@ -63,7 +65,7 @@ func main() {
 			return nil, jwt.ErrFailedAuthentication
 		},
 		Authorizer: func(c *gin.Context, data any) bool {
-			if v, ok := data.(*User); ok && v.UserName == "admin" {
+			if v, ok := data.(*User); ok && v.UserName == userAdmin {
 				return true
 			}
 
@@ -120,7 +122,12 @@ func main() {
 	log.Println("Using functional options Redis configuration")
 	log.Println("Alternative methods shown below as comments:")
 
-	if err := http.ListenAndServe(":8000", r); err != nil {
+	srv := &http.Server{
+		Addr:              ":8000",
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
