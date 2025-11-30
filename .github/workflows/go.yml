@@ -25,6 +25,7 @@ jobs:
       - name: Setup golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
+          version: v2.6
           args: --verbose
   test:
     strategy:
