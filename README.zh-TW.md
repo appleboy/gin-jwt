@@ -1004,8 +1004,33 @@ CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxM
 - **必須：** `Authenticator`  
   驗證 Gin context 內的使用者憑證。驗證成功後回傳要嵌入 JWT Token 的使用者資料（如帳號、角色等）。失敗則呼叫 `Unauthorized`。
 
-- **可選：** `PayloadFunc`  
+- **可選：** `PayloadFunc`
   將驗證通過的使用者資料轉為 `MapClaims`（map[string]any），必須包含 `IdentityKey`（預設為 `"identity"`）。
+
+  **標準 JWT Claims（RFC 7519）：** 您可以在 `PayloadFunc` 中設定標準 JWT claims 以提高互通性：
+  - `sub`（Subject）- 使用者識別碼（例如使用者 ID）
+  - `iss`（Issuer）- Token 簽發者（例如您的應用程式名稱）
+  - `aud`（Audience）- 預期的接收方（例如您的 API）
+  - `nbf`（Not Before）- Token 在此時間之前無效
+  - `iat`（Issued At）- Token 簽發時間
+  - `jti`（JWT ID）- Token 的唯一識別碼
+
+  **注意：** `exp`（過期時間）和 `orig_iat` claims 由框架管理，無法覆寫。
+
+  ```go
+  PayloadFunc: func(data any) jwt.MapClaims {
+      if user, ok := data.(*User); ok {
+          return jwt.MapClaims{
+              "sub":      user.ID,              // 標準：Subject（使用者 ID）
+              "iss":      "my-app",             // 標準：Issuer
+              "aud":      "my-api",             // 標準：Audience
+              "identity": user.UserName,        // 自訂 claim
+              "role":     user.Role,            // 自訂 claim
+          }
+      }
+      return jwt.MapClaims{}
+  }
+  ```
 
 - **可選：** `LoginResponse`
   在成功驗證後處理登入後邏輯。此函式接收完整的 token 資訊（包括存取 token、刷新 token、到期時間等）作為結構化的 `core.Token` 物件，用於處理登入後邏輯並回傳 token 回應給用戶。

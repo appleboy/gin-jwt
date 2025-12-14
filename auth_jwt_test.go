@@ -1850,3 +1850,246 @@ func TestWWWAuthenticateHeaderWithDifferentRealms(t *testing.T) {
 		})
 	}
 }
+
+func TestStandardJWTClaimsInPayloadFunc(t *testing.T) {
+	// Test that standard JWT claims (sub, iss, aud, nbf, iat, jti) can be set via PayloadFunc
+	// This ensures RFC 7519 compliance by allowing users to set standard claims
+	authMiddleware, err := New(&GinJWTMiddleware{
+		Realm:      "test zone",
+		Key:        key,
+		Timeout:    time.Hour,
+		MaxRefresh: time.Hour * 24,
+		Authenticator: func(c *gin.Context) (any, error) {
+			return "user123", nil
+		},
+		PayloadFunc: func(data any) jwt.MapClaims {
+			userID := data.(string)
+			now := time.Now()
+			return jwt.MapClaims{
+				// Standard JWT claims (RFC 7519)
+				"sub": userID,                        // Subject - the user ID
+				"iss": "my-app",                      // Issuer
+				"aud": "my-api",                      // Audience
+				"nbf": now.Unix(),                    // Not Before
+				"iat": now.Unix(),                    // Issued At
+				"jti": "unique-token-id-12345",       // JWT ID
+				"exp": now.Add(time.Hour * 2).Unix(), // This should be overwritten by framework
+
+				// Custom claims
+				"identity": userID,
+				"role":     "admin",
+			}
+		},
+	})
+
+	assert.NoError(t, err)
+
+	// Generate a token
+	ctx := context.Background()
+	tokenPair, err := authMiddleware.TokenGenerator(ctx, "user123")
+	assert.NoError(t, err)
+	assert.NotNil(t, tokenPair)
+
+	// Parse the token and verify claims
+	token, err := authMiddleware.ParseTokenString(tokenPair.AccessToken)
+	assert.NoError(t, err)
+	assert.True(t, token.Valid)
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	assert.True(t, ok)
+
+	// Verify standard claims are present and have correct values
+	assert.Equal(t, "user123", claims["sub"], "sub claim should be set from PayloadFunc")
+	assert.Equal(t, "my-app", claims["iss"], "iss claim should be set from PayloadFunc")
+	assert.Equal(t, "my-api", claims["aud"], "aud claim should be set from PayloadFunc")
+	assert.NotNil(t, claims["nbf"], "nbf claim should be set from PayloadFunc")
+	assert.NotNil(t, claims["iat"], "iat claim should be set from PayloadFunc")
+	assert.Equal(t, "unique-token-id-12345", claims["jti"], "jti claim should be set from PayloadFunc")
+
+	// Verify custom claims are present
+	assert.Equal(t, "user123", claims["identity"])
+	assert.Equal(t, "admin", claims["role"])
+
+	// Verify framework-controlled claims are NOT overwritten by PayloadFunc
+	// exp should be set by the framework based on Timeout, not the value from PayloadFunc
+	assert.NotNil(t, claims["exp"])
+	assert.NotNil(t, claims["orig_iat"])
+}
+
+func TestFrameworkClaimsCannotBeOverwritten(t *testing.T) {
+	// Test that framework-controlled claims (exp, orig_iat) cannot be overwritten by PayloadFunc
+	fixedTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	authMiddleware, err := New(&GinJWTMiddleware{
+		Realm:      "test zone",
+		Key:        key,
+		Timeout:    time.Hour,
+		MaxRefresh: time.Hour * 24,
+		TimeFunc:   func() time.Time { return fixedTime },
+		Authenticator: func(c *gin.Context) (any, error) {
+			return "user123", nil
+		},
+		PayloadFunc: func(data any) jwt.MapClaims {
+			// Try to overwrite framework claims
+			return jwt.MapClaims{
+				"exp":      int64(9999999999), // Should be ignored
+				"orig_iat": int64(1111111111), // Should be ignored
+				"identity": data.(string),
+			}
+		},
+	})
+
+	assert.NoError(t, err)
+
+	// Generate a token
+	ctx := context.Background()
+	tokenPair, err := authMiddleware.TokenGenerator(ctx, "user123")
+	assert.NoError(t, err)
+
+	// Parse the token and verify claims
+	token, err := authMiddleware.ParseTokenString(tokenPair.AccessToken)
+	assert.NoError(t, err)
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	assert.True(t, ok)
+
+	// Verify exp is set by framework (fixedTime + Timeout), not the PayloadFunc value
+	expValue, ok := claims["exp"].(float64)
+	assert.True(t, ok)
+	expectedExp := fixedTime.Add(time.Hour).Unix()
+	assert.Equal(t, expectedExp, int64(expValue), "exp should be calculated by framework, not from PayloadFunc")
+
+	// Verify orig_iat is set by framework (fixedTime), not the PayloadFunc value
+	origIatValue, ok := claims["orig_iat"].(float64)
+	assert.True(t, ok)
+	assert.Equal(t, fixedTime.Unix(), int64(origIatValue), "orig_iat should be set by framework, not from PayloadFunc")
+
+	// Verify custom claims are still present
+	assert.Equal(t, "user123", claims["identity"])
+}
+
+func TestAllStandardClaimsCanBeSet(t *testing.T) {
+	// Comprehensive test for all standard JWT claims from IANA registry
+	testCases := []struct {
+		name       string
+		claimKey   string
+		claimValue any
+	}{
+		{"sub (Subject)", "sub", "user-12345"},
+		{"iss (Issuer)", "iss", "https://auth.example.com"},
+		{"aud (Audience)", "aud", "https://api.example.com"},
+		{"nbf (Not Before)", "nbf", time.Now().Unix()},
+		{"iat (Issued At)", "iat", time.Now().Unix()},
+		{"jti (JWT ID)", "jti", "550e8400-e29b-41d4-a716-446655440000"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			authMiddleware, err := New(&GinJWTMiddleware{
+				Realm:   "test zone",
+				Key:     key,
+				Timeout: time.Hour,
+				Authenticator: func(c *gin.Context) (any, error) {
+					return "user", nil
+				},
+				PayloadFunc: func(data any) jwt.MapClaims {
+					return jwt.MapClaims{
+						tc.claimKey: tc.claimValue,
+						"identity":  data,
+					}
+				},
+			})
+			assert.NoError(t, err)
+
+			ctx := context.Background()
+			tokenPair, err := authMiddleware.TokenGenerator(ctx, "user")
+			assert.NoError(t, err)
+
+			token, err := authMiddleware.ParseTokenString(tokenPair.AccessToken)
+			assert.NoError(t, err)
+
+			claims, ok := token.Claims.(jwt.MapClaims)
+			assert.True(t, ok)
+
+			// For numeric claims, compare as float64 (JWT library stores numbers as float64)
+			switch expected := tc.claimValue.(type) {
+			case int64:
+				actual, ok := claims[tc.claimKey].(float64)
+				assert.True(t, ok, "claim %s should be a number", tc.claimKey)
+				assert.Equal(t, float64(expected), actual, "claim %s should match", tc.claimKey)
+			default:
+				assert.Equal(t, tc.claimValue, claims[tc.claimKey], "claim %s should be set correctly", tc.claimKey)
+			}
+		})
+	}
+}
+
+func TestSubClaimAsUserIdentifier(t *testing.T) {
+	// Test using 'sub' claim as the primary user identifier (common use case per RFC 7519)
+	authMiddleware, err := New(&GinJWTMiddleware{
+		Realm:       "test zone",
+		Key:         key,
+		Timeout:     time.Hour,
+		IdentityKey: "sub", // Use standard 'sub' claim as identity
+		Authenticator: func(c *gin.Context) (any, error) {
+			var loginVals Login
+			if err := c.ShouldBind(&loginVals); err != nil {
+				return "", ErrMissingLoginValues
+			}
+			return loginVals.Username, nil
+		},
+		PayloadFunc: func(data any) jwt.MapClaims {
+			userID := data.(string)
+			return jwt.MapClaims{
+				"sub":   userID, // Standard claim for subject/user ID
+				"name":  "Test User",
+				"email": "test@example.com",
+			}
+		},
+		IdentityHandler: func(c *gin.Context) any {
+			claims := ExtractClaims(c)
+			return claims["sub"]
+		},
+		Authorizer: func(c *gin.Context, data any) bool {
+			userID, ok := data.(string)
+			if !ok {
+				return false
+			}
+			return userID == testAdmin
+		},
+	})
+	assert.NoError(t, err)
+
+	handler := ginHandler(authMiddleware)
+	r := gofight.New()
+
+	// Login and get token
+	var accessToken string
+	r.POST("/login").
+		SetJSON(gofight.D{
+			"username": testAdmin,
+			"password": testAdmin,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+			accessToken = gjson.Get(r.Body.String(), "access_token").String()
+			assert.NotEmpty(t, accessToken)
+		})
+
+	// Use token to access protected resource
+	r.GET("/auth/hello").
+		SetHeader(gofight.H{
+			"Authorization": "Bearer " + accessToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
+
+	// Verify the token contains the 'sub' claim
+	token, err := authMiddleware.ParseTokenString(accessToken)
+	assert.NoError(t, err)
+	claims := ExtractClaimsFromToken(token)
+	assert.Equal(t, testAdmin, claims["sub"])
+	assert.Equal(t, "Test User", claims["name"])
+	assert.Equal(t, "test@example.com", claims["email"])
+}
