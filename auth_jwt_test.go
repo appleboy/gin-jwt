@@ -1904,7 +1904,12 @@ func TestStandardJWTClaimsInPayloadFunc(t *testing.T) {
 	assert.Equal(t, "my-api", claims["aud"], "aud claim should be set from PayloadFunc")
 	assert.NotNil(t, claims["nbf"], "nbf claim should be set from PayloadFunc")
 	assert.NotNil(t, claims["iat"], "iat claim should be set from PayloadFunc")
-	assert.Equal(t, "unique-token-id-12345", claims["jti"], "jti claim should be set from PayloadFunc")
+	assert.Equal(
+		t,
+		"unique-token-id-12345",
+		claims["jti"],
+		"jti claim should be set from PayloadFunc",
+	)
 
 	// Verify custom claims are present
 	assert.Equal(t, "user123", claims["identity"])
@@ -1957,12 +1962,22 @@ func TestFrameworkClaimsCannotBeOverwritten(t *testing.T) {
 	expValue, ok := claims["exp"].(float64)
 	assert.True(t, ok)
 	expectedExp := fixedTime.Add(time.Hour).Unix()
-	assert.Equal(t, expectedExp, int64(expValue), "exp should be calculated by framework, not from PayloadFunc")
+	assert.Equal(
+		t,
+		expectedExp,
+		int64(expValue),
+		"exp should be calculated by framework, not from PayloadFunc",
+	)
 
 	// Verify orig_iat is set by framework (fixedTime), not the PayloadFunc value
 	origIatValue, ok := claims["orig_iat"].(float64)
 	assert.True(t, ok)
-	assert.Equal(t, fixedTime.Unix(), int64(origIatValue), "orig_iat should be set by framework, not from PayloadFunc")
+	assert.Equal(
+		t,
+		fixedTime.Unix(),
+		int64(origIatValue),
+		"orig_iat should be set by framework, not from PayloadFunc",
+	)
 
 	// Verify custom claims are still present
 	assert.Equal(t, "user123", claims["identity"])
