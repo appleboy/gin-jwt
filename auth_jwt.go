@@ -777,16 +777,19 @@ func (mw *GinJWTMiddleware) generateAccessToken(data any) (string, time.Time, er
 		return "", time.Time{}, ErrFailedTokenCreation
 	}
 
-	// 2. Define reserved claims to prevent PayloadFunc from overwriting system fields
-	reservedClaims := map[string]bool{
-		"exp": true, "iat": true, "nbf": true, "iss": true,
-		"aud": true, "sub": true, "jti": true, "orig_iat": true,
+	// 2. Define framework-controlled claims that PayloadFunc cannot overwrite
+	// Only claims that the framework calculates/manages internally are reserved.
+	// Standard JWT claims (sub, iss, aud, nbf, iat, jti) are allowed to be set by users
+	// via PayloadFunc to comply with RFC 7519 best practices.
+	frameworkClaims := map[string]bool{
+		"exp":      true, // Framework calculates expiration time
+		"orig_iat": true, // Framework uses this for refresh mechanism
 	}
 
-	// 3. Safely add custom payload, avoiding system field overwrites
+	// 3. Safely add custom payload, avoiding framework-controlled field overwrites
 	if mw.PayloadFunc != nil {
 		for key, value := range mw.PayloadFunc(data) {
-			if !reservedClaims[key] {
+			if !frameworkClaims[key] {
 				claims[key] = value
 			}
 		}

@@ -1007,6 +1007,32 @@ OPTIONAL: `PayloadFunc`
 
 This function is called after having successfully authenticated (logged in). It should take whatever was returned from `Authenticator` and convert it into `MapClaims` (i.e. map[string]any). A typical use case of this function is for when `Authenticator` returns a struct which holds the user identifiers, and that struct needs to be converted into a map. `MapClaims` should include one element that is [`IdentityKey` (default is "identity"): some_user_identity]. The elements of `MapClaims` returned in `PayloadFunc` will be embedded within the jwt token (as token claims). When users pass in their token on subsequent requests, you can get these claims back by using `ExtractClaims`.
 
+**Standard JWT Claims (RFC 7519):** You can set standard JWT claims in `PayloadFunc` for better interoperability:
+
+- `sub` (Subject) - The user identifier (e.g., user ID)
+- `iss` (Issuer) - The issuer of the token (e.g., your app name)
+- `aud` (Audience) - The intended audience (e.g., your API)
+- `nbf` (Not Before) - Token is not valid before this time
+- `iat` (Issued At) - When the token was issued
+- `jti` (JWT ID) - Unique identifier for the token
+
+**Note:** The `exp` (Expiration) and `orig_iat` claims are managed by the framework and cannot be overwritten.
+
+```go
+PayloadFunc: func(data any) jwt.MapClaims {
+    if user, ok := data.(*User); ok {
+        return jwt.MapClaims{
+            "sub":      user.ID,              // Standard: Subject (user ID)
+            "iss":      "my-app",             // Standard: Issuer
+            "aud":      "my-api",             // Standard: Audience
+            "identity": user.UserName,        // Custom claim
+            "role":     user.Role,            // Custom claim
+        }
+    }
+    return jwt.MapClaims{}
+}
+```
+
 OPTIONAL: `LoginResponse`
 
 After having successfully authenticated with `Authenticator`, created the jwt token using the identifiers from map returned from `PayloadFunc`, and set it as a cookie if `SendCookie` is enabled, this function is called. It receives the complete token information (including access token, refresh token, expiry, etc.) as a structured `core.Token` object. This function is used to handle any post-login logic and return the token response to the user.
