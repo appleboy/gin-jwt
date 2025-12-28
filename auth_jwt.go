@@ -985,8 +985,19 @@ func (mw *GinJWTMiddleware) ParseTokenString(token string) (*jwt.Token, error) {
 	}, mw.ParseOptions...)
 }
 
+// unauthorized handles unauthorized requests by setting the WWW-Authenticate header
+// and calling the user-defined Unauthorized callback.
+//
+// According to RFC 6750 (OAuth 2.0 Bearer Token Usage) and RFC 7235 (HTTP Authentication),
+// a 401 Unauthorized response must include a WWW-Authenticate header with the Bearer scheme.
+// This ensures compatibility with standard HTTP clients and authentication frameworks.
+//
+// See:
+//   - https://tools.ietf.org/html/rfc6750
+//   - https://tools.ietf.org/html/rfc7235
+//   - https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401
 func (mw *GinJWTMiddleware) unauthorized(c *gin.Context, code int, message string) {
-	c.Header("WWW-Authenticate", "JWT realm=\""+mw.Realm+"\"")
+	c.Header("WWW-Authenticate", "Bearer realm=\""+mw.Realm+"\"")
 	if !mw.DisabledAbort {
 		c.Abort()
 	}

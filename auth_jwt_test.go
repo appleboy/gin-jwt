@@ -1628,7 +1628,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 		{
 			name:           "default realm with invalid token",
 			realm:          "test zone",
-			expectedHeader: `JWT realm="test zone"`,
+			expectedHeader: `Bearer realm="test zone"`,
 			authHeader:     "Bearer invalid_token",
 			endpoint:       "/auth/hello",
 			setupRequest: func(r *gofight.RequestConfig) {
@@ -1640,7 +1640,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 		{
 			name:           "custom realm with empty auth header",
 			realm:          "my custom realm",
-			expectedHeader: `JWT realm="my custom realm"`,
+			expectedHeader: `Bearer realm="my custom realm"`,
 			authHeader:     "",
 			endpoint:       "/auth/hello",
 			setupRequest: func(r *gofight.RequestConfig) {
@@ -1650,7 +1650,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 		{
 			name:           "realm with special characters",
 			realm:          `test-zone_123`,
-			expectedHeader: `JWT realm="test-zone_123"`,
+			expectedHeader: `Bearer realm="test-zone_123"`,
 			authHeader:     "Bearer invalid",
 			endpoint:       "/auth/hello",
 			setupRequest: func(r *gofight.RequestConfig) {
@@ -1662,7 +1662,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 		{
 			name:           "expired token",
 			realm:          "test zone",
-			expectedHeader: `JWT realm="test zone"`,
+			expectedHeader: `Bearer realm="test zone"`,
 			endpoint:       "/auth/hello",
 			setupRequest: func(r *gofight.RequestConfig) {
 				// Create an expired token
@@ -1680,7 +1680,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 		{
 			name:           "malformed token",
 			realm:          "api realm",
-			expectedHeader: `JWT realm="api realm"`,
+			expectedHeader: `Bearer realm="api realm"`,
 			endpoint:       "/auth/hello",
 			setupRequest: func(r *gofight.RequestConfig) {
 				r.SetHeader(gofight.H{
@@ -1691,7 +1691,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 		{
 			name:           "missing Bearer prefix",
 			realm:          "test zone",
-			expectedHeader: `JWT realm="test zone"`,
+			expectedHeader: `Bearer realm="test zone"`,
 			endpoint:       "/auth/hello",
 			setupRequest: func(r *gofight.RequestConfig) {
 				r.SetHeader(gofight.H{
@@ -1753,7 +1753,7 @@ func TestWWWAuthenticateHeaderOnRefresh(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
 			//nolint:staticcheck
-			assert.Equal(t, `JWT realm="refresh realm"`, r.HeaderMap.Get("WWW-Authenticate"))
+			assert.Equal(t, `Bearer realm="refresh realm"`, r.HeaderMap.Get("WWW-Authenticate"))
 		})
 }
 
@@ -1843,7 +1843,7 @@ func TestWWWAuthenticateHeaderWithDifferentRealms(t *testing.T) {
 					assert.Equal(t, http.StatusUnauthorized, r.Code)
 					assert.Equal(
 						t,
-						fmt.Sprintf(`JWT realm="%s"`, expectedRealm),
+						fmt.Sprintf(`Bearer realm="%s"`, expectedRealm),
 						r.HeaderMap.Get("WWW-Authenticate"), //nolint:staticcheck
 					)
 				})
