@@ -358,37 +358,37 @@ func helloHandler(c *gin.Context) {
 
 `GinJWTMiddleware` 結構體提供以下配置選項：
 
-| 選項 | 類型 | 必填 | 預設值 | 描述 |
-|---|---|---|---|---|
-| Realm | `string` | 否 | `"gin jwt"` | 顯示給使用者的 Realm 名稱。 |
-| SigningAlgorithm | `string` | 否 | `"HS256"` | 簽名演算法 (HS256, HS384, HS512, RS256, RS384, RS512)。 |
-| Key | `[]byte` | 是 | - | 用於簽名的密鑰。 |
-| Timeout | `time.Duration` | 否 | `time.Hour` | JWT Token 的有效期。 |
-| MaxRefresh | `time.Duration` | 否 | `0` | 刷新 Token 的有效期。 |
-| Authenticator | `func(c *gin.Context) (any, error)` | 是 | - | 驗證使用者的回呼函數。回傳使用者資料。 |
-| Authorizer | `func(c *gin.Context, data any) bool` | 否 | `true` | 授權已驗證使用者的回呼函數。 |
-| PayloadFunc | `func(data any) jwt.MapClaims` | 否 | - | 向 Token 新增額外 Payload 資料的回呼函數。 |
-| Unauthorized | `func(c *gin.Context, code int, message string)` | 否 | - | 處理未授權請求的回呼函數。 |
-| LoginResponse | `func(c *gin.Context, token *core.Token)` | 否 | - | 處理成功登入回應的回呼函數。 |
-| LogoutResponse | `func(c *gin.Context)` | 否 | - | 處理成功登出回應的回呼函數。 |
-| RefreshResponse | `func(c *gin.Context, token *core.Token)` | 否 | - | 處理成功刷新回應的回呼函數。 |
-| IdentityHandler | `func(*gin.Context) any` | 否 | - | 從 Claims 檢索身分的回呼函數。 |
-| IdentityKey | `string` | 否 | `"identity"` | 用於在 Claims 中儲存身分的鍵。 |
-| TokenLookup | `string` | 否 | `"header:Authorization"` | 提取 Token 的來源（header, query, cookie）。 |
-| TokenHeadName | `string` | 否 | `"Bearer"` | Header 名稱前綴。 |
-| TimeFunc | `func() time.Time` | 否 | `time.Now` | 提供當前時間的函數。 |
-| PrivKeyFile | `string` | 否 | - | 私鑰檔案路徑（用於 RS 演算法）。 |
-| PubKeyFile | `string` | 否 | - | 公鑰檔案路徑（用於 RS 演算法）。 |
-| SendCookie | `bool` | 否 | `false` | 是否將 Token 作為 Cookie 發送。 |
-| CookieMaxAge | `time.Duration` | 否 | `Timeout` | Cookie 的有效期。 |
-| SecureCookie | `bool` | 否 | `false` | 是否使用安全 Cookie（僅限 HTTPS）。 |
-| CookieHTTPOnly | `bool` | 否 | `false` | 是否使用 HTTPOnly Cookie。 |
-| CookieDomain | `string` | 否 | - | Cookie 的網域。 |
-| CookieName | `string` | 否 | `"jwt"` | Cookie 的名稱。 |
-| CookieSameSite | `http.SameSite` | 否 | - | Cookie 的 SameSite 屬性。 |
-| SendAuthorization | `bool` | 否 | `false` | 是否為每個請求回傳授權 Header。 |
-| DisabledAbort | `bool` | 否 | `false` | 禁用 context 的 abort()。 |
-| ParseOptions | `[]jwt.ParserOption` | 否 | - | 解析 JWT 的選項。 |
+| 選項              | 類型                                             | 必填 | 預設值                   | 描述                                                    |
+| ----------------- | ------------------------------------------------ | ---- | ------------------------ | ------------------------------------------------------- |
+| Realm             | `string`                                         | 否   | `"gin jwt"`              | 顯示給使用者的 Realm 名稱。                             |
+| SigningAlgorithm  | `string`                                         | 否   | `"HS256"`                | 簽名演算法 (HS256, HS384, HS512, RS256, RS384, RS512)。 |
+| Key               | `[]byte`                                         | 是   | -                        | 用於簽名的密鑰。                                        |
+| Timeout           | `time.Duration`                                  | 否   | `time.Hour`              | JWT Token 的有效期。                                    |
+| MaxRefresh        | `time.Duration`                                  | 否   | `0`                      | 刷新 Token 的有效期。                                   |
+| Authenticator     | `func(c *gin.Context) (any, error)`              | 是   | -                        | 驗證使用者的回呼函數。回傳使用者資料。                  |
+| Authorizer        | `func(c *gin.Context, data any) bool`            | 否   | `true`                   | 授權已驗證使用者的回呼函數。                            |
+| PayloadFunc       | `func(data any) jwt.MapClaims`                   | 否   | -                        | 向 Token 新增額外 Payload 資料的回呼函數。              |
+| Unauthorized      | `func(c *gin.Context, code int, message string)` | 否   | -                        | 處理未授權請求的回呼函數。                              |
+| LoginResponse     | `func(c *gin.Context, token *core.Token)`        | 否   | -                        | 處理成功登入回應的回呼函數。                            |
+| LogoutResponse    | `func(c *gin.Context)`                           | 否   | -                        | 處理成功登出回應的回呼函數。                            |
+| RefreshResponse   | `func(c *gin.Context, token *core.Token)`        | 否   | -                        | 處理成功刷新回應的回呼函數。                            |
+| IdentityHandler   | `func(*gin.Context) any`                         | 否   | -                        | 從 Claims 檢索身分的回呼函數。                          |
+| IdentityKey       | `string`                                         | 否   | `"identity"`             | 用於在 Claims 中儲存身分的鍵。                          |
+| TokenLookup       | `string`                                         | 否   | `"header:Authorization"` | 提取 Token 的來源（header, query, cookie）。            |
+| TokenHeadName     | `string`                                         | 否   | `"Bearer"`               | Header 名稱前綴。                                       |
+| TimeFunc          | `func() time.Time`                               | 否   | `time.Now`               | 提供當前時間的函數。                                    |
+| PrivKeyFile       | `string`                                         | 否   | -                        | 私鑰檔案路徑（用於 RS 演算法）。                        |
+| PubKeyFile        | `string`                                         | 否   | -                        | 公鑰檔案路徑（用於 RS 演算法）。                        |
+| SendCookie        | `bool`                                           | 否   | `false`                  | 是否將 Token 作為 Cookie 發送。                         |
+| CookieMaxAge      | `time.Duration`                                  | 否   | `Timeout`                | Cookie 的有效期。                                       |
+| SecureCookie      | `bool`                                           | 否   | `false`                  | 是否使用安全 Cookie（僅限 HTTPS）。                     |
+| CookieHTTPOnly    | `bool`                                           | 否   | `false`                  | 是否使用 HTTPOnly Cookie。                              |
+| CookieDomain      | `string`                                         | 否   | -                        | Cookie 的網域。                                         |
+| CookieName        | `string`                                         | 否   | `"jwt"`                  | Cookie 的名稱。                                         |
+| CookieSameSite    | `http.SameSite`                                  | 否   | -                        | Cookie 的 SameSite 屬性。                               |
+| SendAuthorization | `bool`                                           | 否   | `false`                  | 是否為每個請求回傳授權 Header。                         |
+| DisabledAbort     | `bool`                                           | 否   | `false`                  | 禁用 context 的 abort()。                               |
+| ParseOptions      | `[]jwt.ParserOption`                             | 否   | -                        | 解析 JWT 的選項。                                       |
 
 ---
 
@@ -1008,6 +1008,7 @@ CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxM
   將驗證通過的使用者資料轉為 `MapClaims`（map[string]any），必須包含 `IdentityKey`（預設為 `"identity"`）。
 
   **標準 JWT Claims（RFC 7519）：** 您可以在 `PayloadFunc` 中設定標準 JWT claims 以提高互通性：
+
   - `sub`（Subject）- 使用者識別碼（例如使用者 ID）
   - `iss`（Issuer）- Token 簽發者（例如您的應用程式名稱）
   - `aud`（Audience）- 預期的接收方（例如您的 API）
@@ -1083,5 +1084,13 @@ CookieSameSite:   http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSiteLaxM
 
 ### 登入失敗、Token 錯誤或權限不足
 
-- **可選：** `Unauthorized`  
+- **可選：** `Unauthorized`
   處理登入、授權或 Token 錯誤時的回應。回傳 HTTP 錯誤碼與訊息的 JSON。
+
+**注意：** 當回傳 401 Unauthorized 回應時，中介軟體會自動新增 `WWW-Authenticate` 標頭，使用 `Bearer` 認證方案，符合 [RFC 6750](https://tools.ietf.org/html/rfc6750)（OAuth 2.0 Bearer Token 使用規範）、[RFC 7235](https://tools.ietf.org/html/rfc7235)（HTTP 認證框架）和 [MDN 文件](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401)的要求：
+
+```txt
+WWW-Authenticate: Bearer realm="<your-realm>"
+```
+
+該標頭告知 HTTP 客戶端需要 Bearer Token 認證，確保與標準 HTTP 認證機制的相容性。

@@ -357,37 +357,37 @@ func helloHandler(c *gin.Context) {
 
 The `GinJWTMiddleware` struct provides the following configuration options:
 
-| Option | Type | Required | Default | Description |
-|---|---|---|---|---|
-| Realm | `string` | No | `"gin jwt"` | Realm name to display to the user. |
-| SigningAlgorithm | `string` | No | `"HS256"` | Signing algorithm (HS256, HS384, HS512, RS256, RS384, RS512). |
-| Key | `[]byte` | Yes | - | Secret key used for signing. |
-| Timeout | `time.Duration` | No | `time.Hour` | Duration that a jwt token is valid. |
-| MaxRefresh | `time.Duration` | No | `0` | Duration that a refresh token is valid. |
-| Authenticator | `func(c *gin.Context) (any, error)` | Yes | - | Callback to authenticate the user. Returns user data. |
-| Authorizer | `func(c *gin.Context, data any) bool` | No | `true` | Callback to authorize the authenticated user. |
-| PayloadFunc | `func(data any) jwt.MapClaims` | No | - | Callback to add additional payload data to the token. |
-| Unauthorized | `func(c *gin.Context, code int, message string)` | No | - | Callback for unauthorized requests. |
-| LoginResponse | `func(c *gin.Context, token *core.Token)` | No | - | Callback for successful login response. |
-| LogoutResponse | `func(c *gin.Context)` | No | - | Callback for successful logout response. |
-| RefreshResponse | `func(c *gin.Context, token *core.Token)` | No | - | Callback for successful refresh response. |
-| IdentityHandler | `func(*gin.Context) any` | No | - | Callback to retrieve identity from claims. |
-| IdentityKey | `string` | No | `"identity"` | Key used to store identity in claims. |
-| TokenLookup | `string` | No | `"header:Authorization"` | Source to extract token from (header, query, cookie). |
-| TokenHeadName | `string` | No | `"Bearer"` | Header name prefix. |
-| TimeFunc | `func() time.Time` | No | `time.Now` | Function to provide current time. |
-| PrivKeyFile | `string` | No | - | Path to private key file (for RS algorithms). |
-| PubKeyFile | `string` | No | - | Path to public key file (for RS algorithms). |
-| SendCookie | `bool` | No | `false` | Whether to send token as a cookie. |
-| CookieMaxAge | `time.Duration` | No | `Timeout` | Duration that the cookie is valid. |
-| SecureCookie | `bool` | No | `false` | Whether to use secure cookies (HTTPS only). |
-| CookieHTTPOnly | `bool` | No | `false` | Whether to use HTTPOnly cookies. |
-| CookieDomain | `string` | No | - | Domain for the cookie. |
-| CookieName | `string` | No | `"jwt"` | Name of the cookie. |
-| CookieSameSite | `http.SameSite` | No | - | SameSite attribute for the cookie. |
-| SendAuthorization | `bool` | No | `false` | Whether to return authorization header for every request. |
-| DisabledAbort | `bool` | No | `false` | Disable abort() of context. |
-| ParseOptions | `[]jwt.ParserOption` | No | - | Options for parsing the JWT. |
+| Option            | Type                                             | Required | Default                  | Description                                                   |
+| ----------------- | ------------------------------------------------ | -------- | ------------------------ | ------------------------------------------------------------- |
+| Realm             | `string`                                         | No       | `"gin jwt"`              | Realm name to display to the user.                            |
+| SigningAlgorithm  | `string`                                         | No       | `"HS256"`                | Signing algorithm (HS256, HS384, HS512, RS256, RS384, RS512). |
+| Key               | `[]byte`                                         | Yes      | -                        | Secret key used for signing.                                  |
+| Timeout           | `time.Duration`                                  | No       | `time.Hour`              | Duration that a jwt token is valid.                           |
+| MaxRefresh        | `time.Duration`                                  | No       | `0`                      | Duration that a refresh token is valid.                       |
+| Authenticator     | `func(c *gin.Context) (any, error)`              | Yes      | -                        | Callback to authenticate the user. Returns user data.         |
+| Authorizer        | `func(c *gin.Context, data any) bool`            | No       | `true`                   | Callback to authorize the authenticated user.                 |
+| PayloadFunc       | `func(data any) jwt.MapClaims`                   | No       | -                        | Callback to add additional payload data to the token.         |
+| Unauthorized      | `func(c *gin.Context, code int, message string)` | No       | -                        | Callback for unauthorized requests.                           |
+| LoginResponse     | `func(c *gin.Context, token *core.Token)`        | No       | -                        | Callback for successful login response.                       |
+| LogoutResponse    | `func(c *gin.Context)`                           | No       | -                        | Callback for successful logout response.                      |
+| RefreshResponse   | `func(c *gin.Context, token *core.Token)`        | No       | -                        | Callback for successful refresh response.                     |
+| IdentityHandler   | `func(*gin.Context) any`                         | No       | -                        | Callback to retrieve identity from claims.                    |
+| IdentityKey       | `string`                                         | No       | `"identity"`             | Key used to store identity in claims.                         |
+| TokenLookup       | `string`                                         | No       | `"header:Authorization"` | Source to extract token from (header, query, cookie).         |
+| TokenHeadName     | `string`                                         | No       | `"Bearer"`               | Header name prefix.                                           |
+| TimeFunc          | `func() time.Time`                               | No       | `time.Now`               | Function to provide current time.                             |
+| PrivKeyFile       | `string`                                         | No       | -                        | Path to private key file (for RS algorithms).                 |
+| PubKeyFile        | `string`                                         | No       | -                        | Path to public key file (for RS algorithms).                  |
+| SendCookie        | `bool`                                           | No       | `false`                  | Whether to send token as a cookie.                            |
+| CookieMaxAge      | `time.Duration`                                  | No       | `Timeout`                | Duration that the cookie is valid.                            |
+| SecureCookie      | `bool`                                           | No       | `false`                  | Whether to use secure cookies (HTTPS only).                   |
+| CookieHTTPOnly    | `bool`                                           | No       | `false`                  | Whether to use HTTPOnly cookies.                              |
+| CookieDomain      | `string`                                         | No       | -                        | Domain for the cookie.                                        |
+| CookieName        | `string`                                         | No       | `"jwt"`                  | Name of the cookie.                                           |
+| CookieSameSite    | `http.SameSite`                                  | No       | -                        | SameSite attribute for the cookie.                            |
+| SendAuthorization | `bool`                                           | No       | `false`                  | Whether to return authorization header for every request.     |
+| DisabledAbort     | `bool`                                           | No       | `false`                  | Disable abort() of context.                                   |
+| ParseOptions      | `[]jwt.ParserOption`                             | No       | -                        | Options for parsing the JWT.                                  |
 
 ---
 
@@ -1082,3 +1082,11 @@ Signature: `func(c *gin.Context, token *core.Token)`
 OPTIONAL `Unauthorized`:
 
 On any error logging in, authorizing the user, or when there was no token or a invalid token passed in with the request, the following will happen. The gin context will be aborted depending on `DisabledAbort`, then `HTTPStatusMessageFunc` is called which by default converts the error into a string. Finally the `Unauthorized` function will be called. This function should likely return a JSON containing the http error code and error message to the user.
+
+**Note:** When a 401 Unauthorized response is returned, the middleware automatically adds a `WWW-Authenticate` header with the `Bearer` authentication scheme, as defined in [RFC 6750](https://tools.ietf.org/html/rfc6750) (OAuth 2.0 Bearer Token Usage), [RFC 7235](https://tools.ietf.org/html/rfc7235) (HTTP Authentication), and the [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401):
+
+```txt
+WWW-Authenticate: Bearer realm="<your-realm>"
+```
+
+This header informs HTTP clients that Bearer token authentication is required, ensuring compatibility with standard HTTP authentication mechanisms.
