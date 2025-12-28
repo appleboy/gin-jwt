@@ -92,7 +92,9 @@ func init() {
 func main() {
 	// Validate OAuth configuration
 	if googleOauthConfig.ClientID == "" && githubOauthConfig.ClientID == "" {
-		log.Println("Warning: No OAuth providers configured. Set GOOGLE_CLIENT_ID/SECRET or GITHUB_CLIENT_ID/SECRET")
+		log.Println(
+			"Warning: No OAuth providers configured. Set GOOGLE_CLIENT_ID/SECRET or GITHUB_CLIENT_ID/SECRET",
+		)
 	}
 
 	engine := gin.Default()
@@ -183,11 +185,11 @@ func initJWTParams() *jwt.GinJWTMiddleware {
 		TimeFunc:        time.Now,
 
 		// Enable built-in cookie support for better security
-		SendCookie:       true,
-		SecureCookie:     false, // Set to true in production with HTTPS
-		CookieHTTPOnly:   true,
-		CookieMaxAge:     time.Hour,
-		CookieDomain:     "",
+		SendCookie:        true,
+		SecureCookie:      false, // Set to true in production with HTTPS
+		CookieHTTPOnly:    true,
+		CookieMaxAge:      time.Hour,
+		CookieDomain:      "",
 		SendAuthorization: true, // Send Authorization header in LoginResponse
 
 		// Custom LoginResponse to handle OAuth redirect vs regular JSON response
@@ -304,8 +306,9 @@ func handleOAuthSuccess(
 		return err
 	}
 
-  // Set cookie
+	// Set cookies (both access token and refresh token)
 	authMiddleware.SetCookie(c, token.AccessToken)
+	authMiddleware.SetRefreshTokenCookie(c, token.RefreshToken)
 
 	// Let gin-jwt handle everything (cookies, headers, response) via LoginResponse
 	// The middleware will automatically:
@@ -386,7 +389,10 @@ func handleGoogleCallback(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc 
 
 		// Handle OAuth success with proper JWT middleware integration
 		if err := handleOAuthSuccess(c, authMiddleware, user, "google"); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete authentication"})
+			c.JSON(
+				http.StatusInternalServerError,
+				gin.H{"error": "Failed to complete authentication"},
+			)
 			return
 		}
 	}
@@ -442,7 +448,10 @@ func handleGitHubCallback(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc 
 
 		// Handle OAuth success with proper JWT middleware integration
 		if err := handleOAuthSuccess(c, authMiddleware, user, "github"); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete authentication"})
+			c.JSON(
+				http.StatusInternalServerError,
+				gin.H{"error": "Failed to complete authentication"},
+			)
 			return
 		}
 	}
@@ -528,7 +537,8 @@ func corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().
+			Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
 		if c.Request.Method == "OPTIONS" {
