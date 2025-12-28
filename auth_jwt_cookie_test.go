@@ -55,7 +55,7 @@ func TestSetRefreshTokenCookie(t *testing.T) {
 	assert.Equal(t, refreshToken, cookies[0].Value)
 	assert.Equal(t, "example.com", cookies[0].Domain)
 	assert.True(t, cookies[0].HttpOnly)
-	assert.False(t, cookies[0].Secure)
+	assert.True(t, cookies[0].Secure) // Refresh token cookies are always secure (HTTPS only)
 	assert.Equal(t, "/", cookies[0].Path)
 	assert.True(t, cookies[0].MaxAge > 0)
 }

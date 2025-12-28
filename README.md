@@ -447,7 +447,7 @@ The `GinJWTMiddleware` struct provides the following configuration options:
 | PubKeyFile             | `string`                                         | No       | -                        | Path to public key file (for RS algorithms).                  |
 | SendCookie             | `bool`                                           | No       | `false`                  | Whether to send token as a cookie.                            |
 | CookieMaxAge           | `time.Duration`                                  | No       | `Timeout`                | Duration that the cookie is valid.                            |
-| SecureCookie           | `bool`                                           | No       | `false`                  | Whether to use secure cookies (HTTPS only).                   |
+| SecureCookie           | `bool`                                           | No       | `false`                  | Whether to use secure cookies for access token (HTTPS only). Refresh token cookies are always secure. |
 | CookieHTTPOnly         | `bool`                                           | No       | `false`                  | Whether to use HTTPOnly cookies.                              |
 | CookieDomain           | `string`                                         | No       | -                        | Domain for the cookie.                                        |
 | CookieName             | `string`                                         | No       | `"jwt"`                  | Name of the cookie.                                           |
@@ -1542,7 +1542,7 @@ To set the JWT in a cookie, use these options (see [MDN docs](https://developer.
 
 ```go
 SendCookie:            true,
-SecureCookie:          false, // for non-HTTPS dev environments
+SecureCookie:          false, // for non-HTTPS dev environments (applies to access token cookie only)
 CookieHTTPOnly:        true,  // JS can't modify
 CookieDomain:          "localhost:8080",
 CookieName:            "token", // default jwt
@@ -1562,6 +1562,7 @@ The refresh token cookie:
 
 - Uses the `RefreshTokenTimeout` duration (default: 30 days)
 - Is always set with `httpOnly: true` for security
+- Is always set with `secure: true` (HTTPS only) regardless of the `SecureCookie` setting
 - Is automatically sent with refresh requests
 - Is cleared on logout
 

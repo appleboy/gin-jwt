@@ -674,7 +674,7 @@ func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
 			-1,
 			"/",
 			mw.CookieDomain,
-			mw.SecureCookie,
+			true, // Must match the secure flag used when setting the cookie
 			true,
 		)
 	}
@@ -1124,7 +1124,7 @@ func (mw *GinJWTMiddleware) SetRefreshTokenCookie(c *gin.Context, refreshToken s
 			maxage,
 			"/",
 			mw.CookieDomain,
-			mw.SecureCookie,
+			true, // Always secure for refresh tokens (HTTPS only)
 			true, // Always httpOnly for security
 		)
 	}

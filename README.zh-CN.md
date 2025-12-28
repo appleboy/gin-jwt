@@ -448,7 +448,7 @@ func helloHandler(c *gin.Context) {
 | PubKeyFile             | `string`                                         | 否   | -                        | 公钥文件路径（用于 RS 算法）。                        |
 | SendCookie             | `bool`                                           | 否   | `false`                  | 是否将 Token 作为 Cookie 发送。                       |
 | CookieMaxAge           | `time.Duration`                                  | 否   | `Timeout`                | Cookie 的有效期。                                     |
-| SecureCookie           | `bool`                                           | 否   | `false`                  | 是否使用安全 Cookie（仅限 HTTPS）。                   |
+| SecureCookie           | `bool`                                           | 否   | `false`                  | 是否对访问令牌使用安全 Cookie（仅限 HTTPS）。刷新令牌 Cookie 始终安全。 |
 | CookieHTTPOnly         | `bool`                                           | 否   | `false`                  | 是否使用 HTTPOnly Cookie。                            |
 | CookieDomain           | `string`                                         | 否   | -                        | Cookie 的域名。                                       |
 | CookieName             | `string`                                         | 否   | `"jwt"`                  | Cookie 的名称。                                       |
@@ -1543,7 +1543,7 @@ http -f POST localhost:8000/auth/logout "Authorization:Bearer xxxxxxxxx" "Conten
 
 ```go
 SendCookie:            true,
-SecureCookie:          false, // 非 HTTPS 开发环境
+SecureCookie:          false, // 非 HTTPS 开发环境（仅适用于访问令牌 Cookie）
 CookieHTTPOnly:        true,  // JS 无法修改
 CookieDomain:          "localhost:8080",
 CookieName:            "token", // 默认 jwt
@@ -1563,6 +1563,7 @@ CookieSameSite:        http.SameSiteDefaultMode, // SameSiteDefaultMode, SameSit
 
 - 使用 `RefreshTokenTimeout` 期限（默认：30 天）
 - 始终设置 `httpOnly: true` 以确保安全
+- 始终设置 `secure: true`（仅限 HTTPS），不受 `SecureCookie` 设置影响
 - 会自动随刷新请求一起发送
 - 登出时会被清除
 
