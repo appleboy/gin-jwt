@@ -127,12 +127,12 @@ func TestExtractRefreshTokenPriority(t *testing.T) {
 		RefreshTokenCookieName: "refresh_token",
 	})
 
-	// Test: Cookie has highest priority
+	// Test: Cookie has highest priority over form
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(
 		context.Background(),
 		"POST",
-		"/test?refresh_token=from-query",
+		"/test",
 		nil,
 	)
 	req.AddCookie(&http.Cookie{
@@ -571,7 +571,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 		)
 	})
 
-	t.Run("Query parameter takes precedence over body", func(t *testing.T) {
+	t.Run("Query parameters are not supported (security)", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
 			context.Background(),
@@ -585,15 +585,20 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 		c.Request = req
 
 		token := authMiddleware.extractRefreshToken(c)
-		assert.Equal(t, "from-query", token, "Query parameter should take precedence over body")
+		assert.Equal(
+			t,
+			"from-json-body",
+			token,
+			"Query parameter should be ignored for security, JSON body should be used",
+		)
 	})
 
-	t.Run("Cookie takes highest precedence", func(t *testing.T) {
+	t.Run("Cookie takes highest precedence over body", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
 			context.Background(),
 			"POST",
-			"/test?refresh_token=from-query",
+			"/test",
 			strings.NewReader(`{"refresh_token":"from-json-body"}`),
 		)
 		req.Header.Set("Content-Type", "application/json")

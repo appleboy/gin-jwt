@@ -425,38 +425,38 @@ func helloHandler(c *gin.Context) {
 
 `GinJWTMiddleware` 结构体提供以下配置选项：
 
-| 选项                   | 类型                                             | 必填 | 默认值                   | 描述                                                  |
-| ---------------------- | ------------------------------------------------ | ---- | ------------------------ | ----------------------------------------------------- |
-| Realm                  | `string`                                         | 否   | `"gin jwt"`              | 显示给用户的 Realm 名称。                             |
-| SigningAlgorithm       | `string`                                         | 否   | `"HS256"`                | 签名算法 (HS256, HS384, HS512, RS256, RS384, RS512)。 |
-| Key                    | `[]byte`                                         | 是   | -                        | 用于签名的密钥。                                      |
-| Timeout                | `time.Duration`                                  | 否   | `time.Hour`              | JWT Token 的有效期。                                  |
-| MaxRefresh             | `time.Duration`                                  | 否   | `0`                      | 刷新 Token 的有效期。                                 |
-| Authenticator          | `func(c *gin.Context) (any, error)`              | 是   | -                        | 验证用户的回调函数。返回用户数据。                    |
-| Authorizer             | `func(c *gin.Context, data any) bool`            | 否   | `true`                   | 授权已验证用户的回调函数。                            |
-| PayloadFunc            | `func(data any) jwt.MapClaims`                   | 否   | -                        | 向 Token 添加额外 Payload 数据的回调函数。            |
-| Unauthorized           | `func(c *gin.Context, code int, message string)` | 否   | -                        | 处理未授权请求的回调函数。                            |
-| LoginResponse          | `func(c *gin.Context, token *core.Token)`        | 否   | -                        | 处理成功登录响应的回调函数。                          |
-| LogoutResponse         | `func(c *gin.Context)`                           | 否   | -                        | 处理成功登出响应的回调函数。                          |
-| RefreshResponse        | `func(c *gin.Context, token *core.Token)`        | 否   | -                        | 处理成功刷新响应的回调函数。                          |
-| IdentityHandler        | `func(*gin.Context) any`                         | 否   | -                        | 从 Claims 检索身份的回调函数。                        |
-| IdentityKey            | `string`                                         | 否   | `"identity"`             | 用于在 Claims 中存储身份的键。                        |
-| TokenLookup            | `string`                                         | 否   | `"header:Authorization"` | 提取 Token 的来源（header, query, cookie）。          |
-| TokenHeadName          | `string`                                         | 否   | `"Bearer"`               | Header 名称前缀。                                     |
-| TimeFunc               | `func() time.Time`                               | 否   | `time.Now`               | 提供当前时间的函数。                                  |
-| PrivKeyFile            | `string`                                         | 否   | -                        | 私钥文件路径（用于 RS 算法）。                        |
-| PubKeyFile             | `string`                                         | 否   | -                        | 公钥文件路径（用于 RS 算法）。                        |
-| SendCookie             | `bool`                                           | 否   | `false`                  | 是否将 Token 作为 Cookie 发送。                       |
-| CookieMaxAge           | `time.Duration`                                  | 否   | `Timeout`                | Cookie 的有效期。                                     |
+| 选项                   | 类型                                             | 必填 | 默认值                   | 描述                                                                    |
+| ---------------------- | ------------------------------------------------ | ---- | ------------------------ | ----------------------------------------------------------------------- |
+| Realm                  | `string`                                         | 否   | `"gin jwt"`              | 显示给用户的 Realm 名称。                                               |
+| SigningAlgorithm       | `string`                                         | 否   | `"HS256"`                | 签名算法 (HS256, HS384, HS512, RS256, RS384, RS512)。                   |
+| Key                    | `[]byte`                                         | 是   | -                        | 用于签名的密钥。                                                        |
+| Timeout                | `time.Duration`                                  | 否   | `time.Hour`              | JWT Token 的有效期。                                                    |
+| MaxRefresh             | `time.Duration`                                  | 否   | `0`                      | 刷新 Token 的有效期。                                                   |
+| Authenticator          | `func(c *gin.Context) (any, error)`              | 是   | -                        | 验证用户的回调函数。返回用户数据。                                      |
+| Authorizer             | `func(c *gin.Context, data any) bool`            | 否   | `true`                   | 授权已验证用户的回调函数。                                              |
+| PayloadFunc            | `func(data any) jwt.MapClaims`                   | 否   | -                        | 向 Token 添加额外 Payload 数据的回调函数。                              |
+| Unauthorized           | `func(c *gin.Context, code int, message string)` | 否   | -                        | 处理未授权请求的回调函数。                                              |
+| LoginResponse          | `func(c *gin.Context, token *core.Token)`        | 否   | -                        | 处理成功登录响应的回调函数。                                            |
+| LogoutResponse         | `func(c *gin.Context)`                           | 否   | -                        | 处理成功登出响应的回调函数。                                            |
+| RefreshResponse        | `func(c *gin.Context, token *core.Token)`        | 否   | -                        | 处理成功刷新响应的回调函数。                                            |
+| IdentityHandler        | `func(*gin.Context) any`                         | 否   | -                        | 从 Claims 检索身份的回调函数。                                          |
+| IdentityKey            | `string`                                         | 否   | `"identity"`             | 用于在 Claims 中存储身份的键。                                          |
+| TokenLookup            | `string`                                         | 否   | `"header:Authorization"` | 提取 Token 的来源（header, query, cookie）。                            |
+| TokenHeadName          | `string`                                         | 否   | `"Bearer"`               | Header 名称前缀。                                                       |
+| TimeFunc               | `func() time.Time`                               | 否   | `time.Now`               | 提供当前时间的函数。                                                    |
+| PrivKeyFile            | `string`                                         | 否   | -                        | 私钥文件路径（用于 RS 算法）。                                          |
+| PubKeyFile             | `string`                                         | 否   | -                        | 公钥文件路径（用于 RS 算法）。                                          |
+| SendCookie             | `bool`                                           | 否   | `false`                  | 是否将 Token 作为 Cookie 发送。                                         |
+| CookieMaxAge           | `time.Duration`                                  | 否   | `Timeout`                | Cookie 的有效期。                                                       |
 | SecureCookie           | `bool`                                           | 否   | `false`                  | 是否对访问令牌使用安全 Cookie（仅限 HTTPS）。刷新令牌 Cookie 始终安全。 |
-| CookieHTTPOnly         | `bool`                                           | 否   | `false`                  | 是否使用 HTTPOnly Cookie。                            |
-| CookieDomain           | `string`                                         | 否   | -                        | Cookie 的域名。                                       |
-| CookieName             | `string`                                         | 否   | `"jwt"`                  | Cookie 的名称。                                       |
-| RefreshTokenCookieName | `string`                                         | 否   | `"refresh_token"`        | 刷新 Token Cookie 的名称。                            |
-| CookieSameSite         | `http.SameSite`                                  | 否   | -                        | Cookie 的 SameSite 属性。                             |
-| SendAuthorization      | `bool`                                           | 否   | `false`                  | 是否为每个请求返回授权 Header。                       |
-| DisabledAbort          | `bool`                                           | 否   | `false`                  | 禁用 context 的 abort()。                             |
-| ParseOptions           | `[]jwt.ParserOption`                             | 否   | -                        | 解析 JWT 的选项。                                     |
+| CookieHTTPOnly         | `bool`                                           | 否   | `false`                  | 是否使用 HTTPOnly Cookie。                                              |
+| CookieDomain           | `string`                                         | 否   | -                        | Cookie 的域名。                                                         |
+| CookieName             | `string`                                         | 否   | `"jwt"`                  | Cookie 的名称。                                                         |
+| RefreshTokenCookieName | `string`                                         | 否   | `"refresh_token"`        | 刷新 Token Cookie 的名称。                                              |
+| CookieSameSite         | `http.SameSite`                                  | 否   | -                        | Cookie 的 SameSite 属性。                                               |
+| SendAuthorization      | `bool`                                           | 否   | `false`                  | 是否为每个请求返回授权 Header。                                         |
+| DisabledAbort          | `bool`                                           | 否   | `false`                  | 禁用 context 的 abort()。                                               |
+| ParseOptions           | `[]jwt.ParserOption`                             | 否   | -                        | 解析 JWT 的选项。                                                       |
 
 ---
 
@@ -1242,21 +1242,20 @@ http -v --json POST localhost:8000/login username=admin password=admin
 # 首先登录获取刷新令牌
 http -v --json POST localhost:8000/login username=admin password=admin
 
-# 方法 1：使用响应中的刷新令牌（手动）
-http -v --form POST localhost:8000/refresh refresh_token=your_refresh_token_here
-
-# 方法 2：启用 Cookie 时（自动 - 推荐用于浏览器）
+# 方法 1：启用 Cookie 时（自动 - 推荐用于浏览器）
 # 刷新令牌 Cookie 会自动发送，无需手动包含
 http -v POST localhost:8000/refresh --session=./session.json
 
-# 方法 3：在 JSON 正文中发送刷新令牌
+# 方法 2：在 JSON 正文中发送刷新令牌
 http -v --json POST localhost:8000/refresh refresh_token=your_refresh_token_here
 
-# 方法 4：作为查询参数发送刷新令牌
-http -v POST localhost:8000/refresh?refresh_token=your_refresh_token_here
+# 方法 3：通过表单数据使用响应中的刷新令牌
+http -v --form POST localhost:8000/refresh refresh_token=your_refresh_token_here
 ```
 
-**注意**：当 `SendCookie` 启用时，刷新令牌会自动存储在 httpOnly Cookie 中。基于浏览器的应用程序只需调用刷新端点，无需手动包含令牌，Cookie 机制会自动处理。
+**安全提示**：当 `SendCookie` 启用时，刷新令牌会自动存储在 httpOnly Cookie 中。基于浏览器的应用程序只需调用刷新端点，无需手动包含令牌，Cookie 机制会自动处理。
+
+**重要**：不支持使用查询参数传递刷新令牌，因为它们会在服务器日志、代理日志、浏览器历史记录和 Referer 标头中暴露令牌。请使用 Cookie（推荐）、JSON 正文或表单数据。
 
 ![刷新截图](screenshot/refresh.png)
 

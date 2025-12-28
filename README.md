@@ -424,38 +424,38 @@ Advanced authorization patterns including:
 
 The `GinJWTMiddleware` struct provides the following configuration options:
 
-| Option                 | Type                                             | Required | Default                  | Description                                                   |
-| ---------------------- | ------------------------------------------------ | -------- | ------------------------ | ------------------------------------------------------------- |
-| Realm                  | `string`                                         | No       | `"gin jwt"`              | Realm name to display to the user.                            |
-| SigningAlgorithm       | `string`                                         | No       | `"HS256"`                | Signing algorithm (HS256, HS384, HS512, RS256, RS384, RS512). |
-| Key                    | `[]byte`                                         | Yes      | -                        | Secret key used for signing.                                  |
-| Timeout                | `time.Duration`                                  | No       | `time.Hour`              | Duration that a jwt token is valid.                           |
-| MaxRefresh             | `time.Duration`                                  | No       | `0`                      | Duration that a refresh token is valid.                       |
-| Authenticator          | `func(c *gin.Context) (any, error)`              | Yes      | -                        | Callback to authenticate the user. Returns user data.         |
-| Authorizer             | `func(c *gin.Context, data any) bool`            | No       | `true`                   | Callback to authorize the authenticated user.                 |
-| PayloadFunc            | `func(data any) jwt.MapClaims`                   | No       | -                        | Callback to add additional payload data to the token.         |
-| Unauthorized           | `func(c *gin.Context, code int, message string)` | No       | -                        | Callback for unauthorized requests.                           |
-| LoginResponse          | `func(c *gin.Context, token *core.Token)`        | No       | -                        | Callback for successful login response.                       |
-| LogoutResponse         | `func(c *gin.Context)`                           | No       | -                        | Callback for successful logout response.                      |
-| RefreshResponse        | `func(c *gin.Context, token *core.Token)`        | No       | -                        | Callback for successful refresh response.                     |
-| IdentityHandler        | `func(*gin.Context) any`                         | No       | -                        | Callback to retrieve identity from claims.                    |
-| IdentityKey            | `string`                                         | No       | `"identity"`             | Key used to store identity in claims.                         |
-| TokenLookup            | `string`                                         | No       | `"header:Authorization"` | Source to extract token from (header, query, cookie).         |
-| TokenHeadName          | `string`                                         | No       | `"Bearer"`               | Header name prefix.                                           |
-| TimeFunc               | `func() time.Time`                               | No       | `time.Now`               | Function to provide current time.                             |
-| PrivKeyFile            | `string`                                         | No       | -                        | Path to private key file (for RS algorithms).                 |
-| PubKeyFile             | `string`                                         | No       | -                        | Path to public key file (for RS algorithms).                  |
-| SendCookie             | `bool`                                           | No       | `false`                  | Whether to send token as a cookie.                            |
-| CookieMaxAge           | `time.Duration`                                  | No       | `Timeout`                | Duration that the cookie is valid.                            |
+| Option                 | Type                                             | Required | Default                  | Description                                                                                           |
+| ---------------------- | ------------------------------------------------ | -------- | ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Realm                  | `string`                                         | No       | `"gin jwt"`              | Realm name to display to the user.                                                                    |
+| SigningAlgorithm       | `string`                                         | No       | `"HS256"`                | Signing algorithm (HS256, HS384, HS512, RS256, RS384, RS512).                                         |
+| Key                    | `[]byte`                                         | Yes      | -                        | Secret key used for signing.                                                                          |
+| Timeout                | `time.Duration`                                  | No       | `time.Hour`              | Duration that a jwt token is valid.                                                                   |
+| MaxRefresh             | `time.Duration`                                  | No       | `0`                      | Duration that a refresh token is valid.                                                               |
+| Authenticator          | `func(c *gin.Context) (any, error)`              | Yes      | -                        | Callback to authenticate the user. Returns user data.                                                 |
+| Authorizer             | `func(c *gin.Context, data any) bool`            | No       | `true`                   | Callback to authorize the authenticated user.                                                         |
+| PayloadFunc            | `func(data any) jwt.MapClaims`                   | No       | -                        | Callback to add additional payload data to the token.                                                 |
+| Unauthorized           | `func(c *gin.Context, code int, message string)` | No       | -                        | Callback for unauthorized requests.                                                                   |
+| LoginResponse          | `func(c *gin.Context, token *core.Token)`        | No       | -                        | Callback for successful login response.                                                               |
+| LogoutResponse         | `func(c *gin.Context)`                           | No       | -                        | Callback for successful logout response.                                                              |
+| RefreshResponse        | `func(c *gin.Context, token *core.Token)`        | No       | -                        | Callback for successful refresh response.                                                             |
+| IdentityHandler        | `func(*gin.Context) any`                         | No       | -                        | Callback to retrieve identity from claims.                                                            |
+| IdentityKey            | `string`                                         | No       | `"identity"`             | Key used to store identity in claims.                                                                 |
+| TokenLookup            | `string`                                         | No       | `"header:Authorization"` | Source to extract token from (header, query, cookie).                                                 |
+| TokenHeadName          | `string`                                         | No       | `"Bearer"`               | Header name prefix.                                                                                   |
+| TimeFunc               | `func() time.Time`                               | No       | `time.Now`               | Function to provide current time.                                                                     |
+| PrivKeyFile            | `string`                                         | No       | -                        | Path to private key file (for RS algorithms).                                                         |
+| PubKeyFile             | `string`                                         | No       | -                        | Path to public key file (for RS algorithms).                                                          |
+| SendCookie             | `bool`                                           | No       | `false`                  | Whether to send token as a cookie.                                                                    |
+| CookieMaxAge           | `time.Duration`                                  | No       | `Timeout`                | Duration that the cookie is valid.                                                                    |
 | SecureCookie           | `bool`                                           | No       | `false`                  | Whether to use secure cookies for access token (HTTPS only). Refresh token cookies are always secure. |
-| CookieHTTPOnly         | `bool`                                           | No       | `false`                  | Whether to use HTTPOnly cookies.                              |
-| CookieDomain           | `string`                                         | No       | -                        | Domain for the cookie.                                        |
-| CookieName             | `string`                                         | No       | `"jwt"`                  | Name of the cookie.                                           |
-| RefreshTokenCookieName | `string`                                         | No       | `"refresh_token"`        | Name of the refresh token cookie.                             |
-| CookieSameSite         | `http.SameSite`                                  | No       | -                        | SameSite attribute for the cookie.                            |
-| SendAuthorization      | `bool`                                           | No       | `false`                  | Whether to return authorization header for every request.     |
-| DisabledAbort          | `bool`                                           | No       | `false`                  | Disable abort() of context.                                   |
-| ParseOptions           | `[]jwt.ParserOption`                             | No       | -                        | Options for parsing the JWT.                                  |
+| CookieHTTPOnly         | `bool`                                           | No       | `false`                  | Whether to use HTTPOnly cookies.                                                                      |
+| CookieDomain           | `string`                                         | No       | -                        | Domain for the cookie.                                                                                |
+| CookieName             | `string`                                         | No       | `"jwt"`                  | Name of the cookie.                                                                                   |
+| RefreshTokenCookieName | `string`                                         | No       | `"refresh_token"`        | Name of the refresh token cookie.                                                                     |
+| CookieSameSite         | `http.SameSite`                                  | No       | -                        | SameSite attribute for the cookie.                                                                    |
+| SendAuthorization      | `bool`                                           | No       | `false`                  | Whether to return authorization header for every request.                                             |
+| DisabledAbort          | `bool`                                           | No       | `false`                  | Disable abort() of context.                                                                           |
+| ParseOptions           | `[]jwt.ParserOption`                             | No       | -                        | Options for parsing the JWT.                                                                          |
 
 ---
 
@@ -1241,21 +1241,20 @@ Using RFC 6749 compliant refresh tokens (default behavior):
 # First login to get refresh token
 http -v --json POST localhost:8000/login username=admin password=admin
 
-# Method 1: Use refresh token from response (manual)
-http -v --form POST localhost:8000/refresh refresh_token=your_refresh_token_here
-
-# Method 2: With cookies enabled (automatic - recommended for browsers)
+# Method 1: With cookies enabled (automatic - recommended for browsers)
 # The refresh token cookie is automatically sent, no need to manually include it
 http -v POST localhost:8000/refresh --session=./session.json
 
-# Method 3: Send refresh token in JSON body
+# Method 2: Send refresh token in JSON body
 http -v --json POST localhost:8000/refresh refresh_token=your_refresh_token_here
 
-# Method 4: Send refresh token as query parameter
-http -v POST localhost:8000/refresh?refresh_token=your_refresh_token_here
+# Method 3: Use refresh token from response via form data
+http -v --form POST localhost:8000/refresh refresh_token=your_refresh_token_here
 ```
 
-**Note**: When `SendCookie` is enabled, refresh tokens are automatically stored in httpOnly cookies. Browser-based applications can simply call the refresh endpoint without manually including the token - it's handled automatically by the cookie mechanism.
+**Security Note**: When `SendCookie` is enabled, refresh tokens are automatically stored in httpOnly cookies. Browser-based applications can simply call the refresh endpoint without manually including the token - it's handled automatically by the cookie mechanism.
+
+**Important**: Query parameters are NOT supported for refresh tokens as they expose tokens in server logs, proxy logs, browser history, and Referer headers. Use cookies (recommended), JSON body, or form data instead.
 
 ![Refresh screenshot](screenshot/refresh.png)
 
@@ -1664,8 +1663,9 @@ This is a provided function to be called on any refresh token endpoint. The hand
 
 1. **Cookie** (most common for browser-based apps): `RefreshTokenCookieName` cookie (default: `"refresh_token"`)
 2. **POST Form**: `refresh_token` form field
-3. **Query Parameter**: `refresh_token` query string parameter
-4. **JSON Body**: `refresh_token` field in request body
+3. **JSON Body**: `refresh_token` field in request body
+
+**Security Note**: Query parameters are NOT supported for refresh tokens to prevent token leakage through server logs, proxy logs, browser history, and Referer headers. Only secure delivery methods are supported.
 
 If the refresh token is valid and not expired, the handler will:
 
@@ -1674,7 +1674,7 @@ If the refresh token is valid and not expired, the handler will:
 - Set both tokens as cookies (if `SendCookie` is enabled)
 - Pass the new tokens into `RefreshResponse`
 
-This follows OAuth 2.0 security best practices by rotating refresh tokens and supporting multiple delivery methods.
+This follows OAuth 2.0 security best practices by rotating refresh tokens and supporting multiple secure delivery methods.
 
 **Cookie-Based Authentication**: When using cookies (recommended for browser apps), the refresh token is automatically sent with the request, so you don't need to manually include it. Simply call the refresh endpoint and the middleware handles everything.
 

@@ -606,11 +606,9 @@ func (mw *GinJWTMiddleware) extractRefreshToken(c *gin.Context) string {
 		return token
 	}
 
-	// Try query parameter (doesn't consume body)
-	token = c.Query("refresh_token")
-	if token != "" {
-		return token
-	}
+	// SECURITY: Query parameters are NOT supported for refresh tokens to prevent
+	// token leakage through server logs, proxy logs, browser history, and Referer headers.
+	// Only secure methods are supported: httpOnly cookies, request body (form/JSON).
 
 	// Check Content-Type to determine how to parse body
 	// This prevents consuming the body twice
