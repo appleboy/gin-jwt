@@ -27,6 +27,12 @@
     - [💡 安全配置範例](#-安全配置範例)
   - [安裝](#安裝)
   - [快速開始範例](#快速開始範例)
+  - [使用範例](#使用範例)
+    - [🔑 基礎認證](#-基礎認證)
+    - [🌐 OAuth SSO 整合](#-oauth-sso-整合)
+    - [🔐 Token 產生器](#-token-產生器)
+    - [🗄️ Redis 儲存](#️-redis-儲存)
+    - [🛡️ 授權控制](#️-授權控制)
   - [配置](#配置)
   - [支援多個 JWT 提供者](#支援多個-jwt-提供者)
     - [使用場景](#使用場景)
@@ -73,7 +79,7 @@
     - [進階授權模式](#進階授權模式)
       - [使用 Claims 進行細緻度控制](#使用-claims-進行細緻度控制)
     - [常見模式和最佳實踐](#常見模式和最佳實踐)
-    - [完整範例](#完整範例)
+    - [授權完整範例](#授權完整範例)
     - [登出](#登出)
   - [Cookie Token](#cookie-token)
     - [登入流程（LoginHandler）](#登入流程loginhandler)
@@ -365,6 +371,52 @@ func helloHandler(c *gin.Context) {
   })
 }
 ```
+
+---
+
+## 使用範例
+
+本專案提供多個完整的範例實作，展示不同的使用情境：
+
+### 🔑 [基礎認證](_example/basic/)
+
+展示基本的 JWT 認證功能，包含登入、受保護路由和 token 驗證。
+
+### 🌐 [OAuth SSO 整合](_example/oauth_sso/)
+
+**OAuth 2.0 單一登入**範例，支援多個身份提供者（Google、GitHub）：
+
+- OAuth 2.0 授權碼流程
+- 使用 state token 的 CSRF 保護
+- **雙重認證支援**：httpOnly cookies + Authorization headers
+- 為瀏覽器和行動應用程式提供安全的 token 傳遞
+- 包含互動式 demo 頁面
+
+### 🔐 [Token 產生器](_example/token_generator/)
+
+直接產生 JWT token，無需 HTTP middleware，適用於：
+
+- 程式化認證
+- 服務間通訊
+- 測試需要認證的端點
+- 自訂認證流程
+
+### 🗄️ [Redis 儲存](_example/redis_simple/)
+
+展示 Redis 整合用於 refresh token 儲存，包含：
+
+- 用戶端快取以提升效能
+- 自動降級至記憶體儲存
+- 生產環境就緒的配置範例
+
+### 🛡️ [授權控制](_example/authorization/)
+
+進階授權模式，包含：
+
+- 基於角色的存取控制
+- 基於路徑的授權
+- 多個 middleware 實例
+- 精細的權限控制
 
 ---
 
@@ -1440,7 +1492,7 @@ func getRequiredPermission(path string) string {
 4. **安全優先**：預設回傳 `false`，明確允許存取
 5. **記錄授權失敗**：新增日誌以除錯授權問題
 
-### 完整範例
+### 授權完整範例
 
 查看[授權範例](_example/authorization/)了解展示不同授權情境的完整實作。
 

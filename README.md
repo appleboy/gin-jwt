@@ -27,6 +27,12 @@ Easily add login, token refresh, and authorization to your Gin applications.
     - [💡 Secure Configuration Example](#-secure-configuration-example)
   - [Installation](#installation)
   - [Quick Start Example](#quick-start-example)
+  - [Complete Examples](#complete-examples)
+    - [🔑 Basic Authentication](#-basic-authentication)
+    - [🌐 OAuth SSO Integration](#-oauth-sso-integration)
+    - [🔐 Token Generator](#-token-generator)
+    - [🗄️ Redis Store](#️-redis-store)
+    - [🛡️ Authorization](#️-authorization)
   - [Configuration](#configuration)
   - [Supporting Multiple JWT Providers](#supporting-multiple-jwt-providers)
     - [Use Cases](#use-cases)
@@ -364,6 +370,52 @@ func helloHandler(c *gin.Context) {
 }
 
 ```
+
+---
+
+## Complete Examples
+
+This repository provides several complete example implementations demonstrating different use cases:
+
+### 🔑 [Basic Authentication](_example/basic/)
+
+The basic example showing fundamental JWT authentication with login, protected routes, and token validation.
+
+### 🌐 [OAuth SSO Integration](_example/oauth_sso/)
+
+**OAuth 2.0 Single Sign-On** example supporting multiple identity providers (Google, GitHub):
+
+- OAuth 2.0 Authorization Code Flow
+- CSRF protection with state tokens
+- **Dual authentication support**: httpOnly cookies + Authorization headers
+- Secure token delivery for both browser and mobile apps
+- Interactive demo page included
+
+### 🔐 [Token Generator](_example/token_generator/)
+
+Direct token generation without HTTP middleware, perfect for:
+
+- Programmatic authentication
+- Service-to-service communication
+- Testing authenticated endpoints
+- Custom authentication flows
+
+### 🗄️ [Redis Store](_example/redis_simple/)
+
+Demonstrates Redis integration for refresh token storage with:
+
+- Client-side caching for improved performance
+- Automatic fallback to in-memory store
+- Production-ready configuration examples
+
+### 🛡️ [Authorization](_example/authorization/)
+
+Advanced authorization patterns including:
+
+- Role-based access control
+- Path-based authorization
+- Multiple middleware instances
+- Fine-grained permission control
 
 ---
 
