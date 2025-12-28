@@ -99,7 +99,7 @@ func TestExtractRefreshTokenFromCookie(t *testing.T) {
 
 	// Create a test context with refresh token cookie
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/test", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/test", nil)
 	req.AddCookie(&http.Cookie{
 		Name:  "refresh_token",
 		Value: "test-refresh-token-from-cookie",
@@ -128,7 +128,12 @@ func TestExtractRefreshTokenPriority(t *testing.T) {
 
 	// Test: Cookie has highest priority
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("POST", "/test?refresh_token=from-query", nil)
+	req, _ := http.NewRequestWithContext(
+		context.Background(),
+		"POST",
+		"/test?refresh_token=from-query",
+		nil,
+	)
 	req.AddCookie(&http.Cookie{
 		Name:  "refresh_token",
 		Value: "from-cookie",
@@ -170,7 +175,7 @@ func TestLoginHandlerSetsRefreshTokenCookie(t *testing.T) {
 			assert.Equal(t, http.StatusOK, r.Code)
 
 			// Check that both cookies are set
-			setCookieHeaders := r.HeaderMap["Set-Cookie"]
+			setCookieHeaders := (*httptest.ResponseRecorder)(r).Result().Header.Values("Set-Cookie")
 			assert.True(t, len(setCookieHeaders) >= 2, "Should set at least 2 cookies")
 
 			hasJWTCookie := false
@@ -247,7 +252,7 @@ func TestRefreshHandlerWithCookie(t *testing.T) {
 			)
 
 			// Check that new cookies are set
-			setCookieHeaders := r.HeaderMap["Set-Cookie"]
+			setCookieHeaders := (*httptest.ResponseRecorder)(r).Result().Header.Values("Set-Cookie")
 			assert.True(t, len(setCookieHeaders) >= 2, "Should set new cookies")
 		})
 }
@@ -361,7 +366,7 @@ func TestLogoutHandlerClearsRefreshTokenCookie(t *testing.T) {
 			assert.Equal(t, http.StatusOK, r.Code)
 
 			// Check that both cookies are cleared (MaxAge=-1)
-			setCookieHeaders := r.HeaderMap["Set-Cookie"]
+			setCookieHeaders := (*httptest.ResponseRecorder)(r).Result().Header.Values("Set-Cookie")
 			assert.True(t, len(setCookieHeaders) >= 2, "Should clear cookies")
 
 			hasJWTClear := false
@@ -460,7 +465,7 @@ func TestRefreshTokenCookieName(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
 
-			setCookieHeaders := r.HeaderMap["Set-Cookie"]
+			setCookieHeaders := (*httptest.ResponseRecorder)(r).Result().Header.Values("Set-Cookie")
 			hasCustomCookie := false
 
 			for _, cookie := range setCookieHeaders {
