@@ -606,24 +606,31 @@ func (mw *GinJWTMiddleware) extractRefreshToken(c *gin.Context) string {
 		return token
 	}
 
-	// Try POST form
-	token = c.PostForm("refresh_token")
-	if token != "" {
-		return token
-	}
-
-	// Try query parameter
+	// Try query parameter (doesn't consume body)
 	token = c.Query("refresh_token")
 	if token != "" {
 		return token
 	}
 
-	// Try JSON body
-	var reqBody struct {
-		RefreshToken string `json:"refresh_token"`
-	}
-	if err := c.ShouldBindJSON(&reqBody); err == nil {
-		token = reqBody.RefreshToken
+	// Check Content-Type to determine how to parse body
+	// This prevents consuming the body twice
+	contentType := c.ContentType()
+
+	if strings.Contains(contentType, "application/x-www-form-urlencoded") ||
+		strings.Contains(contentType, "multipart/form-data") {
+		// Try POST form
+		token = c.PostForm("refresh_token")
+		if token != "" {
+			return token
+		}
+	} else if strings.Contains(contentType, "application/json") {
+		// Try JSON body
+		var reqBody struct {
+			RefreshToken string `json:"refresh_token"`
+		}
+		if err := c.ShouldBindJSON(&reqBody); err == nil {
+			token = reqBody.RefreshToken
+		}
 	}
 
 	return token

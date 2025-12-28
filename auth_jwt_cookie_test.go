@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -516,6 +517,97 @@ func TestTokenGeneratorSetsRefreshToken(t *testing.T) {
 	assert.Equal(t, "Bearer", tokenPair.TokenType)
 	assert.True(t, tokenPair.ExpiresAt > 0)
 	assert.True(t, tokenPair.CreatedAt > 0)
+}
+
+func TestExtractRefreshTokenContentType(t *testing.T) {
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:                  "test zone",
+		Key:                    key,
+		Timeout:                time.Hour,
+		RefreshTokenCookieName: "refresh_token",
+	})
+
+	t.Run("JSON body with application/json Content-Type", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequestWithContext(
+			context.Background(),
+			"POST",
+			"/test",
+			strings.NewReader(`{"refresh_token":"from-json-body"}`),
+		)
+		req.Header.Set("Content-Type", "application/json")
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+
+		token := authMiddleware.extractRefreshToken(c)
+		assert.Equal(
+			t,
+			"from-json-body",
+			token,
+			"Should extract from JSON body with application/json Content-Type",
+		)
+	})
+
+	t.Run("Form body with application/x-www-form-urlencoded Content-Type", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequestWithContext(
+			context.Background(),
+			"POST",
+			"/test",
+			strings.NewReader("refresh_token=from-form-body"),
+		)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+
+		token := authMiddleware.extractRefreshToken(c)
+		assert.Equal(
+			t,
+			"from-form-body",
+			token,
+			"Should extract from form body with application/x-www-form-urlencoded Content-Type",
+		)
+	})
+
+	t.Run("Query parameter takes precedence over body", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequestWithContext(
+			context.Background(),
+			"POST",
+			"/test?refresh_token=from-query",
+			strings.NewReader(`{"refresh_token":"from-json-body"}`),
+		)
+		req.Header.Set("Content-Type", "application/json")
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+
+		token := authMiddleware.extractRefreshToken(c)
+		assert.Equal(t, "from-query", token, "Query parameter should take precedence over body")
+	})
+
+	t.Run("Cookie takes highest precedence", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequestWithContext(
+			context.Background(),
+			"POST",
+			"/test?refresh_token=from-query",
+			strings.NewReader(`{"refresh_token":"from-json-body"}`),
+		)
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{
+			Name:  "refresh_token",
+			Value: "from-cookie",
+		})
+
+		c, _ := gin.CreateTestContext(w)
+		c.Request = req
+
+		token := authMiddleware.extractRefreshToken(c)
+		assert.Equal(t, "from-cookie", token, "Cookie should have highest precedence")
+	})
 }
 
 // Helper function to check if a string contains a substring
