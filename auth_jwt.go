@@ -155,6 +155,9 @@ type GinJWTMiddleware struct {
 	// CookieName allow cookie name change for development
 	CookieName string
 
+	// RefreshTokenCookieName allow refresh token cookie name change for development
+	RefreshTokenCookieName string
+
 	// CookieSameSite allow use http.SameSite cookie param
 	CookieSameSite http.SameSite
 
@@ -451,6 +454,10 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 		mw.CookieName = "jwt"
 	}
 
+	if mw.RefreshTokenCookieName == "" {
+		mw.RefreshTokenCookieName = "refresh_token"
+	}
+
 	if mw.ExpField == "" {
 		mw.ExpField = "exp"
 	}
@@ -585,25 +592,40 @@ func (mw *GinJWTMiddleware) LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Set cookie
+	// Set cookies
 	mw.SetCookie(c, tokenPair.AccessToken)
+	mw.SetRefreshTokenCookie(c, tokenPair.RefreshToken)
 
 	mw.LoginResponse(c, tokenPair)
 }
 
 func (mw *GinJWTMiddleware) extractRefreshToken(c *gin.Context) string {
-	token := c.PostForm("refresh_token")
-	if token == "" {
-		token = c.Query("refresh_token")
+	// Try to get refresh token from cookie first (most common for browser-based apps)
+	token, _ := c.Cookie(mw.RefreshTokenCookieName)
+	if token != "" {
+		return token
 	}
-	if token == "" {
-		var reqBody struct {
-			RefreshToken string `json:"refresh_token"`
-		}
-		if err := c.ShouldBindJSON(&reqBody); err == nil {
-			token = reqBody.RefreshToken
-		}
+
+	// Try POST form
+	token = c.PostForm("refresh_token")
+	if token != "" {
+		return token
 	}
+
+	// Try query parameter
+	token = c.Query("refresh_token")
+	if token != "" {
+		return token
+	}
+
+	// Try JSON body
+	var reqBody struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := c.ShouldBindJSON(&reqBody); err == nil {
+		token = reqBody.RefreshToken
+	}
+
 	return token
 }
 
@@ -628,12 +650,13 @@ func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
 		}
 	}
 
-	// delete auth cookie
+	// delete auth cookies
 	if mw.SendCookie {
 		if mw.CookieSameSite != 0 {
 			c.SetSameSite(mw.CookieSameSite)
 		}
 
+		// Delete access token cookie
 		c.SetCookie(
 			mw.CookieName,
 			"",
@@ -642,6 +665,17 @@ func (mw *GinJWTMiddleware) LogoutHandler(c *gin.Context) {
 			mw.CookieDomain,
 			mw.SecureCookie,
 			mw.CookieHTTPOnly,
+		)
+
+		// Delete refresh token cookie
+		c.SetCookie(
+			mw.RefreshTokenCookieName,
+			"",
+			-1,
+			"/",
+			mw.CookieDomain,
+			mw.SecureCookie,
+			true,
 		)
 	}
 
@@ -720,8 +754,9 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	// Set cookie
+	// Set cookies
 	mw.SetCookie(c, tokenPair.AccessToken)
+	mw.SetRefreshTokenCookie(c, tokenPair.RefreshToken)
 
 	mw.RefreshResponse(c, tokenPair)
 }
@@ -1069,6 +1104,28 @@ func (mw *GinJWTMiddleware) SetCookie(c *gin.Context, token string) {
 			mw.CookieDomain,
 			mw.SecureCookie,
 			mw.CookieHTTPOnly,
+		)
+	}
+}
+
+// SetRefreshTokenCookie help to set the refresh token in the cookie
+func (mw *GinJWTMiddleware) SetRefreshTokenCookie(c *gin.Context, refreshToken string) {
+	if mw.SendCookie {
+		expireCookie := mw.TimeFunc().Add(mw.RefreshTokenTimeout)
+		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
+
+		if mw.CookieSameSite != 0 {
+			c.SetSameSite(mw.CookieSameSite)
+		}
+
+		c.SetCookie(
+			mw.RefreshTokenCookieName,
+			refreshToken,
+			maxage,
+			"/",
+			mw.CookieDomain,
+			mw.SecureCookie,
+			true, // Always httpOnly for security
 		)
 	}
 }

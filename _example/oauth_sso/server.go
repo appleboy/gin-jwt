@@ -304,8 +304,9 @@ func handleOAuthSuccess(
 		return err
 	}
 
-  // Set cookie
+	// Set cookies (both access token and refresh token)
 	authMiddleware.SetCookie(c, token.AccessToken)
+	authMiddleware.SetRefreshTokenCookie(c, token.RefreshToken)
 
 	// Let gin-jwt handle everything (cookies, headers, response) via LoginResponse
 	// The middleware will automatically:
