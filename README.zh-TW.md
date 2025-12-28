@@ -28,6 +28,20 @@
   - [安裝](#安裝)
   - [快速開始範例](#快速開始範例)
   - [配置](#配置)
+  - [支援多個 JWT 提供者](#支援多個-jwt-提供者)
+    - [使用場景](#使用場景)
+    - [解決方案：動態金鑰函數](#解決方案動態金鑰函數)
+      - [為什麼這個方法有效](#為什麼這個方法有效)
+    - [實作策略](#實作策略)
+      - [步驟 1：建立統一的中介軟體](#步驟-1建立統一的中介軟體)
+      - [步驟 2：輔助函數](#步驟-2輔助函數)
+      - [步驟 3：路由設定](#步驟-3路由設定)
+    - [完整的 Azure AD 整合範例](#完整的-azure-ad-整合範例)
+    - [替代方法：自訂包裝中介軟體](#替代方法自訂包裝中介軟體)
+    - [關鍵考量事項](#關鍵考量事項)
+    - [測試多提供者設定](#測試多提供者設定)
+    - [常見問題與解決方案](#常見問題與解決方案)
+    - [其他資源](#其他資源)
   - [Token 產生器（直接建立 Token）](#token-產生器直接建立-token)
     - [基本用法](#基本用法)
     - [Token 結構](#token-結構)
@@ -389,6 +403,483 @@ func helloHandler(c *gin.Context) {
 | SendAuthorization | `bool`                                           | 否   | `false`                  | 是否為每個請求回傳授權 Header。                         |
 | DisabledAbort     | `bool`                                           | 否   | `false`                  | 禁用 context 的 abort()。                               |
 | ParseOptions      | `[]jwt.ParserOption`                             | 否   | -                        | 解析 JWT 的選項。                                       |
+
+---
+
+## 支援多個 JWT 提供者
+
+在某些場景中，你可能需要接受來自多個來源的 JWT Token，例如你自己的驗證系統和外部身份提供者（如 Azure AD、Auth0 或其他 OAuth 2.0 提供者）。本節說明如何使用 `KeyFunc` 回呼函數實作多提供者 Token 驗證。
+
+### 使用場景
+
+- 🔐 **混合驗證**：同時支援內部和外部驗證
+- 🌐 **第三方整合**：接受來自 Azure AD、Google、Auth0 等的 Token
+- 🔄 **遷移場景**：從一個驗證系統逐步遷移到另一個
+- 🏢 **企業 SSO**：在一般驗證之外支援企業單一登入
+
+### 解決方案：動態金鑰函數
+
+建議的方法是使用**單一中介軟體配合動態 `KeyFunc`**，根據 Token 屬性（例如 issuer claim）來決定適當的驗證方法。
+
+#### 為什麼這個方法有效
+
+`KeyFunc` 回呼函數（auth_jwt.go:41）正是為此目的而設計。它允許你：
+
+- 在驗證前檢查 Token
+- 動態選擇正確的簽章金鑰/方法
+- 避免串聯多個中介軟體時的中止問題
+
+### 實作策略
+
+#### 步驟 1：建立統一的中介軟體
+
+```go
+package main
+
+import (
+    "errors"
+    "fmt"
+    "strings"
+    "time"
+
+    jwt "github.com/appleboy/gin-jwt/v3"
+    "github.com/gin-gonic/gin"
+    "github.com/golang-jwt/jwt/v5"
+)
+
+func createMultiProviderAuthMiddleware() (*jwt.GinJWTMiddleware, error) {
+    // 你自己的 JWT 密鑰
+    ownSecret := []byte("your-secret-key")
+
+    // Azure AD 公鑰（從 JWKS 端點獲取）
+    azurePublicKeys := getAzurePublicKeys()
+
+    return jwt.New(&jwt.GinJWTMiddleware{
+        Realm:       "multi-provider-api",
+        Key:         ownSecret, // 預設金鑰（必要但可能不會使用）
+        IdentityKey: "sub",
+        Timeout:     time.Hour,
+
+        // 動態金鑰函數 - 多提供者支援的核心
+        KeyFunc: func(token *jwt.Token) (interface{}, error) {
+            // 提取 claims 以判斷 Token 來源
+            claims, ok := token.Claims.(jwt.MapClaims)
+            if !ok {
+                return nil, errors.New("invalid claims type")
+            }
+
+            // 檢查 issuer claim 以識別 Token 來源
+            issuer, _ := claims["iss"].(string)
+
+            // 路由 1：Azure AD Token
+            if isAzureADIssuer(issuer) {
+                // 驗證演算法
+                if token.Method.Alg() != "RS256" {
+                    return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+                }
+
+                // 從 Token header 取得金鑰 ID
+                keyID, ok := token.Header["kid"].(string)
+                if !ok {
+                    return nil, errors.New("missing key ID in Azure AD token header")
+                }
+
+                // 查找公鑰
+                if key, found := azurePublicKeys[keyID]; found {
+                    return key, nil
+                }
+                return nil, fmt.Errorf("unknown Azure AD key ID: %s", keyID)
+            }
+
+            // 路由 2：你自己的 Token
+            // 驗證簽章方法符合你的配置
+            if token.Method.Alg() != "HS256" {
+                return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+            }
+
+            return ownSecret, nil
+        },
+
+        // 處理不同提供者的不同身份格式
+        IdentityHandler: func(c *gin.Context) interface{} {
+            claims := jwt.ExtractClaims(c)
+
+            // 嘗試標準 "sub" claim（大多數 OAuth 提供者使用）
+            if sub, ok := claims["sub"].(string); ok {
+                return sub
+            }
+
+            // 回退到自訂 "identity" claim
+            if identity, ok := claims["identity"].(string); ok {
+                return identity
+            }
+
+            return nil
+        },
+
+        // 選用：提供者特定的授權
+        Authorizer: func(c *gin.Context, data interface{}) bool {
+            claims := jwt.ExtractClaims(c)
+            issuer, _ := claims["iss"].(string)
+
+            // Azure AD 特定授權
+            if isAzureADIssuer(issuer) {
+                return authorizeAzureADUser(claims, c)
+            }
+
+            // 你自己的 Token 授權
+            return authorizeOwnUser(claims, c)
+        },
+
+        // 選用：針對不同提供者的自訂錯誤訊息
+        HTTPStatusMessageFunc: func(c *gin.Context, e error) string {
+            if strings.Contains(e.Error(), "Azure AD") {
+                return "Azure AD token validation failed: " + e.Error()
+            }
+            return e.Error()
+        },
+    })
+}
+```
+
+#### 步驟 2：輔助函數
+
+```go
+// 檢查 issuer 是否來自 Azure AD
+func isAzureADIssuer(issuer string) bool {
+    // Azure AD issuer 看起來像：
+    // https://login.microsoftonline.com/{tenant}/v2.0
+    // https://sts.windows.net/{tenant}/
+    return strings.Contains(issuer, "login.microsoftonline.com") ||
+           strings.Contains(issuer, "sts.windows.net")
+}
+
+// 從 JWKS 端點獲取並快取 Azure AD 公鑰
+func getAzurePublicKeys() map[string]interface{} {
+    // 實作：從 Azure AD JWKS 端點獲取
+    // https://login.microsoftonline.com/common/discovery/v2.0/keys
+    // 或特定租戶：https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys
+
+    // 使用函式庫如 github.com/lestrrat-go/jwx/v2/jwk 來解析 JWKS
+    // 實作快取以避免每個請求都獲取
+
+    keys := make(map[string]interface{})
+
+    // 範例結構（你需要實作實際的獲取）：
+    // jwkSet, err := jwk.Fetch(context.Background(),
+    //     "https://login.microsoftonline.com/common/discovery/v2.0/keys")
+    // if err != nil {
+    //     log.Printf("Failed to fetch Azure AD keys: %v", err)
+    //     return keys
+    // }
+    //
+    // for it := jwkSet.Iterate(context.Background()); it.Next(context.Background()); {
+    //     pair := it.Pair()
+    //     key := pair.Value.(jwk.Key)
+    //
+    //     var rawKey interface{}
+    //     if err := key.Raw(&rawKey); err == nil {
+    //         keys[key.KeyID()] = rawKey
+    //     }
+    // }
+
+    return keys
+}
+
+// Azure AD 特定授權
+func authorizeAzureADUser(claims jwt.MapClaims, c *gin.Context) bool {
+    // 檢查 Azure AD 特定 claims
+
+    // 範例：檢查 roles claim
+    if roles, ok := claims["roles"].([]interface{}); ok {
+        for _, role := range roles {
+            if role.(string) == "Admin" || role.(string) == "User" {
+                return true
+            }
+        }
+    }
+
+    // 範例：檢查 groups claim
+    if groups, ok := claims["groups"].([]interface{}); ok {
+        allowedGroups := []string{"group-id-1", "group-id-2"}
+        for _, group := range groups {
+            for _, allowed := range allowedGroups {
+                if group.(string) == allowed {
+                    return true
+                }
+            }
+        }
+    }
+
+    // 範例：檢查 app roles
+    if appRoles, ok := claims["app_role"].(string); ok {
+        if appRoles == "User.Read" || appRoles == "Admin.All" {
+            return true
+        }
+    }
+
+    return false
+}
+
+// 你自己的 Token 授權
+func authorizeOwnUser(claims jwt.MapClaims, c *gin.Context) bool {
+    // 你的自訂授權邏輯
+    if role, ok := claims["role"].(string); ok {
+        return role == "admin" || role == "user"
+    }
+    return true
+}
+```
+
+#### 步驟 3：路由設定
+
+```go
+func main() {
+    r := gin.Default()
+
+    // 初始化多提供者中介軟體
+    authMiddleware, err := createMultiProviderAuthMiddleware()
+    if err != nil {
+        log.Fatal("JWT Error: " + err.Error())
+    }
+
+    if err := authMiddleware.MiddlewareInit(); err != nil {
+        log.Fatal("Middleware Init Error: " + err.Error())
+    }
+
+    // 公開路由
+    r.POST("/login", authMiddleware.LoginHandler) // 用於你自己的驗證
+    r.POST("/refresh", authMiddleware.RefreshHandler)
+
+    // 受保護路由 - 接受來自任何已配置提供者的 Token
+    auth := r.Group("/api")
+    auth.Use(authMiddleware.MiddlewareFunc())
+    {
+        auth.GET("/profile", func(c *gin.Context) {
+            claims := jwt.ExtractClaims(c)
+            issuer := claims["iss"].(string)
+
+            c.JSON(200, gin.H{
+                "message": "Success",
+                "user_id": claims["sub"],
+                "issuer":  issuer,
+                "source":  determineTokenSource(issuer),
+            })
+        })
+    }
+
+    r.Run(":8080")
+}
+
+func determineTokenSource(issuer string) string {
+    if isAzureADIssuer(issuer) {
+        return "Azure AD"
+    }
+    return "Internal"
+}
+```
+
+### 完整的 Azure AD 整合範例
+
+對於生產環境就緒的 Azure AD 整合，你需要：
+
+**動態獲取 JWKS 金鑰**：
+
+```go
+import (
+    "context"
+    "crypto/rsa"
+    "sync"
+    "time"
+
+    "github.com/lestrrat-go/jwx/v2/jwk"
+)
+
+type AzureADKeyProvider struct {
+    jwksURL    string
+    keys       map[string]*rsa.PublicKey
+    mutex      sync.RWMutex
+    lastUpdate time.Time
+}
+
+func NewAzureADKeyProvider(tenantID string) *AzureADKeyProvider {
+    provider := &AzureADKeyProvider{
+        jwksURL: fmt.Sprintf(
+            "https://login.microsoftonline.com/%s/discovery/v2.0/keys",
+            tenantID,
+        ),
+        keys: make(map[string]*rsa.PublicKey),
+    }
+
+    // 初始獲取
+    provider.RefreshKeys()
+
+    // 每小時刷新金鑰
+    go func() {
+        ticker := time.NewTicker(1 * time.Hour)
+        defer ticker.Stop()
+        for range ticker.C {
+            provider.RefreshKeys()
+        }
+    }()
+
+    return provider
+}
+
+func (p *AzureADKeyProvider) RefreshKeys() error {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    set, err := jwk.Fetch(ctx, p.jwksURL)
+    if err != nil {
+        return fmt.Errorf("failed to fetch JWKS: %w", err)
+    }
+
+    newKeys := make(map[string]*rsa.PublicKey)
+
+    for it := set.Keys(ctx); it.Next(ctx); {
+        key := it.Pair().Value.(jwk.Key)
+
+        var rawKey interface{}
+        if err := key.Raw(&rawKey); err != nil {
+            continue
+        }
+
+        if rsaKey, ok := rawKey.(*rsa.PublicKey); ok {
+            newKeys[key.KeyID()] = rsaKey
+        }
+    }
+
+    p.mutex.Lock()
+    p.keys = newKeys
+    p.lastUpdate = time.Now()
+    p.mutex.Unlock()
+
+    return nil
+}
+
+func (p *AzureADKeyProvider) GetKey(keyID string) (*rsa.PublicKey, bool) {
+    p.mutex.RLock()
+    defer p.mutex.RUnlock()
+
+    key, found := p.keys[keyID]
+    return key, found
+}
+```
+
+**驗證 Azure AD 特定 Claims**：
+
+```go
+func validateAzureADClaims(claims jwt.MapClaims) error {
+    // 驗證 issuer
+    iss, ok := claims["iss"].(string)
+    if !ok || !isAzureADIssuer(iss) {
+        return errors.New("invalid Azure AD issuer")
+    }
+
+    // 驗證 audience（你的應用程式 ID）
+    aud, ok := claims["aud"].(string)
+    if !ok || aud != "your-app-client-id" {
+        return errors.New("invalid audience")
+    }
+
+    // 驗證租戶（選用，適用於單租戶應用程式）
+    tid, ok := claims["tid"].(string)
+    if !ok || tid != "your-tenant-id" {
+        return errors.New("invalid tenant")
+    }
+
+    return nil
+}
+```
+
+### 替代方法：自訂包裝中介軟體
+
+如果你需要更多控制或想要完全分離提供者：
+
+```go
+func MultiAuthMiddleware(
+    ownAuth *jwt.GinJWTMiddleware,
+    externalAuth *jwt.GinJWTMiddleware,
+) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // 先嘗試自己的驗證
+        ownAuth.DisabledAbort = true
+        ownAuth.MiddlewareFunc()(c)
+
+        // 檢查驗證是否成功
+        if _, exists := c.Get("JWT_PAYLOAD"); exists {
+            c.Next()
+            return
+        }
+
+        // 清除錯誤並嘗試外部提供者
+        c.Errors = c.Errors[:0]
+
+        externalAuth.DisabledAbort = true
+        externalAuth.MiddlewareFunc()(c)
+
+        if _, exists := c.Get("JWT_PAYLOAD"); exists {
+            c.Next()
+            return
+        }
+
+        // 兩者都失敗
+        c.JSON(401, gin.H{
+            "code":    401,
+            "message": "Invalid or missing authentication token",
+        })
+        c.Abort()
+    }
+}
+```
+
+### 關鍵考量事項
+
+1. **Token Issuer 驗證**：始終驗證 `iss` claim 以確保 Token 來自可信來源
+2. **Audience 驗證**：驗證 `aud` claim 符合你的應用程式客戶端 ID
+3. **演算法驗證**：確保簽章演算法符合預期（你的 Token 用 HS256，Azure AD 用 RS256）
+4. **金鑰快取**：快取來自 JWKS 端點的公鑰以降低延遲
+5. **金鑰輪換**：實作自動金鑰刷新以處理提供者的金鑰輪換
+6. **錯誤處理**：提供清楚的錯誤訊息指出哪個提供者的驗證失敗
+7. **安全性**：絕不跳過簽章驗證或停用安全檢查
+
+### 測試多提供者設定
+
+```bash
+# 使用你自己的 Token 測試
+curl -H "Authorization: Bearer YOUR_INTERNAL_TOKEN" \
+     http://localhost:8080/api/profile
+
+# 使用 Azure AD Token 測試
+curl -H "Authorization: Bearer AZURE_AD_TOKEN" \
+     http://localhost:8080/api/profile
+```
+
+### 常見問題與解決方案
+
+**問題**："串聯中介軟體會導致第一個失敗時中止請求"
+
+- **解決方案**：使用 `KeyFunc` 方法配合單一中介軟體實例
+
+**問題**："Azure AD 公鑰會定期變更"
+
+- **解決方案**：實作自動 JWKS 刷新（如 AzureADKeyProvider 範例所示）
+
+**問題**："不同提供者的 Token 格式不同"
+
+- **解決方案**：在 `IdentityHandler` 中標準化 claims 並處理提供者特定的格式
+
+**問題**："不同提供者的授權邏輯不同"
+
+- **解決方案**：在 `Authorizer` 中檢查 issuer 並路由到提供者特定的邏輯
+
+### 其他資源
+
+- [Azure AD Token 驗證](https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens)
+- [JWKS (JSON Web Key Sets)](https://auth0.com/docs/secure/tokens/json-web-tokens/json-web-key-sets)
+- [RFC 7517 - JSON Web Key (JWK)](https://tools.ietf.org/html/rfc7517)
+- [lestrrat-go/jwx 函式庫](https://github.com/lestrrat-go/jwx) 用於 JWKS 處理
 
 ---
 

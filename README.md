@@ -28,6 +28,20 @@ Easily add login, token refresh, and authorization to your Gin applications.
   - [Installation](#installation)
   - [Quick Start Example](#quick-start-example)
   - [Configuration](#configuration)
+  - [Supporting Multiple JWT Providers](#supporting-multiple-jwt-providers)
+    - [Use Cases](#use-cases)
+    - [Solution: Dynamic Key Function](#solution-dynamic-key-function)
+      - [Why This Works](#why-this-works)
+    - [Implementation Strategy](#implementation-strategy)
+      - [Step 1: Create a Unified Middleware](#step-1-create-a-unified-middleware)
+      - [Step 2: Helper Functions](#step-2-helper-functions)
+      - [Step 3: Route Setup](#step-3-route-setup)
+    - [Complete Azure AD Integration Example](#complete-azure-ad-integration-example)
+    - [Alternative Approach: Custom Wrapper Middleware](#alternative-approach-custom-wrapper-middleware)
+    - [Key Considerations](#key-considerations)
+    - [Testing Multi-Provider Setup](#testing-multi-provider-setup)
+    - [Common Issues and Solutions](#common-issues-and-solutions)
+    - [Additional Resources](#additional-resources)
   - [Token Generator (Direct Token Creation)](#token-generator-direct-token-creation)
     - [Basic Usage](#basic-usage)
     - [Token Structure](#token-structure)
@@ -388,6 +402,483 @@ The `GinJWTMiddleware` struct provides the following configuration options:
 | SendAuthorization | `bool`                                           | No       | `false`                  | Whether to return authorization header for every request.     |
 | DisabledAbort     | `bool`                                           | No       | `false`                  | Disable abort() of context.                                   |
 | ParseOptions      | `[]jwt.ParserOption`                             | No       | -                        | Options for parsing the JWT.                                  |
+
+---
+
+## Supporting Multiple JWT Providers
+
+In some scenarios, you may need to accept JWT tokens from multiple sources, such as your own authentication system and external identity providers like Azure AD, Auth0, or other OAuth 2.0 providers. This section explains how to implement multi-provider token validation using the `KeyFunc` callback.
+
+### Use Cases
+
+- 🔐 **Hybrid Authentication**: Support both internal and external authentication
+- 🌐 **Third-Party Integration**: Accept tokens from Azure AD, Google, Auth0, etc.
+- 🔄 **Migration Scenarios**: Gradually migrate from one auth system to another
+- 🏢 **Enterprise SSO**: Support enterprise Single Sign-On alongside regular auth
+
+### Solution: Dynamic Key Function
+
+The recommended approach is to use a **single middleware with a dynamic `KeyFunc`** that determines the appropriate validation method based on token properties (such as the issuer claim).
+
+#### Why This Works
+
+The `KeyFunc` callback (line 41 in auth_jwt.go:41) is designed for exactly this purpose. It allows you to:
+
+- Inspect the token before validation
+- Choose the correct signing key/method dynamically
+- Avoid the abort issue when chaining multiple middlewares
+
+### Implementation Strategy
+
+#### Step 1: Create a Unified Middleware
+
+```go
+package main
+
+import (
+    "errors"
+    "fmt"
+    "strings"
+    "time"
+
+    jwt "github.com/appleboy/gin-jwt/v3"
+    "github.com/gin-gonic/gin"
+    "github.com/golang-jwt/jwt/v5"
+)
+
+func createMultiProviderAuthMiddleware() (*jwt.GinJWTMiddleware, error) {
+    // Your own JWT secret
+    ownSecret := []byte("your-secret-key")
+
+    // Azure AD public keys (fetched from JWKS endpoint)
+    azurePublicKeys := getAzurePublicKeys()
+
+    return jwt.New(&jwt.GinJWTMiddleware{
+        Realm:       "multi-provider-api",
+        Key:         ownSecret, // Default key (required but may not be used)
+        IdentityKey: "sub",
+        Timeout:     time.Hour,
+
+        // Dynamic key function - the core of multi-provider support
+        KeyFunc: func(token *jwt.Token) (interface{}, error) {
+            // Extract claims to determine token source
+            claims, ok := token.Claims.(jwt.MapClaims)
+            if !ok {
+                return nil, errors.New("invalid claims type")
+            }
+
+            // Check the issuer claim to identify the token source
+            issuer, _ := claims["iss"].(string)
+
+            // Route 1: Azure AD tokens
+            if isAzureADIssuer(issuer) {
+                // Validate algorithm
+                if token.Method.Alg() != "RS256" {
+                    return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+                }
+
+                // Get key ID from token header
+                keyID, ok := token.Header["kid"].(string)
+                if !ok {
+                    return nil, errors.New("missing key ID in Azure AD token header")
+                }
+
+                // Look up the public key
+                if key, found := azurePublicKeys[keyID]; found {
+                    return key, nil
+                }
+                return nil, fmt.Errorf("unknown Azure AD key ID: %s", keyID)
+            }
+
+            // Route 2: Your own tokens
+            // Validate that the signing method matches your configuration
+            if token.Method.Alg() != "HS256" {
+                return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+            }
+
+            return ownSecret, nil
+        },
+
+        // Handle different identity formats from different providers
+        IdentityHandler: func(c *gin.Context) interface{} {
+            claims := jwt.ExtractClaims(c)
+
+            // Try standard "sub" claim (used by most OAuth providers)
+            if sub, ok := claims["sub"].(string); ok {
+                return sub
+            }
+
+            // Fallback to custom "identity" claim
+            if identity, ok := claims["identity"].(string); ok {
+                return identity
+            }
+
+            return nil
+        },
+
+        // Optional: Provider-specific authorization
+        Authorizer: func(c *gin.Context, data interface{}) bool {
+            claims := jwt.ExtractClaims(c)
+            issuer, _ := claims["iss"].(string)
+
+            // Azure AD specific authorization
+            if isAzureADIssuer(issuer) {
+                return authorizeAzureADUser(claims, c)
+            }
+
+            // Your own token authorization
+            return authorizeOwnUser(claims, c)
+        },
+
+        // Optional: Custom error messages for different providers
+        HTTPStatusMessageFunc: func(c *gin.Context, e error) string {
+            if strings.Contains(e.Error(), "Azure AD") {
+                return "Azure AD token validation failed: " + e.Error()
+            }
+            return e.Error()
+        },
+    })
+}
+```
+
+#### Step 2: Helper Functions
+
+```go
+// Check if issuer is from Azure AD
+func isAzureADIssuer(issuer string) bool {
+    // Azure AD issuers look like:
+    // https://login.microsoftonline.com/{tenant}/v2.0
+    // https://sts.windows.net/{tenant}/
+    return strings.Contains(issuer, "login.microsoftonline.com") ||
+           strings.Contains(issuer, "sts.windows.net")
+}
+
+// Fetch and cache Azure AD public keys from JWKS endpoint
+func getAzurePublicKeys() map[string]interface{} {
+    // Implementation: Fetch from Azure AD JWKS endpoint
+    // https://login.microsoftonline.com/common/discovery/v2.0/keys
+    // or tenant-specific: https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys
+
+    // Use a library like github.com/lestrrat-go/jwx/v2/jwk for JWKS parsing
+    // Implement caching to avoid fetching on every request
+
+    keys := make(map[string]interface{})
+
+    // Example structure (you need to implement the actual fetching):
+    // jwkSet, err := jwk.Fetch(context.Background(),
+    //     "https://login.microsoftonline.com/common/discovery/v2.0/keys")
+    // if err != nil {
+    //     log.Printf("Failed to fetch Azure AD keys: %v", err)
+    //     return keys
+    // }
+    //
+    // for it := jwkSet.Iterate(context.Background()); it.Next(context.Background()); {
+    //     pair := it.Pair()
+    //     key := pair.Value.(jwk.Key)
+    //
+    //     var rawKey interface{}
+    //     if err := key.Raw(&rawKey); err == nil {
+    //         keys[key.KeyID()] = rawKey
+    //     }
+    // }
+
+    return keys
+}
+
+// Azure AD specific authorization
+func authorizeAzureADUser(claims jwt.MapClaims, c *gin.Context) bool {
+    // Check Azure AD specific claims
+
+    // Example: Check roles claim
+    if roles, ok := claims["roles"].([]interface{}); ok {
+        for _, role := range roles {
+            if role.(string) == "Admin" || role.(string) == "User" {
+                return true
+            }
+        }
+    }
+
+    // Example: Check groups claim
+    if groups, ok := claims["groups"].([]interface{}); ok {
+        allowedGroups := []string{"group-id-1", "group-id-2"}
+        for _, group := range groups {
+            for _, allowed := range allowedGroups {
+                if group.(string) == allowed {
+                    return true
+                }
+            }
+        }
+    }
+
+    // Example: Check app roles
+    if appRoles, ok := claims["app_role"].(string); ok {
+        if appRoles == "User.Read" || appRoles == "Admin.All" {
+            return true
+        }
+    }
+
+    return false
+}
+
+// Your own token authorization
+func authorizeOwnUser(claims jwt.MapClaims, c *gin.Context) bool {
+    // Your custom authorization logic
+    if role, ok := claims["role"].(string); ok {
+        return role == "admin" || role == "user"
+    }
+    return true
+}
+```
+
+#### Step 3: Route Setup
+
+```go
+func main() {
+    r := gin.Default()
+
+    // Initialize multi-provider middleware
+    authMiddleware, err := createMultiProviderAuthMiddleware()
+    if err != nil {
+        log.Fatal("JWT Error: " + err.Error())
+    }
+
+    if err := authMiddleware.MiddlewareInit(); err != nil {
+        log.Fatal("Middleware Init Error: " + err.Error())
+    }
+
+    // Public routes
+    r.POST("/login", authMiddleware.LoginHandler) // For your own auth
+    r.POST("/refresh", authMiddleware.RefreshHandler)
+
+    // Protected routes - accepts tokens from any configured provider
+    auth := r.Group("/api")
+    auth.Use(authMiddleware.MiddlewareFunc())
+    {
+        auth.GET("/profile", func(c *gin.Context) {
+            claims := jwt.ExtractClaims(c)
+            issuer := claims["iss"].(string)
+
+            c.JSON(200, gin.H{
+                "message": "Success",
+                "user_id": claims["sub"],
+                "issuer":  issuer,
+                "source":  determineTokenSource(issuer),
+            })
+        })
+    }
+
+    r.Run(":8080")
+}
+
+func determineTokenSource(issuer string) string {
+    if isAzureADIssuer(issuer) {
+        return "Azure AD"
+    }
+    return "Internal"
+}
+```
+
+### Complete Azure AD Integration Example
+
+For a production-ready Azure AD integration, you'll need to:
+
+**Fetch JWKS Keys Dynamically**:
+
+```go
+import (
+    "context"
+    "crypto/rsa"
+    "sync"
+    "time"
+
+    "github.com/lestrrat-go/jwx/v2/jwk"
+)
+
+type AzureADKeyProvider struct {
+    jwksURL    string
+    keys       map[string]*rsa.PublicKey
+    mutex      sync.RWMutex
+    lastUpdate time.Time
+}
+
+func NewAzureADKeyProvider(tenantID string) *AzureADKeyProvider {
+    provider := &AzureADKeyProvider{
+        jwksURL: fmt.Sprintf(
+            "https://login.microsoftonline.com/%s/discovery/v2.0/keys",
+            tenantID,
+        ),
+        keys: make(map[string]*rsa.PublicKey),
+    }
+
+    // Initial fetch
+    provider.RefreshKeys()
+
+    // Refresh keys every hour
+    go func() {
+        ticker := time.NewTicker(1 * time.Hour)
+        defer ticker.Stop()
+        for range ticker.C {
+            provider.RefreshKeys()
+        }
+    }()
+
+    return provider
+}
+
+func (p *AzureADKeyProvider) RefreshKeys() error {
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+
+    set, err := jwk.Fetch(ctx, p.jwksURL)
+    if err != nil {
+        return fmt.Errorf("failed to fetch JWKS: %w", err)
+    }
+
+    newKeys := make(map[string]*rsa.PublicKey)
+
+    for it := set.Keys(ctx); it.Next(ctx); {
+        key := it.Pair().Value.(jwk.Key)
+
+        var rawKey interface{}
+        if err := key.Raw(&rawKey); err != nil {
+            continue
+        }
+
+        if rsaKey, ok := rawKey.(*rsa.PublicKey); ok {
+            newKeys[key.KeyID()] = rsaKey
+        }
+    }
+
+    p.mutex.Lock()
+    p.keys = newKeys
+    p.lastUpdate = time.Now()
+    p.mutex.Unlock()
+
+    return nil
+}
+
+func (p *AzureADKeyProvider) GetKey(keyID string) (*rsa.PublicKey, bool) {
+    p.mutex.RLock()
+    defer p.mutex.RUnlock()
+
+    key, found := p.keys[keyID]
+    return key, found
+}
+```
+
+**Validate Azure AD Specific Claims**:
+
+```go
+func validateAzureADClaims(claims jwt.MapClaims) error {
+    // Validate issuer
+    iss, ok := claims["iss"].(string)
+    if !ok || !isAzureADIssuer(iss) {
+        return errors.New("invalid Azure AD issuer")
+    }
+
+    // Validate audience (your application ID)
+    aud, ok := claims["aud"].(string)
+    if !ok || aud != "your-app-client-id" {
+        return errors.New("invalid audience")
+    }
+
+    // Validate tenant (optional, for single-tenant apps)
+    tid, ok := claims["tid"].(string)
+    if !ok || tid != "your-tenant-id" {
+        return errors.New("invalid tenant")
+    }
+
+    return nil
+}
+```
+
+### Alternative Approach: Custom Wrapper Middleware
+
+If you need even more control or want to keep providers completely separate:
+
+```go
+func MultiAuthMiddleware(
+    ownAuth *jwt.GinJWTMiddleware,
+    externalAuth *jwt.GinJWTMiddleware,
+) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // Try own authentication first
+        ownAuth.DisabledAbort = true
+        ownAuth.MiddlewareFunc()(c)
+
+        // Check if authentication succeeded
+        if _, exists := c.Get("JWT_PAYLOAD"); exists {
+            c.Next()
+            return
+        }
+
+        // Clear errors and try external provider
+        c.Errors = c.Errors[:0]
+
+        externalAuth.DisabledAbort = true
+        externalAuth.MiddlewareFunc()(c)
+
+        if _, exists := c.Get("JWT_PAYLOAD"); exists {
+            c.Next()
+            return
+        }
+
+        // Both failed
+        c.JSON(401, gin.H{
+            "code":    401,
+            "message": "Invalid or missing authentication token",
+        })
+        c.Abort()
+    }
+}
+```
+
+### Key Considerations
+
+1. **Token Issuer Validation**: Always validate the `iss` claim to ensure tokens are from trusted sources
+2. **Audience Validation**: Verify the `aud` claim matches your application's client ID
+3. **Algorithm Validation**: Ensure the signing algorithm matches expectations (HS256 for your tokens, RS256 for Azure AD)
+4. **Key Caching**: Cache public keys from JWKS endpoints to reduce latency
+5. **Key Rotation**: Implement automatic key refresh to handle provider key rotation
+6. **Error Handling**: Provide clear error messages indicating which provider validation failed
+7. **Security**: Never skip signature validation or disable security checks
+
+### Testing Multi-Provider Setup
+
+```bash
+# Test with your own token
+curl -H "Authorization: Bearer YOUR_INTERNAL_TOKEN" \
+     http://localhost:8080/api/profile
+
+# Test with Azure AD token
+curl -H "Authorization: Bearer AZURE_AD_TOKEN" \
+     http://localhost:8080/api/profile
+```
+
+### Common Issues and Solutions
+
+**Issue**: "Chaining middlewares causes first failure to abort request"
+
+- **Solution**: Use `KeyFunc` approach with a single middleware instance
+
+**Issue**: "Azure AD public keys change periodically"
+
+- **Solution**: Implement automatic JWKS refresh (shown in AzureADKeyProvider example)
+
+**Issue**: "Different token formats from different providers"
+
+- **Solution**: Normalize claims in `IdentityHandler` and handle provider-specific formats
+
+**Issue**: "Authorization logic differs per provider"
+
+- **Solution**: Check issuer in `Authorizer` and route to provider-specific logic
+
+### Additional Resources
+
+- [Azure AD Token Validation](https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens)
+- [JWKS (JSON Web Key Sets)](https://auth0.com/docs/secure/tokens/json-web-tokens/json-web-key-sets)
+- [RFC 7517 - JSON Web Key (JWK)](https://tools.ietf.org/html/rfc7517)
+- [lestrrat-go/jwx Library](https://github.com/lestrrat-go/jwx) for JWKS handling
 
 ---
 
