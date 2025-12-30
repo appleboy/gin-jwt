@@ -34,6 +34,15 @@
     - [🗄️ Redis 儲存](#️-redis-儲存)
     - [🛡️ 授權控制](#️-授權控制)
   - [配置](#配置)
+  - [JWT 解析選項](#jwt-解析選項)
+    - [時鐘偏差容錯（Leeway）](#時鐘偏差容錯leeway)
+      - [何時使用 Leeway](#何時使用-leeway)
+      - [配置範例](#配置範例)
+      - [Leeway 工作原理](#leeway-工作原理)
+    - [其他解析選項](#其他解析選項)
+      - [JSON 數值處理](#json-數值處理)
+      - [必需聲明驗證](#必需聲明驗證)
+      - [組合多個選項](#組合多個選項)
   - [支援多個 JWT 提供者](#支援多個-jwt-提供者)
     - [使用場景](#使用場景)
     - [解決方案：動態金鑰函數](#解決方案動態金鑰函數)
@@ -457,6 +466,91 @@ func helloHandler(c *gin.Context) {
 | SendAuthorization      | `bool`                                           | 否   | `false`                  | 是否為每個請求回傳授權 Header。                                         |
 | DisabledAbort          | `bool`                                           | 否   | `false`                  | 禁用 context 的 abort()。                                               |
 | ParseOptions           | `[]jwt.ParserOption`                             | 否   | -                        | 解析 JWT 的選項。                                                       |
+
+---
+
+## JWT 解析選項
+
+`ParseOptions` 欄位允許你使用 [golang-jwt/jwt](https://github.com/golang-jwt/jwt) 函式庫提供的選項自訂 JWT 解析行為。這對於處理時鐘偏差、自訂驗證規則和數值類型聲明特別有用。
+
+### 時鐘偏差容錯（Leeway）
+
+在多台伺服器運行的分散式系統中，時鐘同步問題可能導致有效的 Token 被拒絕。`jwt.WithLeeway()` 選項為驗證基於時間的聲明（`exp`、`nbf`、`iat`）新增時間緩衝，防止因服務之間的微小時鐘差異而導致身份驗證失敗。
+
+#### 何時使用 Leeway
+
+- 🌐 **微服務架構**：不同機器上的服務時鐘略有不同步
+- ☁️ **雲端部署**：跨不同可用區或地區的分散式系統
+- 🔄 **負載平衡環境**：多個後端伺服器存在小的時間漂移
+- 🧪 **測試環境**：開發/測試系統的時間同步要求不嚴格
+
+#### 配置範例
+
+```go
+authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+    Realm:      "your realm",
+    Key:        []byte("your-secret-key"),
+    Timeout:    time.Hour,
+    MaxRefresh: time.Hour * 24,
+
+    // 新增 60 秒的時鐘偏差容錯
+    ParseOptions: []jwt.ParserOption{
+        jwt.WithLeeway(60 * time.Second),
+    },
+
+    Authenticator: func(c *gin.Context) (interface{}, error) {
+        // 你的認證邏輯
+    },
+    // ... 其他配置
+})
+```
+
+#### Leeway 工作原理
+
+使用 60 秒的 leeway 配置：
+
+- **過期的 Token**：30 秒前過期的 Token 仍會被接受
+- **未生效的 Token**：`nbf`（不早於）時間在未來 30 秒內的 Token 會被接受
+- **簽發時間驗證**：`iat`（簽發時間）略在未來的 Token 會被接受
+
+**安全提示**：使用合理的 leeway 值（30-120 秒）。過大的 leeway 會降低 Token 安全性，因為它會延長超出預期過期時間的有效期。
+
+### 其他解析選項
+
+#### JSON 數值處理
+
+預設情況下，JWT 數值聲明被解析為 `float64`。使用 `jwt.WithJSONNumber()` 保留精確的數值：
+
+```go
+ParseOptions: []jwt.ParserOption{
+    jwt.WithJSONNumber(),
+}
+```
+
+這在需要精確整數值或想避免浮點精度問題時很有用。
+
+#### 必需聲明驗證
+
+強制要求 Token 中必須包含某些聲明：
+
+```go
+ParseOptions: []jwt.ParserOption{
+    jwt.WithExpirationRequired(),  // 要求 'exp' 聲明
+    jwt.WithIssuedAt(),            // 如果存在則驗證 'iat' 聲明
+}
+```
+
+#### 組合多個選項
+
+你可以組合多個解析器選項：
+
+```go
+ParseOptions: []jwt.ParserOption{
+    jwt.WithLeeway(60 * time.Second),  // 60 秒時鐘偏差容錯
+    jwt.WithJSONNumber(),              // 保留數值精度
+    jwt.WithExpirationRequired(),      // 要求過期聲明
+}
+```
 
 ---
 

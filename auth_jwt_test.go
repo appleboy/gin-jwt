@@ -2108,3 +2108,200 @@ func TestSubClaimAsUserIdentifier(t *testing.T) {
 	assert.Equal(t, "Test User", claims["name"])
 	assert.Equal(t, "test@example.com", claims["email"])
 }
+
+func TestLeewayForClockSkew(t *testing.T) {
+	// Test that leeway allows for clock skew tolerance
+	// This simulates distributed systems with slightly unsynchronized clocks
+
+	// Fixed time for predictable testing
+	fixedTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	// Test 1: Without leeway, recently expired token should be rejected
+	t.Run("WithoutLeeway_RejectsExpiredToken", func(t *testing.T) {
+		authMiddleware, _ := New(&GinJWTMiddleware{
+			Realm:         "test zone",
+			Key:           key,
+			Timeout:       time.Hour,
+			Authenticator: defaultAuthenticator,
+			TimeFunc: func() time.Time {
+				// Simulate time 45 seconds after token expiry
+				return fixedTime.Add(time.Hour + 45*time.Second)
+			},
+		})
+
+		handler := ginHandler(authMiddleware)
+		r := gofight.New()
+
+		// Create a token that expired 45 seconds ago
+		token := jwt.New(jwt.GetSigningMethod("HS256"))
+		claims := token.Claims.(jwt.MapClaims)
+		claims["identity"] = testAdmin
+		claims["exp"] = fixedTime.Add(time.Hour).Unix() // Expired 45 seconds ago
+		claims["orig_iat"] = fixedTime.Unix()
+		tokenString, _ := token.SignedString(key)
+
+		r.GET("/auth/hello").
+			SetHeader(gofight.H{
+				"Authorization": "Bearer " + tokenString,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				// Should fail - token expired 45 seconds ago without leeway
+				assert.Equal(t, http.StatusUnauthorized, r.Code)
+			})
+	})
+
+	// Test 2: With 60 second leeway, token expired 45 seconds ago should be accepted
+	t.Run("WithLeeway_AcceptsRecentlyExpiredToken", func(t *testing.T) {
+		authMiddleware, _ := New(&GinJWTMiddleware{
+			Realm:         "test zone",
+			Key:           key,
+			Timeout:       time.Hour,
+			Authenticator: defaultAuthenticator,
+			ParseOptions: []jwt.ParserOption{
+				jwt.WithLeeway(60 * time.Second), // 60 second leeway
+			},
+			TimeFunc: func() time.Time {
+				// Simulate time 45 seconds after token expiry
+				return fixedTime.Add(time.Hour + 45*time.Second)
+			},
+		})
+
+		handler := ginHandler(authMiddleware)
+		r := gofight.New()
+
+		// Create a token that expired 45 seconds ago
+		token := jwt.New(jwt.GetSigningMethod("HS256"))
+		claims := token.Claims.(jwt.MapClaims)
+		claims["identity"] = testAdmin
+		claims["exp"] = fixedTime.Add(time.Hour).Unix() // Expired 45 seconds ago
+		claims["orig_iat"] = fixedTime.Unix()
+		tokenString, _ := token.SignedString(key)
+
+		r.GET("/auth/hello").
+			SetHeader(gofight.H{
+				"Authorization": "Bearer " + tokenString,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				// Should succeed - token within 60 second leeway window
+				assert.Equal(t, http.StatusOK, r.Code)
+				data := gjson.Get(r.Body.String(), "text")
+				assert.Equal(t, "Hello World.", data.String())
+			})
+	})
+
+	// Test 3: With leeway, token expired beyond leeway window should still be rejected
+	t.Run("WithLeeway_RejectsTokenBeyondLeewayWindow", func(t *testing.T) {
+		authMiddleware, _ := New(&GinJWTMiddleware{
+			Realm:         "test zone",
+			Key:           key,
+			Timeout:       time.Hour,
+			Authenticator: defaultAuthenticator,
+			ParseOptions: []jwt.ParserOption{
+				jwt.WithLeeway(60 * time.Second), // 60 second leeway
+			},
+			TimeFunc: func() time.Time {
+				// Simulate time 90 seconds after token expiry (beyond 60s leeway)
+				return fixedTime.Add(time.Hour + 90*time.Second)
+			},
+		})
+
+		handler := ginHandler(authMiddleware)
+		r := gofight.New()
+
+		// Create a token that expired 90 seconds ago
+		token := jwt.New(jwt.GetSigningMethod("HS256"))
+		claims := token.Claims.(jwt.MapClaims)
+		claims["identity"] = testAdmin
+		claims["exp"] = fixedTime.Add(time.Hour).Unix() // Expired 90 seconds ago
+		claims["orig_iat"] = fixedTime.Unix()
+		tokenString, _ := token.SignedString(key)
+
+		r.GET("/auth/hello").
+			SetHeader(gofight.H{
+				"Authorization": "Bearer " + tokenString,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				// Should fail - token expired beyond 60 second leeway window
+				assert.Equal(t, http.StatusUnauthorized, r.Code)
+			})
+	})
+
+	// Test 4: With leeway, token with nbf (not before) in near future should be accepted
+	t.Run("WithLeeway_AcceptsTokenWithNbfInNearFuture", func(t *testing.T) {
+		authMiddleware, _ := New(&GinJWTMiddleware{
+			Realm:         "test zone",
+			Key:           key,
+			Timeout:       time.Hour,
+			Authenticator: defaultAuthenticator,
+			ParseOptions: []jwt.ParserOption{
+				jwt.WithLeeway(60 * time.Second), // 60 second leeway
+			},
+			TimeFunc: func() time.Time {
+				// Current time is 30 seconds before nbf
+				return fixedTime
+			},
+		})
+
+		handler := ginHandler(authMiddleware)
+		r := gofight.New()
+
+		// Create a token with nbf 30 seconds in the future
+		token := jwt.New(jwt.GetSigningMethod("HS256"))
+		claims := token.Claims.(jwt.MapClaims)
+		claims["identity"] = testAdmin
+		claims["exp"] = fixedTime.Add(2 * time.Hour).Unix()
+		claims["nbf"] = fixedTime.Add(30 * time.Second).Unix() // Not valid for another 30 seconds
+		claims["orig_iat"] = fixedTime.Unix()
+		tokenString, _ := token.SignedString(key)
+
+		r.GET("/auth/hello").
+			SetHeader(gofight.H{
+				"Authorization": "Bearer " + tokenString,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				// Should succeed - nbf within 60 second leeway window
+				assert.Equal(t, http.StatusOK, r.Code)
+				data := gjson.Get(r.Body.String(), "text")
+				assert.Equal(t, "Hello World.", data.String())
+			})
+	})
+
+	// Test 5: Combine leeway with other ParseOptions
+	t.Run("CombineLeewayWithOtherParseOptions", func(t *testing.T) {
+		authMiddleware, _ := New(&GinJWTMiddleware{
+			Realm:         "test zone",
+			Key:           key,
+			Timeout:       time.Hour,
+			Authenticator: defaultAuthenticator,
+			ParseOptions: []jwt.ParserOption{
+				jwt.WithLeeway(60 * time.Second),
+				jwt.WithJSONNumber(),
+			},
+			TimeFunc: func() time.Time {
+				// Simulate time 45 seconds after token expiry
+				return fixedTime.Add(time.Hour + 45*time.Second)
+			},
+		})
+
+		handler := ginHandler(authMiddleware)
+		r := gofight.New()
+
+		// Create a token that expired 45 seconds ago with numeric claims
+		token := jwt.New(jwt.GetSigningMethod("HS256"))
+		claims := token.Claims.(jwt.MapClaims)
+		claims["identity"] = testAdmin
+		claims["exp"] = fixedTime.Add(time.Hour).Unix()
+		claims["orig_iat"] = fixedTime.Unix()
+		claims["user_id"] = 12345 // Numeric claim for WithJSONNumber test
+		tokenString, _ := token.SignedString(key)
+
+		r.GET("/auth/hello").
+			SetHeader(gofight.H{
+				"Authorization": "Bearer " + tokenString,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				// Should succeed - both leeway and JSONNumber options work together
+				assert.Equal(t, http.StatusOK, r.Code)
+			})
+	})
+}
