@@ -34,6 +34,15 @@ Easily add login, token refresh, and authorization to your Gin applications.
     - [🗄️ Redis Store](#️-redis-store)
     - [🛡️ Authorization](#️-authorization)
   - [Configuration](#configuration)
+  - [JWT Parsing Options](#jwt-parsing-options)
+    - [Clock Skew Tolerance (Leeway)](#clock-skew-tolerance-leeway)
+      - [When to Use Leeway](#when-to-use-leeway)
+      - [Configuration Example](#configuration-example)
+      - [How Leeway Works](#how-leeway-works)
+    - [Other Parsing Options](#other-parsing-options)
+      - [JSON Number Handling](#json-number-handling)
+      - [Required Claims Validation](#required-claims-validation)
+      - [Combining Multiple Options](#combining-multiple-options)
   - [Supporting Multiple JWT Providers](#supporting-multiple-jwt-providers)
     - [Use Cases](#use-cases)
     - [Solution: Dynamic Key Function](#solution-dynamic-key-function)
@@ -456,6 +465,91 @@ The `GinJWTMiddleware` struct provides the following configuration options:
 | SendAuthorization      | `bool`                                           | No       | `false`                  | Whether to return authorization header for every request.                                             |
 | DisabledAbort          | `bool`                                           | No       | `false`                  | Disable abort() of context.                                                                           |
 | ParseOptions           | `[]jwt.ParserOption`                             | No       | -                        | Options for parsing the JWT.                                                                          |
+
+---
+
+## JWT Parsing Options
+
+The `ParseOptions` field allows you to customize JWT parsing behavior using options from the [golang-jwt/jwt](https://github.com/golang-jwt/jwt) library. This is particularly useful for handling clock skew, custom validation rules, and numeric claim types.
+
+### Clock Skew Tolerance (Leeway)
+
+When running distributed systems across multiple servers, clock synchronization issues can cause valid tokens to be rejected. The `jwt.WithLeeway()` option adds a time buffer for validating time-based claims (`exp`, `nbf`, `iat`), preventing authentication failures due to minor clock differences between services.
+
+#### When to Use Leeway
+
+- 🌐 **Microservices Architecture**: Services on different machines with slightly unsynchronized clocks
+- ☁️ **Cloud Deployments**: Distributed systems across different availability zones or regions
+- 🔄 **Load Balanced Environments**: Multiple backend servers with small time drift
+- 🧪 **Testing Environments**: Development/staging systems with less strict time synchronization
+
+#### Configuration Example
+
+```go
+authMiddleware, err := jwt.New(&jwt.GinJWTMiddleware{
+    Realm:      "your realm",
+    Key:        []byte("your-secret-key"),
+    Timeout:    time.Hour,
+    MaxRefresh: time.Hour * 24,
+
+    // Add 60 seconds leeway for clock skew tolerance
+    ParseOptions: []jwt.ParserOption{
+        jwt.WithLeeway(60 * time.Second),
+    },
+
+    Authenticator: func(c *gin.Context) (interface{}, error) {
+        // your authentication logic
+    },
+    // ... other configuration
+})
+```
+
+#### How Leeway Works
+
+With a 60-second leeway configuration:
+
+- **Expired tokens**: A token that expired 30 seconds ago will still be accepted
+- **Not-before tokens**: A token with `nbf` 30 seconds in the future will be accepted
+- **Issued-at validation**: Tokens with `iat` slightly in the future will be accepted
+
+**Security Note**: Use reasonable leeway values (30-120 seconds). Excessive leeway reduces token security by extending validity beyond intended expiration times.
+
+### Other Parsing Options
+
+#### JSON Number Handling
+
+By default, JWT numeric claims are parsed as `float64`. Use `jwt.WithJSONNumber()` to preserve exact numeric values:
+
+```go
+ParseOptions: []jwt.ParserOption{
+    jwt.WithJSONNumber(),
+}
+```
+
+This is useful when you need precise integer values or want to avoid floating-point precision issues.
+
+#### Required Claims Validation
+
+Enforce that certain claims must be present in the token:
+
+```go
+ParseOptions: []jwt.ParserOption{
+    jwt.WithExpirationRequired(),  // Require 'exp' claim
+    jwt.WithIssuedAt(),            // Validate 'iat' claim if present
+}
+```
+
+#### Combining Multiple Options
+
+You can combine multiple parser options:
+
+```go
+ParseOptions: []jwt.ParserOption{
+    jwt.WithLeeway(60 * time.Second),  // 60s clock skew tolerance
+    jwt.WithJSONNumber(),              // Preserve numeric precision
+    jwt.WithExpirationRequired(),      // Require expiration claim
+}
+```
 
 ---
 
