@@ -254,6 +254,9 @@ var (
 	// IdentityKey default identity key
 	IdentityKey = "identity"
 
+	// ErrMissingRefreshToken indicates the refresh token parameter is missing
+	ErrMissingRefreshToken = errors.New("missing refresh_token parameter")
+
 	// ErrInvalidRefreshToken indicates the refresh token is invalid or expired
 	ErrInvalidRefreshToken = errors.New("invalid or expired refresh token")
 
@@ -741,7 +744,11 @@ func (mw *GinJWTMiddleware) RefreshHandler(c *gin.Context) {
 	// Extract refresh token from request
 	refreshToken := mw.extractRefreshToken(c)
 	if refreshToken == "" {
-		mw.unauthorized(c, http.StatusBadRequest, "missing refresh_token parameter")
+		mw.unauthorized(
+			c,
+			http.StatusBadRequest,
+			mw.HTTPStatusMessageFunc(c, ErrMissingRefreshToken),
+		)
 		return
 	}
 
