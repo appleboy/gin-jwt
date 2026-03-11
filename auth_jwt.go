@@ -20,6 +20,8 @@ import (
 	"github.com/youmark/pkcs8"
 )
 
+const tokenContextKey = "JWT_TOKEN"
+
 // GinJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response
 // is returned. On success, the wrapped middleware is called, and the userID is made available as
 // c.Get("userID").(string).
@@ -549,7 +551,7 @@ func (mw *GinJWTMiddleware) GetClaimsFromJWT(c *gin.Context) (jwt.MapClaims, err
 	}
 
 	if mw.SendAuthorization {
-		if v, ok := c.Get("JWT_TOKEN"); ok {
+		if v, ok := c.Get(tokenContextKey); ok {
 			if tokenStr, ok := v.(string); ok {
 				c.Header("Authorization", mw.TokenHeadName+" "+tokenStr)
 			}
@@ -996,7 +998,17 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 	}
 
 	if mw.KeyFunc != nil {
-		return jwt.Parse(token, mw.KeyFunc, mw.ParseOptions...)
+		return jwt.Parse(token, func(t *jwt.Token) (any, error) {
+			key, err := mw.KeyFunc(t)
+			if err != nil {
+				return nil, err
+			}
+
+			// save token string if valid
+			c.Set(tokenContextKey, token)
+
+			return key, nil
+		}, mw.ParseOptions...)
 	}
 
 	return jwt.Parse(token, func(t *jwt.Token) (any, error) {
@@ -1008,7 +1020,7 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 		}
 
 		// save token string if valid
-		c.Set("JWT_TOKEN", token)
+		c.Set(tokenContextKey, token)
 
 		return mw.Key, nil
 	}, mw.ParseOptions...)
@@ -1084,7 +1096,7 @@ func ExtractClaimsFromToken(token *jwt.Token) jwt.MapClaims {
 
 // GetToken help to get the JWT token string
 func GetToken(c *gin.Context) string {
-	token, exists := c.Get("JWT_TOKEN")
+	token, exists := c.Get(tokenContextKey)
 	if !exists {
 		return ""
 	}
