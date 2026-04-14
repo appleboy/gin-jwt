@@ -187,10 +187,13 @@ func (s *RedisRefreshTokenStore) Get(ctx context.Context, token string) (any, er
 
 	// Check if token has expired
 	if tokenData.IsExpired() {
-		// Clean up expired token asynchronously
+		// Clean up expired token asynchronously; detach from the request's
+		// cancellation so the delete survives the caller returning, while
+		// still carrying request-scoped values like traces.
+		cleanupCtx := context.WithoutCancel(ctx)
 		go func() {
 			deleteCmd := s.client.B().Del().Key(key).Build()
-			s.client.Do(context.Background(), deleteCmd)
+			s.client.Do(cleanupCtx, deleteCmd)
 		}()
 		return nil, core.ErrRefreshTokenExpired
 	}

@@ -2033,7 +2033,13 @@ func TestAllStandardClaimsCanBeSet(t *testing.T) {
 				assert.True(t, ok, "claim %s should be a number", tc.claimKey)
 				assert.Equal(t, float64(expected), actual, "claim %s should match", tc.claimKey)
 			default:
-				assert.Equal(t, tc.claimValue, claims[tc.claimKey], "claim %s should be set correctly", tc.claimKey)
+				assert.Equal(
+					t,
+					tc.claimValue,
+					claims[tc.claimKey],
+					"claim %s should be set correctly",
+					tc.claimKey,
+				)
 			}
 		})
 	}
