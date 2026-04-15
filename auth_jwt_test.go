@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
 
@@ -696,9 +697,18 @@ func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
 		Realm:               "test zone",
 		Key:                 key,
 		Timeout:             time.Hour,
-		MaxRefresh:          time.Millisecond, // Very short MaxRefresh
-		RefreshTokenTimeout: 24 * time.Hour,   // Long refresh token timeout
-		Authenticator:       defaultAuthenticator,
+		MaxRefresh:          50 * time.Millisecond, // Short MaxRefresh with safe margin
+		RefreshTokenTimeout: 24 * time.Hour,        // Long refresh token timeout
+		Authenticator: func(c *gin.Context) (any, error) {
+			var loginVals Login
+			if err := c.ShouldBind(&loginVals); err != nil {
+				return "", ErrMissingLoginValues
+			}
+			if loginVals.Username == testAdmin && loginVals.Password == testPassword {
+				return loginVals.Username, nil
+			}
+			return "", ErrFailedAuthentication
+		},
 	})
 
 	handler := ginHandler(authMiddleware)
@@ -706,18 +716,18 @@ func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
 	r := gofight.New()
 
 	refreshToken := getRefreshTokenFromLogin(handler)
-	if refreshToken != "" {
-		// Wait for MaxRefresh to elapse
-		time.Sleep(5 * time.Millisecond)
+	require.NotEmpty(t, refreshToken, "expected a refresh token from login")
 
-		r.POST("/auth/refresh_token").
-			SetJSON(gofight.D{
-				"refresh_token": refreshToken,
-			}).
-			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-				assert.Equal(t, http.StatusUnauthorized, r.Code)
-			})
-	}
+	// Wait for MaxRefresh to elapse with generous margin
+	time.Sleep(200 * time.Millisecond)
+
+	r.POST("/auth/refresh_token").
+		SetJSON(gofight.D{
+			"refresh_token": refreshToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
 }
 
 func TestMaxRefreshAllowsRefreshWithinWindow(t *testing.T) {
@@ -728,7 +738,16 @@ func TestMaxRefreshAllowsRefreshWithinWindow(t *testing.T) {
 		Timeout:             time.Hour,
 		MaxRefresh:          time.Hour,      // Long MaxRefresh
 		RefreshTokenTimeout: 24 * time.Hour, // Long refresh token timeout
-		Authenticator:       defaultAuthenticator,
+		Authenticator: func(c *gin.Context) (any, error) {
+			var loginVals Login
+			if err := c.ShouldBind(&loginVals); err != nil {
+				return "", ErrMissingLoginValues
+			}
+			if loginVals.Username == testAdmin && loginVals.Password == testPassword {
+				return loginVals.Username, nil
+			}
+			return "", ErrFailedAuthentication
+		},
 	})
 
 	handler := ginHandler(authMiddleware)
@@ -736,15 +755,15 @@ func TestMaxRefreshAllowsRefreshWithinWindow(t *testing.T) {
 	r := gofight.New()
 
 	refreshToken := getRefreshTokenFromLogin(handler)
-	if refreshToken != "" {
-		r.POST("/auth/refresh_token").
-			SetJSON(gofight.D{
-				"refresh_token": refreshToken,
-			}).
-			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-				assert.Equal(t, http.StatusOK, r.Code)
-			})
-	}
+	require.NotEmpty(t, refreshToken, "expected a refresh token from login")
+
+	r.POST("/auth/refresh_token").
+		SetJSON(gofight.D{
+			"refresh_token": refreshToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
 }
 
 func TestAuthorizer(t *testing.T) {

@@ -721,9 +721,10 @@ func (mw *GinJWTMiddleware) storeRefreshToken(
 	token string,
 	userData any,
 ) error {
-	expiry := mw.TimeFunc().Add(mw.RefreshTokenTimeout)
+	now := mw.TimeFunc()
+	expiry := now.Add(mw.RefreshTokenTimeout)
 	if mw.MaxRefresh > 0 {
-		maxRefreshExpiry := mw.TimeFunc().Add(mw.MaxRefresh)
+		maxRefreshExpiry := now.Add(mw.MaxRefresh)
 		if maxRefreshExpiry.Before(expiry) {
 			expiry = maxRefreshExpiry
 		}
@@ -1144,14 +1145,15 @@ func (mw *GinJWTMiddleware) SetCookie(c *gin.Context, token string) {
 // SetRefreshTokenCookie help to set the refresh token in the cookie
 func (mw *GinJWTMiddleware) SetRefreshTokenCookie(c *gin.Context, refreshToken string) {
 	if mw.SendCookie {
-		expireCookie := mw.TimeFunc().Add(mw.RefreshTokenTimeout)
+		now := mw.TimeFunc()
+		expireCookie := now.Add(mw.RefreshTokenTimeout)
 		if mw.MaxRefresh > 0 {
-			maxRefreshExpiry := mw.TimeFunc().Add(mw.MaxRefresh)
+			maxRefreshExpiry := now.Add(mw.MaxRefresh)
 			if maxRefreshExpiry.Before(expireCookie) {
 				expireCookie = maxRefreshExpiry
 			}
 		}
-		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
+		maxage := int(expireCookie.Unix() - now.Unix())
 
 		if mw.CookieSameSite != 0 {
 			c.SetSameSite(mw.CookieSameSite)
