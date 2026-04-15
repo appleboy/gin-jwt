@@ -693,12 +693,15 @@ func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
 	// CheckIfTokenExpire. The refresh token store expiry is capped at
 	// min(RefreshTokenTimeout, MaxRefresh) so the token becomes invalid
 	// once MaxRefresh elapses.
+	//
+	// Note: TimeFunc cannot be used to avoid sleep because the in-memory
+	// store's IsExpired() uses time.Now() directly, not TimeFunc.
 	authMiddleware, _ := New(&GinJWTMiddleware{
 		Realm:               "test zone",
 		Key:                 key,
 		Timeout:             time.Hour,
-		MaxRefresh:          2 * time.Second,  // Short MaxRefresh (min 1s due to store floor)
-		RefreshTokenTimeout: 24 * time.Hour,  // Long refresh token timeout
+		MaxRefresh:          2 * time.Second,
+		RefreshTokenTimeout: 24 * time.Hour,
 		Authenticator: func(c *gin.Context) (any, error) {
 			var loginVals Login
 			if err := c.ShouldBind(&loginVals); err != nil {
@@ -718,7 +721,7 @@ func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
 	refreshToken := getRefreshTokenFromLogin(handler)
 	require.NotEmpty(t, refreshToken, "expected a refresh token from login")
 
-	// Wait for MaxRefresh to elapse with generous margin
+	// Wait for MaxRefresh to elapse
 	time.Sleep(3 * time.Second)
 
 	r.POST("/auth/refresh_token").
