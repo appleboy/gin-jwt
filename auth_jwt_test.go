@@ -686,6 +686,67 @@ func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 	}
 }
 
+func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
+	// Regression test for https://github.com/appleboy/gin-jwt/issues/359
+	// MaxRefresh must be enforced by the RFC 6749 RefreshHandler, not just
+	// CheckIfTokenExpire. The refresh token store expiry is capped at
+	// min(RefreshTokenTimeout, MaxRefresh) so the token becomes invalid
+	// once MaxRefresh elapses.
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:               "test zone",
+		Key:                 key,
+		Timeout:             time.Hour,
+		MaxRefresh:          time.Millisecond, // Very short MaxRefresh
+		RefreshTokenTimeout: 24 * time.Hour,   // Long refresh token timeout
+		Authenticator:       defaultAuthenticator,
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	refreshToken := getRefreshTokenFromLogin(handler)
+	if refreshToken != "" {
+		// Wait for MaxRefresh to elapse
+		time.Sleep(5 * time.Millisecond)
+
+		r.POST("/auth/refresh_token").
+			SetJSON(gofight.D{
+				"refresh_token": refreshToken,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				assert.Equal(t, http.StatusUnauthorized, r.Code)
+			})
+	}
+}
+
+func TestMaxRefreshAllowsRefreshWithinWindow(t *testing.T) {
+	// Verify that refresh works when MaxRefresh has NOT elapsed
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:               "test zone",
+		Key:                 key,
+		Timeout:             time.Hour,
+		MaxRefresh:          time.Hour,      // Long MaxRefresh
+		RefreshTokenTimeout: 24 * time.Hour, // Long refresh token timeout
+		Authenticator:       defaultAuthenticator,
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	refreshToken := getRefreshTokenFromLogin(handler)
+	if refreshToken != "" {
+		r.POST("/auth/refresh_token").
+			SetJSON(gofight.D{
+				"refresh_token": refreshToken,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				assert.Equal(t, http.StatusOK, r.Code)
+			})
+	}
+}
+
 func TestAuthorizer(t *testing.T) {
 	// the middleware to test
 	authMiddleware, _ := New(&GinJWTMiddleware{
