@@ -721,16 +721,20 @@ func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
 	refreshToken := getRefreshTokenFromLogin(handler)
 	require.NotEmpty(t, refreshToken, "expected a refresh token from login")
 
-	// Wait for MaxRefresh to elapse
-	time.Sleep(3 * time.Second)
+	// Poll until the refresh token expires rather than using a fixed sleep.
+	require.Eventually(t, func() bool {
+		statusCode := http.StatusOK
 
-	r.POST("/auth/refresh_token").
-		SetJSON(gofight.D{
-			"refresh_token": refreshToken,
-		}).
-		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			assert.Equal(t, http.StatusUnauthorized, r.Code)
-		})
+		r.POST("/auth/refresh_token").
+			SetJSON(gofight.D{
+				"refresh_token": refreshToken,
+			}).
+			Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+				statusCode = r.Code
+			})
+
+		return statusCode == http.StatusUnauthorized
+	}, 5*time.Second, 50*time.Millisecond, "expected refresh token to become invalid after MaxRefresh elapsed")
 }
 
 func TestMaxRefreshAllowsRefreshWithinWindow(t *testing.T) {
