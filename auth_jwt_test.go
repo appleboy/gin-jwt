@@ -697,8 +697,8 @@ func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
 		Realm:               "test zone",
 		Key:                 key,
 		Timeout:             time.Hour,
-		MaxRefresh:          50 * time.Millisecond, // Short MaxRefresh with safe margin
-		RefreshTokenTimeout: 24 * time.Hour,        // Long refresh token timeout
+		MaxRefresh:          2 * time.Second,  // Short MaxRefresh (min 1s due to store floor)
+		RefreshTokenTimeout: 24 * time.Hour,  // Long refresh token timeout
 		Authenticator: func(c *gin.Context) (any, error) {
 			var loginVals Login
 			if err := c.ShouldBind(&loginVals); err != nil {
@@ -719,7 +719,7 @@ func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
 	require.NotEmpty(t, refreshToken, "expected a refresh token from login")
 
 	// Wait for MaxRefresh to elapse with generous margin
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(3 * time.Second)
 
 	r.POST("/auth/refresh_token").
 		SetJSON(gofight.D{

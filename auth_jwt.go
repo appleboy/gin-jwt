@@ -729,6 +729,12 @@ func (mw *GinJWTMiddleware) storeRefreshToken(
 			expiry = maxRefreshExpiry
 		}
 	}
+	// Ensure the stored refresh token expiry is at least one second ahead.
+	// Some backends store TTLs with second precision and truncate fractional
+	// seconds, which can otherwise turn a sub-second TTL into 0 and fail.
+	if minExpiry := now.Add(time.Second); expiry.Before(minExpiry) {
+		expiry = minExpiry
+	}
 	return mw.RefreshTokenStore.Set(ctx, token, userData, expiry)
 }
 
