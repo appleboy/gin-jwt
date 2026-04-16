@@ -712,13 +712,26 @@ func (mw *GinJWTMiddleware) generateRefreshToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(bytes), nil
 }
 
-// storeRefreshToken stores a refresh token with user data
+// refreshTokenExpiry returns the effective expiry time for a refresh token,
+// capped to min(RefreshTokenTimeout, MaxRefresh) when MaxRefresh is set.
+func (mw *GinJWTMiddleware) refreshTokenExpiry(now time.Time) time.Time {
+	expiry := now.Add(mw.RefreshTokenTimeout)
+	if mw.MaxRefresh > 0 {
+		maxRefreshExpiry := now.Add(mw.MaxRefresh)
+		if maxRefreshExpiry.Before(expiry) {
+			expiry = maxRefreshExpiry
+		}
+	}
+	return expiry
+}
+
+// storeRefreshToken stores a refresh token with user data.
 func (mw *GinJWTMiddleware) storeRefreshToken(
 	ctx context.Context,
 	token string,
 	userData any,
 ) error {
-	expiry := mw.TimeFunc().Add(mw.RefreshTokenTimeout)
+	expiry := mw.refreshTokenExpiry(mw.TimeFunc())
 	return mw.RefreshTokenStore.Set(ctx, token, userData, expiry)
 }
 
@@ -1135,8 +1148,12 @@ func (mw *GinJWTMiddleware) SetCookie(c *gin.Context, token string) {
 // SetRefreshTokenCookie help to set the refresh token in the cookie
 func (mw *GinJWTMiddleware) SetRefreshTokenCookie(c *gin.Context, refreshToken string) {
 	if mw.SendCookie {
-		expireCookie := mw.TimeFunc().Add(mw.RefreshTokenTimeout)
-		maxage := int(expireCookie.Unix() - mw.TimeFunc().Unix())
+		now := mw.TimeFunc()
+		expireCookie := mw.refreshTokenExpiry(now)
+		maxage := int(expireCookie.Sub(now).Seconds())
+		if maxage <= 0 && expireCookie.After(now) {
+			maxage = 1 // round up sub-second positive durations
+		}
 
 		if mw.CookieSameSite != 0 {
 			c.SetSameSite(mw.CookieSameSite)

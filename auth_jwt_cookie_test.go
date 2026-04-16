@@ -11,6 +11,7 @@ import (
 	"github.com/appleboy/gofight/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
 
@@ -59,6 +60,33 @@ func TestSetRefreshTokenCookie(t *testing.T) {
 	assert.True(t, cookies[0].Secure) // Refresh token cookies are always secure (HTTPS only)
 	assert.Equal(t, "/", cookies[0].Path)
 	assert.True(t, cookies[0].MaxAge > 0)
+}
+
+func TestSetRefreshTokenCookieCappedByMaxRefresh(t *testing.T) {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	mw, _ := New(&GinJWTMiddleware{
+		Realm:                  "test zone",
+		Key:                    key,
+		Timeout:                time.Hour,
+		MaxRefresh:             30 * time.Minute, // Shorter than RefreshTokenTimeout
+		RefreshTokenTimeout:    24 * time.Hour,   // Long refresh token timeout
+		Authenticator:          validAuthenticator,
+		SendCookie:             true,
+		RefreshTokenCookieName: "refresh_token",
+		CookieDomain:           "example.com",
+		TimeFunc:               time.Now,
+	})
+
+	mw.SetRefreshTokenCookie(c, "test-refresh-token")
+
+	cookies := w.Result().Cookies()
+	require.Len(t, cookies, 1)
+
+	// MaxAge should be capped at MaxRefresh (30 minutes = 1800 seconds),
+	// not RefreshTokenTimeout (24 hours).
+	assert.Equal(t, int(30*time.Minute.Seconds()), cookies[0].MaxAge)
 }
 
 func TestSetRefreshTokenCookieDisabled(t *testing.T) {

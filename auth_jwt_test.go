@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
 
@@ -684,6 +685,73 @@ func TestExpiredTokenOnRefreshHandler(t *testing.T) {
 				assert.Equal(t, http.StatusUnauthorized, r.Code)
 			})
 	}
+}
+
+func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
+	// Regression test for https://github.com/appleboy/gin-jwt/issues/359
+	// MaxRefresh must be enforced by the RFC 6749 RefreshHandler, not just
+	// CheckIfTokenExpire. The refresh token store expiry is capped at
+	// min(RefreshTokenTimeout, MaxRefresh) so the token becomes invalid
+	// once MaxRefresh elapses.
+	//
+	// Note: TimeFunc cannot be used to avoid sleep because the in-memory
+	// store's IsExpired() uses time.Now() directly, not TimeFunc.
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:               "test zone",
+		Key:                 key,
+		Timeout:             time.Hour,
+		MaxRefresh:          2 * time.Second,
+		RefreshTokenTimeout: 24 * time.Hour,
+		Authenticator:       validAuthenticator,
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	refreshToken := getRefreshTokenFromLogin(handler)
+	require.NotEmpty(t, refreshToken, "expected a refresh token from login")
+
+	// Wait until MaxRefresh has elapsed, then verify the original refresh
+	// token is rejected. We cannot poll with require.Eventually because a
+	// successful refresh revokes the token (rotation), producing a false
+	// positive on subsequent attempts.
+	time.Sleep(3 * time.Second)
+
+	r.POST("/auth/refresh_token").
+		SetJSON(gofight.D{
+			"refresh_token": refreshToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusUnauthorized, r.Code)
+		})
+}
+
+func TestMaxRefreshAllowsRefreshWithinWindow(t *testing.T) {
+	// Verify that refresh works when MaxRefresh has NOT elapsed
+	authMiddleware, _ := New(&GinJWTMiddleware{
+		Realm:               "test zone",
+		Key:                 key,
+		Timeout:             time.Hour,
+		MaxRefresh:          time.Hour,      // Long MaxRefresh
+		RefreshTokenTimeout: 24 * time.Hour, // Long refresh token timeout
+		Authenticator:       validAuthenticator,
+	})
+
+	handler := ginHandler(authMiddleware)
+
+	r := gofight.New()
+
+	refreshToken := getRefreshTokenFromLogin(handler)
+	require.NotEmpty(t, refreshToken, "expected a refresh token from login")
+
+	r.POST("/auth/refresh_token").
+		SetJSON(gofight.D{
+			"refresh_token": refreshToken,
+		}).
+		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
+			assert.Equal(t, http.StatusOK, r.Code)
+		})
 }
 
 func TestAuthorizer(t *testing.T) {
