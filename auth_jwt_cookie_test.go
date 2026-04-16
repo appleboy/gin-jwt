@@ -70,8 +70,8 @@ func TestSetRefreshTokenCookieCappedByMaxRefresh(t *testing.T) {
 		Realm:                  "test zone",
 		Key:                    key,
 		Timeout:                time.Hour,
-		MaxRefresh:             30 * time.Minute,  // Shorter than RefreshTokenTimeout
-		RefreshTokenTimeout:    24 * time.Hour,    // Long refresh token timeout
+		MaxRefresh:             30 * time.Minute, // Shorter than RefreshTokenTimeout
+		RefreshTokenTimeout:    24 * time.Hour,   // Long refresh token timeout
 		Authenticator:          validAuthenticator,
 		SendCookie:             true,
 		RefreshTokenCookieName: "refresh_token",
