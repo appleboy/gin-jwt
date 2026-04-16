@@ -726,9 +726,6 @@ func (mw *GinJWTMiddleware) refreshTokenExpiry(now time.Time) time.Time {
 }
 
 // storeRefreshToken stores a refresh token with user data.
-// When MaxRefresh is set, the refresh token expiry is capped to
-// min(RefreshTokenTimeout, MaxRefresh) so that the token cannot
-// be used to obtain new access tokens after MaxRefresh elapses.
 func (mw *GinJWTMiddleware) storeRefreshToken(
 	ctx context.Context,
 	token string,

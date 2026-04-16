@@ -702,16 +702,7 @@ func TestMaxRefreshEnforcedOnRefreshHandler(t *testing.T) {
 		Timeout:             time.Hour,
 		MaxRefresh:          2 * time.Second,
 		RefreshTokenTimeout: 24 * time.Hour,
-		Authenticator: func(c *gin.Context) (any, error) {
-			var loginVals Login
-			if err := c.ShouldBind(&loginVals); err != nil {
-				return "", ErrMissingLoginValues
-			}
-			if loginVals.Username == testAdmin && loginVals.Password == testPassword {
-				return loginVals.Username, nil
-			}
-			return "", ErrFailedAuthentication
-		},
+		Authenticator:       validAuthenticator,
 	})
 
 	handler := ginHandler(authMiddleware)
@@ -744,16 +735,7 @@ func TestMaxRefreshAllowsRefreshWithinWindow(t *testing.T) {
 		Timeout:             time.Hour,
 		MaxRefresh:          time.Hour,      // Long MaxRefresh
 		RefreshTokenTimeout: 24 * time.Hour, // Long refresh token timeout
-		Authenticator: func(c *gin.Context) (any, error) {
-			var loginVals Login
-			if err := c.ShouldBind(&loginVals); err != nil {
-				return "", ErrMissingLoginValues
-			}
-			if loginVals.Username == testAdmin && loginVals.Password == testPassword {
-				return loginVals.Username, nil
-			}
-			return "", ErrFailedAuthentication
-		},
+		Authenticator:       validAuthenticator,
 	})
 
 	handler := ginHandler(authMiddleware)
