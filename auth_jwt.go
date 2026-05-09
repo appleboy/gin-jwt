@@ -20,7 +20,17 @@ import (
 	"github.com/youmark/pkcs8"
 )
 
-const tokenContextKey = "JWT_TOKEN"
+const (
+	tokenContextKey         = "JWT_TOKEN"
+	algRS256                = "RS256"
+	keyCode                 = "code"
+	keyMessage              = "message"
+	defaultRealm            = "gin jwt"
+	defaultCookieName       = "jwt"
+	defaultRefreshTokenName = "refresh_token"
+	claimExp                = "exp"
+	tokenLookupCookie       = "cookie"
+)
 
 // GinJWTMiddleware provides a Json-Web-Token authentication implementation. On failure, a 401 HTTP response
 // is returned. On success, the wrapped middleware is called, and the userID is made available as
@@ -358,7 +368,7 @@ func (mw *GinJWTMiddleware) publicKey() error {
 
 func (mw *GinJWTMiddleware) usingPublicKeyAlgo() bool {
 	switch mw.SigningAlgorithm {
-	case "RS256", "RS512", "RS384":
+	case algRS256, "RS512", "RS384":
 		return true
 	}
 	return false
@@ -402,8 +412,8 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	if mw.Unauthorized == nil {
 		mw.Unauthorized = func(c *gin.Context, code int, message string) {
 			c.JSON(code, gin.H{
-				"code":    code,
-				"message": message,
+				keyCode:    code,
+				keyMessage: message,
 			})
 		}
 	}
@@ -418,7 +428,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	if mw.LogoutResponse == nil {
 		mw.LogoutResponse = func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
-				"code": http.StatusOK,
+				keyCode: http.StatusOK,
 			})
 		}
 	}
@@ -448,7 +458,7 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.Realm == "" {
-		mw.Realm = "gin jwt"
+		mw.Realm = defaultRealm
 	}
 
 	if mw.CookieMaxAge == 0 {
@@ -456,15 +466,15 @@ func (mw *GinJWTMiddleware) MiddlewareInit() error {
 	}
 
 	if mw.CookieName == "" {
-		mw.CookieName = "jwt"
+		mw.CookieName = defaultCookieName
 	}
 
 	if mw.RefreshTokenCookieName == "" {
-		mw.RefreshTokenCookieName = "refresh_token"
+		mw.RefreshTokenCookieName = defaultRefreshTokenName
 	}
 
 	if mw.ExpField == "" {
-		mw.ExpField = "exp"
+		mw.ExpField = claimExp
 	}
 
 	// Initialize refresh token settings (RFC 6749 compliant by default)
@@ -523,7 +533,7 @@ func (mw *GinJWTMiddleware) middlewareImpl(c *gin.Context) {
 	}
 
 	// For backwards compatibility since technically exp is not required in the spec but has been in gin-jwt
-	if claims["exp"] == nil {
+	if claims[claimExp] == nil {
 		mw.unauthorized(c, http.StatusBadRequest, mw.HTTPStatusMessageFunc(c, ErrMissingExpField))
 		return
 	}
@@ -622,7 +632,7 @@ func (mw *GinJWTMiddleware) extractRefreshToken(c *gin.Context) string {
 	if strings.Contains(contentType, "application/x-www-form-urlencoded") ||
 		strings.Contains(contentType, "multipart/form-data") {
 		// Try POST form
-		token = c.PostForm("refresh_token")
+		token = c.PostForm(defaultRefreshTokenName)
 		if token != "" {
 			return token
 		}
@@ -844,7 +854,7 @@ func (mw *GinJWTMiddleware) generateAccessToken(data any) (string, time.Time, er
 	// Standard JWT claims (sub, iss, aud, nbf, iat, jti) are allowed to be set by users
 	// via PayloadFunc to comply with RFC 7519 best practices.
 	frameworkClaims := map[string]bool{
-		"exp":      true, // Framework calculates expiration time
+		claimExp:   true, // Framework calculates expiration time
 		"orig_iat": true, // Framework uses this for refresh mechanism
 	}
 
@@ -997,7 +1007,7 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 			token, err = mw.jwtFromHeader(c, v)
 		case "query":
 			token, err = mw.jwtFromQuery(c, v)
-		case "cookie":
+		case tokenLookupCookie:
 			token, err = mw.jwtFromCookie(c, v)
 		case "param":
 			token, err = mw.jwtFromParam(c, v)
@@ -1195,7 +1205,7 @@ func (mw *GinJWTMiddleware) generateTokenResponse(_ *gin.Context, token *core.To
 
 	// Include refresh token if present
 	if token.RefreshToken != "" {
-		response["refresh_token"] = token.RefreshToken
+		response[defaultRefreshTokenName] = token.RefreshToken
 	}
 
 	return response
