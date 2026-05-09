@@ -129,7 +129,7 @@ func TestExtractRefreshTokenFromCookie(t *testing.T) {
 	// Create a test context with refresh token cookie
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/test", nil)
-	req.AddCookie(&http.Cookie{
+	req.AddCookie(&http.Cookie{ //nolint:gosec // test-only cookie
 		Name:  "refresh_token",
 		Value: "test-refresh-token-from-cookie",
 	})
@@ -163,7 +163,7 @@ func TestExtractRefreshTokenPriority(t *testing.T) {
 		"/test",
 		nil,
 	)
-	req.AddCookie(&http.Cookie{
+	req.AddCookie(&http.Cookie{ //nolint:gosec // test-only cookie
 		Name:  "refresh_token",
 		Value: "from-cookie",
 	})
@@ -630,7 +630,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 			strings.NewReader(`{"refresh_token":"from-json-body"}`),
 		)
 		req.Header.Set("Content-Type", "application/json")
-		req.AddCookie(&http.Cookie{
+		req.AddCookie(&http.Cookie{ //nolint:gosec // test-only cookie
 			Name:  "refresh_token",
 			Value: "from-cookie",
 		})
