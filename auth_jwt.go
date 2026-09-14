@@ -1038,12 +1038,13 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 		if jwt.GetSigningMethod(mw.SigningAlgorithm) != t.Method {
 			return nil, ErrInvalidSigningAlgorithm
 		}
-		if mw.usingPublicKeyAlgo() {
-			return mw.pubKey, nil
-		}
 
 		// save token string if valid
 		c.Set(tokenContextKey, token)
+
+		if mw.usingPublicKeyAlgo() {
+			return mw.pubKey, nil
+		}
 
 		return mw.Key, nil
 	}, mw.ParseOptions...)
