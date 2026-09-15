@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/appleboy/gin-jwt/v3/core"
+	"github.com/redis/rueidis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -311,4 +312,29 @@ func TestDefaultRedisConfig(t *testing.T) {
 	assert.Equal(t, 128*1024*1024, config.CacheSize, "Default cache size should be 128MB")
 	assert.Equal(t, time.Minute, config.CacheTTL, "Default cache TTL should be 1 minute")
 	assert.Equal(t, "gin-jwt:", config.KeyPrefix, "Default key prefix should be gin-jwt:")
+}
+
+func TestNewRedisRefreshTokenStoreFromClient(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Provide client is nil", func(t *testing.T) {
+		store, err := NewRedisRefreshTokenStoreFromClient(ctx, nil, "prefix:", time.Minute)
+		assert.Error(t, err)
+		assert.Nil(t, store)
+	})
+
+	t.Run("Creates store with provided client and validate ownClient is false", func(t *testing.T) {
+		var mockClient struct {
+			rueidis.Client
+		}
+
+		store, err := NewRedisRefreshTokenStoreFromClient(ctx, &mockClient, "prefix:", time.Minute)
+		assert.NoError(t, err)
+		assert.NotNil(t, store)
+		assert.False(t, store.ownClient)
+
+		// store.Close won't close provided redis client
+		err = store.Close()
+		assert.NoError(t, err)
+	})
 }
