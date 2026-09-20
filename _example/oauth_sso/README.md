@@ -35,7 +35,7 @@ For full OAuth functionality, follow the setup steps below.
 
 ## Requirements
 
-- Go 1.24 or higher
+- Go 1.26 or higher
 - Google OAuth 2.0 credentials (if using Google login)
 - GitHub OAuth App credentials (if using GitHub login)
 

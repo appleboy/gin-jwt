@@ -171,7 +171,7 @@ authMiddleware := &jwt.GinJWTMiddleware{
 
 ## 安装
 
-需要 Go 1.24+
+需要 Go 1.26+
 
 ```bash
 go get -u github.com/appleboy/gin-jwt/v3
