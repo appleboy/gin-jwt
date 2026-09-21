@@ -16,10 +16,11 @@ var _ core.TokenStore = &RedisRefreshTokenStore{}
 
 // RedisRefreshTokenStore provides a Redis-based refresh token store with client-side caching
 type RedisRefreshTokenStore struct {
-	client   rueidis.Client
-	prefix   string
-	ctx      context.Context
-	cacheTTL time.Duration
+	client    rueidis.Client
+	prefix    string
+	ctx       context.Context
+	cacheTTL  time.Duration
+	ownClient bool
 }
 
 // RedisConfig holds the configuration for Redis store
@@ -60,6 +61,26 @@ func DefaultRedisConfig() *RedisConfig {
 	}
 }
 
+// NewRedisRefreshTokenStoreFromClient creates a new Redis-based refresh token store with client-side caching from provided client
+func NewRedisRefreshTokenStoreFromClient(
+	ctx context.Context,
+	client rueidis.Client,
+	keyPrefix string,
+	cacheTTL time.Duration,
+) (*RedisRefreshTokenStore, error) {
+	if client == nil {
+		return nil, fmt.Errorf("redis client not provided")
+	}
+
+	return &RedisRefreshTokenStore{
+		client:    client,
+		prefix:    keyPrefix,
+		ctx:       ctx,
+		cacheTTL:  cacheTTL,
+		ownClient: false,
+	}, nil
+}
+
 // NewRedisRefreshTokenStore creates a new Redis-based refresh token store with client-side caching
 func NewRedisRefreshTokenStore(config *RedisConfig) (*RedisRefreshTokenStore, error) {
 	if config == nil {
@@ -96,17 +117,25 @@ func NewRedisRefreshTokenStore(config *RedisConfig) (*RedisRefreshTokenStore, er
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
-	return &RedisRefreshTokenStore{
-		client:   client,
-		prefix:   config.KeyPrefix,
-		ctx:      ctx,
-		cacheTTL: config.CacheTTL,
-	}, nil
+	store, err := NewRedisRefreshTokenStoreFromClient(
+		ctx,
+		client,
+		config.KeyPrefix,
+		config.CacheTTL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	store.ownClient = true
+	return store, nil
 }
 
 // Close closes the Redis client connection
 func (s *RedisRefreshTokenStore) Close() error {
-	s.client.Close()
+	if s.ownClient {
+		s.client.Close()
+	}
 	return nil
 }
 
