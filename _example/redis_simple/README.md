@@ -5,7 +5,7 @@ This example demonstrates how to use Redis store with gin-jwt middleware using t
 ## Features
 
 - **Redis Integration**: Use Redis as the backend store for refresh tokens
-- **Client-side Caching**: Built-in client-side caching for improved performance
+- **Immediate Revocation**: Read tokens directly from Redis to avoid stale cached tokens
 - **Automatic Fallback**: Falls back to in-memory store if Redis connection fails
 - **Easy Configuration**: Simple methods to configure Redis store
 

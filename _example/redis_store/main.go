@@ -85,7 +85,6 @@ func main() {
 	// Configure Redis using functional options
 	middleware.EnableRedisStore(
 		jwt.WithRedisAddr("localhost:6379"),
-		jwt.WithRedisCache(64*1024*1024, 30*time.Second), // 64MB client-side cache, 30s TTL
 	)
 
 	authMiddleware, err := jwt.New(middleware)

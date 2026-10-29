@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**gin-jwt** is a JWT authentication middleware for the Gin web framework. It provides RFC 6749 compliant OAuth 2.0 refresh tokens with pluggable storage backends (in-memory, Redis with client-side caching). The library supports direct token generation, multiple JWT providers via dynamic key functions, and comprehensive cookie/header token management.
+**gin-jwt** is a JWT authentication middleware for the Gin web framework. It provides RFC 6749 compliant OAuth 2.0 refresh tokens with pluggable storage backends (in-memory, Redis). The library supports direct token generation, multiple JWT providers via dynamic key functions, and comprehensive cookie/header token management.
 
 ## Development Commands
 
@@ -85,7 +85,7 @@ go run _example/authorization/main.go
 **store/**: Refresh token storage implementations
 
 - `store/memory.go`: Thread-safe in-memory store (single-instance applications)
-- `store/redis.go`: Redis-based store with rueidis client-side caching (distributed systems)
+- `store/redis.go`: Redis-based store with server-authoritative rueidis reads (distributed systems)
 - `store/factory.go`: Factory functions for creating stores
 
 **auth_jwt_redis.go**: Redis store configuration via functional options pattern (EnableRedisStore, WithRedisAddr, WithRedisAuth, WithRedisTLS, etc.)
@@ -201,7 +201,7 @@ Never chain multiple middleware instances with abort() - this creates issues. Si
 - `core/store.go`: TokenStore interface
 - `core/token.go`: Token struct and metadata
 - `store/memory.go`: In-memory token store
-- `store/redis.go`: Redis token store with client-side caching
+- `store/redis.go`: Redis token store with server-authoritative reads
 - `auth_jwt_redis.go`: Redis configuration helpers
 - `Makefile`: Development commands
 - `README.md`: Comprehensive documentation with examples
