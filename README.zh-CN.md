@@ -2,7 +2,7 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [简体中文](README.zh-CN.md)
 
-[![Run Tests](https://github.com/appleboy/gin-jwt/actions/workflows/go.yml/badge.svg)](https://github.com/appleboy/gin-jwt/actions/workflows/go.yml)
+[![Lint and Testing](https://github.com/appleboy/gin-jwt/actions/workflows/testing.yml/badge.svg)](https://github.com/appleboy/gin-jwt/actions/workflows/testing.yml)
 [![Trivy Security Scan](https://github.com/appleboy/gin-jwt/actions/workflows/trivy-scan.yml/badge.svg)](https://github.com/appleboy/gin-jwt/actions/workflows/trivy-scan.yml)
 [![GitHub tag](https://img.shields.io/github/tag/appleboy/gin-jwt.svg)](https://github.com/appleboy/gin-jwt/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/appleboy/gin-jwt/v3.svg)](https://pkg.go.dev/github.com/appleboy/gin-jwt/v3)
