@@ -14,6 +14,7 @@ import (
 
 	jwt "github.com/appleboy/gin-jwt/v3"
 	"github.com/appleboy/gin-jwt/v3/core"
+
 	"github.com/gin-gonic/gin"
 	gojwt "github.com/golang-jwt/jwt/v5"
 	_ "github.com/joho/godotenv/autoload"
@@ -22,7 +23,13 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-const identityKey = "id"
+const (
+	userInfoError = "Failed to get user info"
+	identityKey   = "id"
+	codeKey       = "code"
+	messageKey    = "message"
+	errorKey      = "error"
+)
 
 var (
 	port              string
@@ -204,7 +211,7 @@ func initJWTParams() *jwt.GinJWTMiddleware {
 
 			// Regular login: return JSON response
 			c.JSON(http.StatusOK, gin.H{
-				"code":          http.StatusOK,
+				codeKey:         http.StatusOK,
 				"access_token":  token.AccessToken,
 				"token_type":    token.TokenType,
 				"refresh_token": token.RefreshToken,
@@ -271,8 +278,8 @@ func authorizer() func(c *gin.Context, data any) bool {
 func unauthorized() func(c *gin.Context, code int, message string) {
 	return func(c *gin.Context, code int, message string) {
 		c.JSON(code, gin.H{
-			"code":    code,
-			"message": message,
+			codeKey:    code,
+			messageKey: message,
 		})
 	}
 }
@@ -281,9 +288,9 @@ func logoutResponse() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		claims := jwt.ExtractClaims(c)
 		c.JSON(http.StatusOK, gin.H{
-			"code":    http.StatusOK,
-			"message": "Successfully logged out",
-			"user":    claims["email"],
+			codeKey:    http.StatusOK,
+			messageKey: "Successfully logged out",
+			"user":     claims["email"],
 		})
 	}
 }
@@ -325,7 +332,7 @@ func handleOAuthSuccess(
 // OAuth handlers
 func handleGoogleLogin(c *gin.Context) {
 	if googleOauthConfig.ClientID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Google OAuth not configured"})
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "Google OAuth not configured"})
 		return
 	}
 
@@ -336,7 +343,7 @@ func handleGoogleLogin(c *gin.Context) {
 
 func handleGitHubLogin(c *gin.Context) {
 	if githubOauthConfig.ClientID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "GitHub OAuth not configured"})
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "GitHub OAuth not configured"})
 		return
 	}
 
@@ -350,23 +357,33 @@ func handleGoogleCallback(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc 
 		// Validate state token (CSRF protection)
 		state := c.Query("state")
 		if !validateStateToken(state) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state token"})
+			c.JSON(http.StatusBadRequest, gin.H{errorKey: "Invalid state token"})
 			return
 		}
 
 		// Exchange authorization code for access token
-		code := c.Query("code")
+		code := c.Query(codeKey)
 		token, err := googleOauthConfig.Exchange(context.Background(), code)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: "Failed to exchange token"})
 			return
 		}
 
 		// Get user info from Google
 		client := googleOauthConfig.Client(context.Background(), token)
-		resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+		req, err := http.NewRequestWithContext(
+			c.Request.Context(),
+			http.MethodGet,
+			"https://www.googleapis.com/oauth2/v2/userinfo",
+			nil,
+		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: userInfoError})
+			return
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: userInfoError})
 			return
 		}
 		defer resp.Body.Close()
@@ -374,7 +391,7 @@ func handleGoogleCallback(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc 
 		data, _ := io.ReadAll(resp.Body)
 		var googleUser GoogleUserInfo
 		if err := json.Unmarshal(data, &googleUser); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user info"})
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: "Failed to parse user info"})
 			return
 		}
 
@@ -391,7 +408,7 @@ func handleGoogleCallback(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc 
 		if err := handleOAuthSuccess(c, authMiddleware, user, "google"); err != nil {
 			c.JSON(
 				http.StatusInternalServerError,
-				gin.H{"error": "Failed to complete authentication"},
+				gin.H{errorKey: "Failed to complete authentication"},
 			)
 			return
 		}
@@ -403,23 +420,33 @@ func handleGitHubCallback(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc 
 		// Validate state token (CSRF protection)
 		state := c.Query("state")
 		if !validateStateToken(state) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state token"})
+			c.JSON(http.StatusBadRequest, gin.H{errorKey: "Invalid state token"})
 			return
 		}
 
 		// Exchange authorization code for access token
-		code := c.Query("code")
+		code := c.Query(codeKey)
 		token, err := githubOauthConfig.Exchange(context.Background(), code)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to exchange token"})
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: "Failed to exchange token"})
 			return
 		}
 
 		// Get user info from GitHub
 		client := githubOauthConfig.Client(context.Background(), token)
-		resp, err := client.Get("https://api.github.com/user")
+		req, err := http.NewRequestWithContext(
+			c.Request.Context(),
+			http.MethodGet,
+			"https://api.github.com/user",
+			nil,
+		)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user info"})
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: userInfoError})
+			return
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: userInfoError})
 			return
 		}
 		defer resp.Body.Close()
@@ -427,14 +454,14 @@ func handleGitHubCallback(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc 
 		data, _ := io.ReadAll(resp.Body)
 		var githubUser GitHubUserInfo
 		if err := json.Unmarshal(data, &githubUser); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse user info"})
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: "Failed to parse user info"})
 			return
 		}
 
 		// Get user email if not public
 		email := githubUser.Email
 		if email == "" {
-			email = getUserEmail(client)
+			email = getUserEmail(c.Request.Context(), client)
 		}
 
 		// Create user object
@@ -450,7 +477,7 @@ func handleGitHubCallback(authMiddleware *jwt.GinJWTMiddleware) gin.HandlerFunc 
 		if err := handleOAuthSuccess(c, authMiddleware, user, "github"); err != nil {
 			c.JSON(
 				http.StatusInternalServerError,
-				gin.H{"error": "Failed to complete authentication"},
+				gin.H{errorKey: "Failed to complete authentication"},
 			)
 			return
 		}
@@ -493,8 +520,17 @@ func cleanupExpiredStates() {
 	}
 }
 
-func getUserEmail(client *http.Client) string {
-	resp, err := client.Get("https://api.github.com/user/emails")
+func getUserEmail(ctx context.Context, client *http.Client) string {
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		"https://api.github.com/user/emails",
+		nil,
+	)
+	if err != nil {
+		return ""
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return ""
 	}
@@ -541,7 +577,7 @@ func corsMiddleware() gin.HandlerFunc {
 			Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
-		if c.Request.Method == "OPTIONS" {
+		if c.Request.Method == http.MethodOptions {
 			c.AbortWithStatus(204)
 			return
 		}
@@ -553,7 +589,8 @@ func corsMiddleware() gin.HandlerFunc {
 // Route handlers
 func indexHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"message": "OAuth SSO Example with gin-jwt",
+		messageKey: "OAuth SSO Example with gin-jwt",
+		//nolint:gosec // These are public route descriptions, not credentials.
 		"endpoints": gin.H{
 			"demo_page":     "/demo",
 			"google_login":  "/auth/google/login",
@@ -570,8 +607,8 @@ func profileHandler(c *gin.Context) {
 	user, _ := c.Get(identityKey)
 
 	c.JSON(http.StatusOK, gin.H{
-		"code": http.StatusOK,
-		"user": user,
+		codeKey: http.StatusOK,
+		"user":  user,
 		"claims": gin.H{
 			"id":       claims[identityKey],
 			"email":    claims["email"],
@@ -587,8 +624,8 @@ func profileHandler(c *gin.Context) {
 func handleNoRoute() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{
-			"code":    "PAGE_NOT_FOUND",
-			"message": "Page not found",
+			codeKey:    "PAGE_NOT_FOUND",
+			messageKey: "Page not found",
 		})
 	}
 }

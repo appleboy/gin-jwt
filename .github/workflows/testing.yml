@@ -1,4 +1,4 @@
-name: Run Tests
+name: Lint and Testing
 
 on:
   push:
@@ -8,25 +8,33 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
+    strategy:
+      matrix:
+        go: ["1.26", "1.27"]
     runs-on: ubuntu-latest
+    name: lint @ Go ${{ matrix.go }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Setup go
+      - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
-          check-latest: true
-      - name: Setup golangci-lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.12
-          args: --verbose
+          go-version: ${{ matrix.go }}
+          cache-dependency-path: |
+            go.sum
+            go.tools.sum
+      - name: Run lint
+        run: make install-tools lint
+
   test:
     strategy:
       matrix:
@@ -61,10 +69,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Run Tests
-        run: |
-          go test -v -covermode=atomic -coverprofile=coverage.out
+        run: make test
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
+          files: coverage.out
           flags: ${{ matrix.os }},go-${{ matrix.go }}

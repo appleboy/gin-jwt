@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFactory_CreateStore_Memory(t *testing.T) {
@@ -12,7 +13,7 @@ func TestFactory_CreateStore_Memory(t *testing.T) {
 	config := NewMemoryConfig()
 	store, err := factory.CreateStore(config)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, store)
 	assert.IsType(t, &InMemoryRefreshTokenStore{}, store)
 }
@@ -22,7 +23,7 @@ func TestFactory_CreateStore_DefaultConfig(t *testing.T) {
 
 	store, err := factory.CreateStore(nil)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, store)
 	assert.IsType(t, &InMemoryRefreshTokenStore{}, store)
 }
@@ -31,7 +32,7 @@ func TestNewStore_Memory(t *testing.T) {
 	config := NewMemoryConfig()
 	store, err := NewStore(config)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, store)
 	assert.IsType(t, &InMemoryRefreshTokenStore{}, store)
 }
@@ -66,7 +67,7 @@ func TestFactory_CreateStore_UnsupportedType(t *testing.T) {
 
 	store, err := factory.CreateStore(config)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, store)
 	assert.Contains(t, err.Error(), "unsupported store type")
 }

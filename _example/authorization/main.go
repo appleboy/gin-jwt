@@ -8,8 +8,20 @@ import (
 	"time"
 
 	jwt "github.com/appleboy/gin-jwt/v3"
+
 	"github.com/gin-gonic/gin"
 	gojwt "github.com/golang-jwt/jwt/v5"
+)
+
+const (
+	passwordKey     = "password"
+	messageKey      = "message"
+	accessKey       = "access"
+	userRole        = "user"
+	guestRole       = "guest"
+	adminAccess     = "admin only"
+	usernameKey     = "username"
+	userAdminAccess = "user and admin only"
 )
 
 type login struct {
@@ -80,21 +92,29 @@ func registerRoutes(r *gin.Engine, authMiddleware *jwt.GinJWTMiddleware) {
 	// Public info endpoint
 	r.GET("/info", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"message": "Authorization Example API",
+			messageKey: "Authorization Example API",
 			"users": gin.H{
-				"admin": gin.H{"password": "admin", "role": "admin", "access": "All routes"},
-				"user": gin.H{
-					"password": "user",
-					"role":     "user",
-					"access":   "/user/* and /auth/profile",
+				roleAdmin: gin.H{
+					passwordKey: roleAdmin,
+					roleKey:     roleAdmin,
+					accessKey:   "All routes",
 				},
-				"guest": gin.H{"password": "guest", "role": "guest", "access": "/auth/hello only"},
+				userRole: gin.H{
+					passwordKey: userRole,
+					roleKey:     userRole,
+					accessKey:   "/user/* and /auth/profile",
+				},
+				guestRole: gin.H{
+					passwordKey: guestRole,
+					roleKey:     guestRole,
+					accessKey:   "/auth/hello only",
+				},
 			},
 			"routes": gin.H{
-				"public": []string{"/login", "/refresh", "/info"},
-				"admin":  []string{"/admin/users", "/admin/settings", "/admin/reports"},
-				"user":   []string{"/user/profile", "/user/settings"},
-				"auth":   []string{"/auth/hello", "/auth/profile", "/auth/logout"},
+				"public":  []string{"/login", "/refresh", "/info"},
+				roleAdmin: []string{"/admin/users", "/admin/settings", "/admin/reports"},
+				userRole:  []string{"/user/profile", "/user/settings"},
+				"auth":    []string{"/auth/hello", "/auth/profile", "/auth/logout"},
 			},
 		})
 	})
@@ -181,15 +201,15 @@ func authenticator() func(c *gin.Context) (any, error) {
 
 		// Define users with their roles
 		users := map[string]map[string]string{
-			"admin": {"password": "admin", "role": "admin"},
-			"user":  {"password": "user", "role": "user"},
-			"guest": {"password": "guest", "role": "guest"},
+			roleAdmin: {passwordKey: roleAdmin, roleKey: roleAdmin},
+			userRole:  {passwordKey: userRole, roleKey: userRole},
+			guestRole: {passwordKey: guestRole, roleKey: guestRole},
 		}
 
-		if userData, exists := users[userID]; exists && userData["password"] == password {
+		if userData, exists := users[userID]; exists && userData[passwordKey] == password {
 			return &User{
 				UserName: userID,
-				Role:     userData["role"],
+				Role:     userData[roleKey],
 			}, nil
 		}
 
@@ -223,7 +243,7 @@ func authorizator() func(c *gin.Context, data any) bool {
 
 		// User routes - user and admin roles allowed
 		if strings.HasPrefix(path, "/user/") {
-			return user.Role == "user" || user.Role == roleAdmin
+			return user.Role == userRole || user.Role == roleAdmin
 		}
 
 		// Auth routes with specific rules
@@ -234,7 +254,7 @@ func authorizator() func(c *gin.Context, data any) bool {
 				return true
 			case "/auth/profile":
 				// Only user and admin roles
-				return user.Role == "user" || user.Role == roleAdmin
+				return user.Role == userRole || user.Role == roleAdmin
 			}
 		}
 
@@ -246,10 +266,10 @@ func authorizator() func(c *gin.Context, data any) bool {
 func unauthorized() func(c *gin.Context, code int, message string) {
 	return func(c *gin.Context, code int, message string) {
 		c.JSON(code, gin.H{
-			"code":    code,
-			"message": message,
-			"path":    c.Request.URL.Path,
-			"method":  c.Request.Method,
+			"code":     code,
+			messageKey: message,
+			"path":     c.Request.URL.Path,
+			"method":   c.Request.Method,
 		})
 	}
 }
@@ -257,70 +277,70 @@ func unauthorized() func(c *gin.Context, code int, message string) {
 // Handler functions
 func adminUsersHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"message": "Admin Users Management",
-		"users":   []string{"admin", "user1", "user2", "guest1"},
-		"access":  "admin only",
+		messageKey: "Admin Users Management",
+		"users":    []string{roleAdmin, "user1", "user2", "guest1"},
+		accessKey:  adminAccess,
 	})
 }
 
 func adminSettingsHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"message":  "Admin Settings",
+		messageKey: "Admin Settings",
 		"settings": gin.H{"max_users": 100, "allow_registration": true},
-		"access":   "admin only",
+		accessKey:  adminAccess,
 	})
 }
 
 func adminReportsHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"message": "Admin Reports",
-		"reports": []string{"daily_usage", "user_activity", "system_health"},
-		"access":  "admin only",
+		messageKey: "Admin Reports",
+		"reports":  []string{"daily_usage", "user_activity", "system_health"},
+		accessKey:  adminAccess,
 	})
 }
 
 func createUserHandler(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"message": "User created successfully",
-		"access":  "admin only",
+		messageKey: "User created successfully",
+		accessKey:  adminAccess,
 	})
 }
 
 func deleteUserHandler(c *gin.Context) {
 	userID := c.Param("id")
 	c.JSON(200, gin.H{
-		"message": "User deleted successfully",
-		"user_id": userID,
-		"access":  "admin only",
+		messageKey: "User deleted successfully",
+		"user_id":  userID,
+		accessKey:  adminAccess,
 	})
 }
 
 func userProfileHandler(c *gin.Context) {
 	user, _ := c.Get(identityKey)
 	c.JSON(200, gin.H{
-		"message":  "User Profile",
-		"username": user.(*User).UserName,
-		"role":     user.(*User).Role,
-		"access":   "user and admin only",
+		messageKey:  "User Profile",
+		usernameKey: user.(*User).UserName,
+		roleKey:     user.(*User).Role,
+		accessKey:   userAdminAccess,
 	})
 }
 
 func updateProfileHandler(c *gin.Context) {
 	user, _ := c.Get(identityKey)
 	c.JSON(200, gin.H{
-		"message":  "Profile updated successfully",
-		"username": user.(*User).UserName,
-		"access":   "user and admin only",
+		messageKey:  "Profile updated successfully",
+		usernameKey: user.(*User).UserName,
+		accessKey:   userAdminAccess,
 	})
 }
 
 func userSettingsHandler(c *gin.Context) {
 	user, _ := c.Get(identityKey)
 	c.JSON(200, gin.H{
-		"message":  "User Settings",
-		"username": user.(*User).UserName,
-		"settings": gin.H{"theme": "dark", "notifications": true},
-		"access":   "user and admin only",
+		messageKey:  "User Settings",
+		usernameKey: user.(*User).UserName,
+		"settings":  gin.H{"theme": "dark", "notifications": true},
+		accessKey:   userAdminAccess,
 	})
 }
 
@@ -328,11 +348,11 @@ func helloHandler(c *gin.Context) {
 	claims := jwt.ExtractClaims(c)
 	user, _ := c.Get(identityKey)
 	c.JSON(200, gin.H{
-		"message":  "Hello World!",
+		messageKey: "Hello World!",
 		"userID":   claims[identityKey],
 		"userName": user.(*User).UserName,
-		"role":     user.(*User).Role,
-		"access":   "all authenticated users",
+		roleKey:    user.(*User).Role,
+		accessKey:  "all authenticated users",
 	})
 }
 
@@ -340,11 +360,11 @@ func profileHandler(c *gin.Context) {
 	claims := jwt.ExtractClaims(c)
 	user, _ := c.Get(identityKey)
 	c.JSON(200, gin.H{
-		"message":  "Profile Information",
+		messageKey: "Profile Information",
 		"userID":   claims[identityKey],
 		"userName": user.(*User).UserName,
-		"role":     user.(*User).Role,
-		"access":   "user and admin roles only",
+		roleKey:    user.(*User).Role,
+		accessKey:  "user and admin roles only",
 	})
 }
 
@@ -353,9 +373,9 @@ func whoAmIHandler(c *gin.Context) {
 	user, _ := c.Get(identityKey)
 	c.JSON(200, gin.H{
 		"identity": claims[identityKey],
-		"role":     claims[roleKey],
-		"user":     user.(*User),
+		roleKey:    claims[roleKey],
+		userRole:   user.(*User),
 		"claims":   claims,
-		"access":   "all authenticated users",
+		accessKey:  "all authenticated users",
 	})
 }

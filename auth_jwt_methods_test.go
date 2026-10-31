@@ -45,7 +45,7 @@ func TestGinJWTMiddleware_FunctionalOptionsOnly(t *testing.T) {
 		assert.True(t, middleware.UseRedisStore, "should enable Redis store")
 		assert.Equal(t, testAddr, middleware.RedisConfig.Addr, "should set custom address")
 		// Should still have defaults for other values
-		assert.Equal(t, "", middleware.RedisConfig.Password, "should have default empty password")
+		assert.Empty(t, middleware.RedisConfig.Password, "should have default empty password")
 		assert.Equal(t, 0, middleware.RedisConfig.DB, "should have default DB")
 	})
 
@@ -257,7 +257,7 @@ func TestGinJWTMiddleware_FunctionalOptionsOnly(t *testing.T) {
 
 		// Verify all default values
 		assert.Equal(t, "localhost:6379", config.Addr, "should have default address")
-		assert.Equal(t, "", config.Password, "should have empty default password")
+		assert.Empty(t, config.Password, "should have empty default password")
 		assert.Equal(t, 0, config.DB, "should have default DB")
 		assert.Equal(t, 128*1024*1024, config.CacheSize, "should have default cache size")
 		assert.Equal(t, time.Minute, config.CacheTTL, "should have default cache TTL")

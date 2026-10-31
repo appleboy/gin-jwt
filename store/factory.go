@@ -7,7 +7,7 @@ import (
 )
 
 // StoreType represents the type of store to create
-type StoreType string
+type StoreType string //nolint:revive // Preserve the exported name for API compatibility.
 
 const (
 	// MemoryStore represents an in-memory token store

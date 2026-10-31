@@ -7,8 +7,14 @@ import (
 	"time"
 
 	jwt "github.com/appleboy/gin-jwt/v3"
+
 	"github.com/gin-gonic/gin"
 	gojwt "github.com/golang-jwt/jwt/v5"
+)
+
+const (
+	codeKey    = "code"
+	messageKey = "message"
 )
 
 type login struct {
@@ -153,8 +159,8 @@ func authorizator() func(c *gin.Context, data any) bool {
 func unauthorized() func(c *gin.Context, code int, message string) {
 	return func(c *gin.Context, code int, message string) {
 		c.JSON(code, gin.H{
-			"code":    code,
-			"message": message,
+			codeKey:    code,
+			messageKey: message,
 		})
 	}
 }
@@ -166,8 +172,8 @@ func logoutResponse() func(c *gin.Context) {
 		user, exists := c.Get(identityKey)
 
 		response := gin.H{
-			"code":    http.StatusOK,
-			"message": "Successfully logged out",
+			codeKey:    http.StatusOK,
+			messageKey: "Successfully logged out",
 		}
 
 		// Show that we can access user information during logout
@@ -184,7 +190,7 @@ func logoutResponse() func(c *gin.Context) {
 
 func handleNoRoute() func(c *gin.Context) {
 	return func(c *gin.Context) {
-		c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", "message": "Page not found"})
+		c.JSON(404, gin.H{codeKey: "PAGE_NOT_FOUND", messageKey: "Page not found"})
 	}
 }
 

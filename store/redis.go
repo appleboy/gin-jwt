@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/appleboy/gin-jwt/v3/core"
+
 	"github.com/redis/rueidis"
 )
 

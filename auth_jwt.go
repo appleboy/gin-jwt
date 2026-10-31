@@ -994,8 +994,8 @@ func (mw *GinJWTMiddleware) ParseToken(c *gin.Context) (*jwt.Token, error) {
 	var token string
 	var err error
 
-	methods := strings.Split(mw.TokenLookup, ",")
-	for _, method := range methods {
+	methods := strings.SplitSeq(mw.TokenLookup, ",")
+	for method := range methods {
 		if len(token) > 0 {
 			break
 		}

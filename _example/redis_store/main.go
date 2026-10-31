@@ -6,8 +6,13 @@ import (
 	"time"
 
 	jwt "github.com/appleboy/gin-jwt/v3"
+
 	"github.com/gin-gonic/gin"
 	gojwt "github.com/golang-jwt/jwt/v5"
+)
+
+const (
+	messageKey = "message"
 )
 
 type User struct {
@@ -73,8 +78,8 @@ func main() {
 		},
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.JSON(code, gin.H{
-				"code":    code,
-				"message": message,
+				"code":     code,
+				messageKey: message,
 			})
 		},
 		TokenLookup:   "header: Authorization, query: token, cookie: jwt",
@@ -105,7 +110,7 @@ func main() {
 	r.NoRoute(authMiddleware.MiddlewareFunc(), func(c *gin.Context) {
 		claims := jwt.ExtractClaims(c)
 		log.Printf("NoRoute claims: %#v\n", claims)
-		c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", "message": "Page not found"})
+		c.JSON(404, gin.H{"code": "PAGE_NOT_FOUND", messageKey: "Page not found"})
 	})
 
 	auth := r.Group("/auth")
@@ -147,7 +152,7 @@ func storeInfoHandler() gin.HandlerFunc {
 		c.JSON(200, gin.H{
 			"configuration": "functional_options",
 			"redis_enabled": true,
-			"message":       "Using functional options pattern for Redis configuration",
+			messageKey:      "Using functional options pattern for Redis configuration",
 		})
 	}
 }

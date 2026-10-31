@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/appleboy/gin-jwt/v3/core"
+
 	"github.com/appleboy/gofight/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -89,7 +90,7 @@ func TestMissingKey(t *testing.T) {
 		Authenticator: defaultAuthenticator,
 	})
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, ErrMissingSecretKey, err)
 }
 
@@ -100,7 +101,7 @@ func TestMissingPrivKey(t *testing.T) {
 		PrivKeyFile:      "nonexisting",
 	})
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, ErrNoPrivKeyFile, err)
 }
 
@@ -112,7 +113,7 @@ func TestMissingPubKey(t *testing.T) {
 		PubKeyFile:       "nonexisting",
 	})
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, ErrNoPubKeyFile, err)
 }
 
@@ -124,7 +125,7 @@ func TestInvalidPrivKey(t *testing.T) {
 		PubKeyFile:       "testdata/jwtRS256.key.pub",
 	})
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, ErrInvalidPrivKey, err)
 }
 
@@ -136,7 +137,7 @@ func TestInvalidPrivKeyBytes(t *testing.T) {
 		PubKeyFile:       "testdata/jwtRS256.key.pub",
 	})
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, ErrInvalidPrivKey, err)
 }
 
@@ -148,7 +149,7 @@ func TestInvalidPubKey(t *testing.T) {
 		PubKeyFile:       "testdata/invalidpubkey.key",
 	})
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, ErrInvalidPubKey, err)
 }
 
@@ -160,7 +161,7 @@ func TestInvalidPubKeyBytes(t *testing.T) {
 		PubKeyBytes:      []byte("Invalid_Private_Key"),
 	})
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, ErrInvalidPubKey, err)
 }
 
@@ -171,7 +172,7 @@ func TestMissingTimeOut(t *testing.T) {
 		Authenticator: defaultAuthenticator,
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, time.Hour, authMiddleware.Timeout)
 }
 
@@ -182,7 +183,7 @@ func TestMissingTokenLookup(t *testing.T) {
 		Authenticator: defaultAuthenticator,
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "header:Authorization", authMiddleware.TokenLookup)
 }
 
@@ -242,7 +243,7 @@ func TestMissingAuthenticatorForLoginHandler(t *testing.T) {
 		MaxRefresh: time.Hour * 24,
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	handler := ginHandler(authMiddleware)
 	r := gofight.New()
@@ -307,7 +308,7 @@ func TestLoginHandler(t *testing.T) {
 		TimeFunc:     func() time.Time { return time.Now().Add(time.Duration(5) * time.Minute) },
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	handler := ginHandler(authMiddleware)
 
@@ -322,7 +323,7 @@ func TestLoginHandler(t *testing.T) {
 
 			assert.Equal(t, ErrMissingLoginValues.Error(), message.String())
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
-			//nolint:staticcheck
+
 			assert.Equal(t, "application/json; charset=utf-8", r.HeaderMap.Get("Content-Type"))
 		})
 
@@ -346,9 +347,9 @@ func TestLoginHandler(t *testing.T) {
 			message := gjson.Get(r.Body.String(), "message")
 			assert.Equal(t, "login successfully", message.String())
 			assert.Equal(t, http.StatusOK, r.Code)
-			//nolint:staticcheck
+
 			assert.True(t, strings.HasPrefix(r.HeaderMap.Get("Set-Cookie"), "jwt="))
-			//nolint:staticcheck
+
 			assert.True(
 				t,
 				strings.HasSuffix(
@@ -1148,7 +1149,7 @@ func TestTokenFromCookieString(t *testing.T) {
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			token := gjson.Get(r.Body.String(), "token")
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
-			assert.Equal(t, "", token.String())
+			assert.Empty(t, token.String())
 		})
 
 	r.GET("/auth/hello").
@@ -1259,7 +1260,6 @@ func TestSendAuthorizationBool(t *testing.T) {
 			"Authorization": "Bearer " + makeTokenString("HS256", testAdmin),
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
-			//nolint:staticcheck
 			token := r.HeaderMap.Get("Authorization")
 			assert.Equal(t, "Bearer "+makeTokenString("HS256", testAdmin), token)
 			assert.Equal(t, http.StatusOK, r.Code)
@@ -1448,7 +1448,7 @@ func TestCheckTokenString(t *testing.T) {
 		})
 
 	token, err := authMiddleware.ParseTokenString(userToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	claims := ExtractClaimsFromToken(token)
 	assert.Equal(t, testAdmin, claims["identity"])
 
@@ -1463,7 +1463,7 @@ func TestCheckTokenString(t *testing.T) {
 		})
 
 	_, err = authMiddleware.ParseTokenString(userToken)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, jwt.MapClaims{}, ExtractClaimsFromToken(nil))
 }
 
@@ -1488,7 +1488,7 @@ func TestLogout(t *testing.T) {
 	r.POST("/logout").
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
-			//nolint:staticcheck
+
 			assert.Equal(
 				t,
 				fmt.Sprintf("%s=; Path=/; Domain=%s; Max-Age=0", cookieName, cookieDomain),
@@ -1528,7 +1528,7 @@ func TestSetCookie(t *testing.T) {
 	assert.Equal(t, token, cookie.Value)
 	assert.Equal(t, "/", cookie.Path)
 	assert.Equal(t, "example.com", cookie.Domain)
-	assert.Equal(t, true, cookie.HttpOnly)
+	assert.True(t, cookie.HttpOnly)
 }
 
 func TestTokenGenerator(t *testing.T) {
@@ -1556,24 +1556,24 @@ func TestTokenGenerator(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	userData := testAdmin
 	ctx := context.Background()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, tokenPair)
 	assert.NotEmpty(t, tokenPair.AccessToken)
 	assert.NotEmpty(t, tokenPair.RefreshToken)
 	assert.Equal(t, "Bearer", tokenPair.TokenType)
-	assert.True(t, tokenPair.ExpiresAt > time.Now().Unix())
-	assert.True(t, tokenPair.CreatedAt <= time.Now().Unix())
-	assert.True(t, tokenPair.ExpiresIn() > 0)
+	assert.Greater(t, tokenPair.ExpiresAt, time.Now().Unix())
+	assert.LessOrEqual(t, tokenPair.CreatedAt, time.Now().Unix())
+	assert.Positive(t, tokenPair.ExpiresIn())
 
 	// Validate that the access token is properly signed
 	token, err := authMiddleware.ParseTokenString(tokenPair.AccessToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, token.Valid)
 
 	claims, ok := token.Claims.(jwt.MapClaims)
@@ -1597,18 +1597,18 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	userData := testAdmin
 	ctx := context.Background()
 
 	// Generate first token pair
 	oldTokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify old refresh token exists in store
 	storedData, err := authMiddleware.validateRefreshToken(ctx, oldTokenPair.RefreshToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, userData, storedData)
 
 	// Generate new token pair with revocation
@@ -1617,7 +1617,7 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 		userData,
 		oldTokenPair.RefreshToken,
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, newTokenPair)
 
 	// Verify refresh tokens are different (access tokens might be the same if generated in same second)
@@ -1625,11 +1625,11 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 
 	// Verify old refresh token is revoked
 	_, err = authMiddleware.validateRefreshToken(ctx, oldTokenPair.RefreshToken)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Verify new refresh token works
 	storedData, err = authMiddleware.validateRefreshToken(ctx, newTokenPair.RefreshToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, userData, storedData)
 
 	// Test revoking already revoked token (should not fail)
@@ -1638,7 +1638,7 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 		userData,
 		oldTokenPair.RefreshToken,
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, anotherTokenPair)
 
 	// Test revoking non-existent token (should not fail)
@@ -1647,7 +1647,7 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 		userData,
 		"non_existent_token",
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, finalTokenPair)
 }
 
@@ -1662,25 +1662,25 @@ func TestTokenStruct(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	userData := testAdmin
 	ctx := context.Background()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Test ExpiresIn method
 	expiresIn := tokenPair.ExpiresIn()
-	assert.True(t, expiresIn > 3500) // Should be close to 3600 (1 hour)
-	assert.True(t, expiresIn <= 3600)
+	assert.Greater(t, expiresIn, int64(3500)) // Should be close to 3600 (1 hour)
+	assert.LessOrEqual(t, expiresIn, int64(3600))
 
 	// Test Token struct fields directly
 	assert.NotEmpty(t, tokenPair.AccessToken)
 	assert.Equal(t, "Bearer", tokenPair.TokenType)
 	assert.NotEmpty(t, tokenPair.RefreshToken)
-	assert.True(t, tokenPair.ExpiresAt > time.Now().Unix())
-	assert.True(t, tokenPair.CreatedAt > 0)
-	assert.True(t, tokenPair.CreatedAt <= time.Now().Unix())
+	assert.Greater(t, tokenPair.ExpiresAt, time.Now().Unix())
+	assert.Positive(t, tokenPair.CreatedAt)
+	assert.LessOrEqual(t, tokenPair.CreatedAt, time.Now().Unix())
 }
 
 func TestWWWAuthenticateHeader(t *testing.T) {
@@ -1778,7 +1778,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 				MaxRefresh:    time.Hour * 24,
 				Authenticator: defaultAuthenticator,
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			handler := ginHandler(authMiddleware)
 			r := gofight.New()
@@ -1793,7 +1793,7 @@ func TestWWWAuthenticateHeader(t *testing.T) {
 				assert.Equal(
 					t,
 					tc.expectedHeader,
-					r.HeaderMap.Get("WWW-Authenticate"), //nolint:staticcheck
+					r.HeaderMap.Get("WWW-Authenticate"),
 				)
 			})
 		})
@@ -1808,7 +1808,7 @@ func TestWWWAuthenticateHeaderOnRefresh(t *testing.T) {
 		MaxRefresh:    time.Hour * 24,
 		Authenticator: defaultAuthenticator,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	handler := ginHandler(authMiddleware)
 	r := gofight.New()
@@ -1820,7 +1820,7 @@ func TestWWWAuthenticateHeaderOnRefresh(t *testing.T) {
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusUnauthorized, r.Code)
-			//nolint:staticcheck
+
 			assert.Equal(t, `Bearer realm="refresh realm"`, r.HeaderMap.Get("WWW-Authenticate"))
 		})
 }
@@ -1844,7 +1844,7 @@ func TestWWWAuthenticateHeaderNotSetOnSuccess(t *testing.T) {
 			return "", ErrFailedAuthentication
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	handler := ginHandler(authMiddleware)
 	r := gofight.New()
@@ -1857,7 +1857,7 @@ func TestWWWAuthenticateHeaderNotSetOnSuccess(t *testing.T) {
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
-			assert.Empty(t, r.HeaderMap.Get("WWW-Authenticate")) //nolint:staticcheck
+			assert.Empty(t, r.HeaderMap.Get("WWW-Authenticate"))
 		})
 
 	// Get a valid token for authenticated request
@@ -1870,7 +1870,7 @@ func TestWWWAuthenticateHeaderNotSetOnSuccess(t *testing.T) {
 		}).
 		Run(handler, func(r gofight.HTTPResponse, rq gofight.HTTPRequest) {
 			assert.Equal(t, http.StatusOK, r.Code)
-			assert.Empty(t, r.HeaderMap.Get("WWW-Authenticate")) //nolint:staticcheck
+			assert.Empty(t, r.HeaderMap.Get("WWW-Authenticate"))
 		})
 }
 
@@ -1893,7 +1893,7 @@ func TestWWWAuthenticateHeaderWithDifferentRealms(t *testing.T) {
 				MaxRefresh:    time.Hour * 24,
 				Authenticator: defaultAuthenticator,
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			handler := ginHandler(authMiddleware)
 			r := gofight.New()
@@ -1912,7 +1912,7 @@ func TestWWWAuthenticateHeaderWithDifferentRealms(t *testing.T) {
 					assert.Equal(
 						t,
 						fmt.Sprintf(`Bearer realm="%s"`, expectedRealm),
-						r.HeaderMap.Get("WWW-Authenticate"), //nolint:staticcheck
+						r.HeaderMap.Get("WWW-Authenticate"),
 					)
 				})
 		})
@@ -1950,17 +1950,17 @@ func TestStandardJWTClaimsInPayloadFunc(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Generate a token
 	ctx := context.Background()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, "user123")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, tokenPair)
 
 	// Parse the token and verify claims
 	token, err := authMiddleware.ParseTokenString(tokenPair.AccessToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, token.Valid)
 
 	claims, ok := token.Claims.(jwt.MapClaims)
@@ -2012,16 +2012,16 @@ func TestFrameworkClaimsCannotBeOverwritten(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Generate a token
 	ctx := context.Background()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, "user123")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Parse the token and verify claims
 	token, err := authMiddleware.ParseTokenString(tokenPair.AccessToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	assert.True(t, ok)
@@ -2082,14 +2082,14 @@ func TestAllStandardClaimsCanBeSet(t *testing.T) {
 					}
 				},
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			ctx := context.Background()
 			tokenPair, err := authMiddleware.TokenGenerator(ctx, "user")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			token, err := authMiddleware.ParseTokenString(tokenPair.AccessToken)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			claims, ok := token.Claims.(jwt.MapClaims)
 			assert.True(t, ok)
@@ -2099,7 +2099,14 @@ func TestAllStandardClaimsCanBeSet(t *testing.T) {
 			case int64:
 				actual, ok := claims[tc.claimKey].(float64)
 				assert.True(t, ok, "claim %s should be a number", tc.claimKey)
-				assert.Equal(t, float64(expected), actual, "claim %s should match", tc.claimKey)
+				assert.InDelta(
+					t,
+					float64(expected),
+					actual,
+					1e-9,
+					"claim %s should match",
+					tc.claimKey,
+				)
 			default:
 				assert.Equal(
 					t,
@@ -2147,7 +2154,7 @@ func TestSubClaimAsUserIdentifier(t *testing.T) {
 			return userID == testAdmin
 		},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	handler := ginHandler(authMiddleware)
 	r := gofight.New()
@@ -2176,7 +2183,7 @@ func TestSubClaimAsUserIdentifier(t *testing.T) {
 
 	// Verify the token contains the 'sub' claim
 	token, err := authMiddleware.ParseTokenString(accessToken)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	claims := ExtractClaimsFromToken(token)
 	assert.Equal(t, testAdmin, claims["sub"])
 	assert.Equal(t, "Test User", claims["name"])
