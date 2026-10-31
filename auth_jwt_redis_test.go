@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/appleboy/gin-jwt/v3/store"
+
 	"github.com/gin-gonic/gin"
 	gojwt "github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -296,7 +297,7 @@ func TestGinJWTMiddleware_FunctionalOptions(t *testing.T) {
 		// Test that it actually works (but use working address for actual initialization)
 		middleware.EnableRedisStore(WithRedisAddr(redisAddr)) // Reset to working address
 		err := middleware.MiddlewareInit()
-		assert.NoError(t, err, "configuration with all options should initialize successfully")
+		require.NoError(t, err, "configuration with all options should initialize successfully")
 	})
 }
 
@@ -358,7 +359,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(
 		context.Background(),
-		"POST",
+		http.MethodPost,
 		"/login",
 		strings.NewReader(`{"username":"`+testAdmin+`","password":"`+testAdmin+`"}`),
 	)
@@ -379,7 +380,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 
 	// Test protected endpoint with access token
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequestWithContext(context.Background(), "GET", "/auth/hello", nil)
+	req, _ = http.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/hello", nil)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	r.ServeHTTP(w, req)
 
@@ -389,7 +390,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 	w = httptest.NewRecorder()
 	req, _ = http.NewRequestWithContext(
 		context.Background(),
-		"POST",
+		http.MethodPost,
 		"/refresh",
 		strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)),
 	)
@@ -416,7 +417,7 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(
 		context.Background(),
-		"POST",
+		http.MethodPost,
 		"/login",
 		strings.NewReader(`{"username":"`+testAdmin+`","password":"`+testAdmin+`"}`),
 	)
@@ -430,25 +431,25 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 	refreshToken := loginResp["refresh_token"].(string)
 
 	// Simulate some time passing and multiple refresh requests
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		time.Sleep(10 * time.Millisecond) // Small delay to simulate real usage
 
 		w = httptest.NewRecorder()
 		req, _ = http.NewRequestWithContext(
 			context.Background(),
-			"POST",
+			http.MethodPost,
 			"/refresh",
 			strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)),
 		)
 		req.Header.Set("Content-Type", "application/json")
 		r.ServeHTTP(w, req)
 
-		assert.Equal(t, 200, w.Code, fmt.Sprintf("refresh %d should succeed", i+1))
+		assert.Equal(t, 200, w.Code, "refresh %d should succeed", i+1)
 
 		// Update refresh token for next iteration
 		var refreshResp map[string]any
 		err := parseJSON(w.Body.String(), &refreshResp)
-		require.NoError(t, err, fmt.Sprintf("should parse refresh response %d", i+1))
+		require.NoError(t, err, "should parse refresh response %d", i+1)
 		refreshToken = refreshResp["refresh_token"].(string)
 	}
 }
@@ -466,28 +467,28 @@ func testRedisStoreOperations(t *testing.T, middleware *GinJWTMiddleware) {
 
 	// Test Set
 	err := redisStore.Set(ctx, testToken, testData, expiry)
-	assert.NoError(t, err, "direct set should succeed")
+	require.NoError(t, err, "direct set should succeed")
 
 	// Test Get
 	retrievedData, err := redisStore.Get(ctx, testToken)
-	assert.NoError(t, err, "direct get should succeed")
+	require.NoError(t, err, "direct get should succeed")
 	assert.Equal(t, testData, retrievedData, "retrieved data should match")
 
 	// Test Count
 	count, err := redisStore.Count(ctx)
-	assert.NoError(t, err, "count should succeed")
+	require.NoError(t, err, "count should succeed")
 	assert.GreaterOrEqual(t, count, 1, "count should include our test token")
 
 	// Test Delete
 	err = redisStore.Delete(ctx, testToken)
-	assert.NoError(t, err, "direct delete should succeed")
+	require.NoError(t, err, "direct delete should succeed")
 
 	// Verify deletion - wait for cache TTL to expire
 	time.Sleep(100 * time.Millisecond)
 
 	// The Get method should return an error for deleted tokens
 	_, err = redisStore.Get(ctx, testToken)
-	assert.Error(t, err, "token should not exist after deletion")
+	require.Error(t, err, "token should not exist after deletion")
 }
 
 // Helper function to parse JSON response

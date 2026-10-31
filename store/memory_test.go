@@ -3,11 +3,12 @@ package store
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // User represents a test user for testing purposes
@@ -196,13 +197,13 @@ func TestInMemoryRefreshTokenStore_Cleanup(t *testing.T) {
 	expiredExpiry := time.Now().Add(-time.Hour)
 
 	err := store.Set(context.Background(), "valid1", &User{ID: "1"}, validExpiry)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = store.Set(context.Background(), "valid2", &User{ID: "2"}, validExpiry)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = store.Set(context.Background(), "expired1", &User{ID: "3"}, expiredExpiry)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = store.Set(context.Background(), "expired2", &User{ID: "4"}, expiredExpiry)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify initial count
 	count, _ := store.Count(context.Background())
@@ -263,9 +264,9 @@ func TestInMemoryRefreshTokenStore_Count(t *testing.T) {
 
 	// Add tokens
 	expiry := time.Now().Add(time.Hour)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		token := fmt.Sprintf("token%d", i)
-		user := &User{ID: fmt.Sprintf("%d", i)}
+		user := &User{ID: strconv.Itoa(i)}
 		_ = store.Set(context.Background(), token, user, expiry)
 	}
 
@@ -339,11 +340,11 @@ func TestInMemoryRefreshTokenStore_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent writes
 	wg.Add(numGoroutines)
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(id int) {
 			defer wg.Done()
 			token := fmt.Sprintf("token%d", id)
-			user := &User{ID: fmt.Sprintf("%d", id)}
+			user := &User{ID: strconv.Itoa(id)}
 			expiry := time.Now().Add(time.Hour)
 			_ = store.Set(context.Background(), token, user, expiry)
 		}(i)
@@ -358,7 +359,7 @@ func TestInMemoryRefreshTokenStore_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent reads
 	wg.Add(numGoroutines)
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(id int) {
 			defer wg.Done()
 			token := fmt.Sprintf("token%d", id)
@@ -372,7 +373,7 @@ func TestInMemoryRefreshTokenStore_ConcurrentAccess(t *testing.T) {
 
 	// Concurrent deletes
 	wg.Add(numGoroutines)
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(id int) {
 			defer wg.Done()
 			token := fmt.Sprintf("token%d", id)
@@ -426,7 +427,7 @@ func BenchmarkInMemoryRefreshTokenStore_Get(b *testing.B) {
 	expiry := time.Now().Add(time.Hour)
 
 	// Pre-populate with tokens
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		token := fmt.Sprintf("token%d", i)
 		_ = store.Set(context.Background(), token, user, expiry)
 	}

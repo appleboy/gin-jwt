@@ -59,7 +59,7 @@ func TestSetRefreshTokenCookie(t *testing.T) {
 	assert.True(t, cookies[0].HttpOnly)
 	assert.True(t, cookies[0].Secure) // Refresh token cookies are always secure (HTTPS only)
 	assert.Equal(t, "/", cookies[0].Path)
-	assert.True(t, cookies[0].MaxAge > 0)
+	assert.Positive(t, cookies[0].MaxAge)
 }
 
 func TestSetRefreshTokenCookieCappedByMaxRefresh(t *testing.T) {
@@ -110,7 +110,7 @@ func TestSetRefreshTokenCookieDisabled(t *testing.T) {
 	cookies := w.Result().Cookies()
 
 	// Should not set any cookies when SendCookie is false
-	assert.Len(t, cookies, 0)
+	assert.Empty(t, cookies)
 }
 
 func TestExtractRefreshTokenFromCookie(t *testing.T) {
@@ -128,7 +128,7 @@ func TestExtractRefreshTokenFromCookie(t *testing.T) {
 
 	// Create a test context with refresh token cookie
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequestWithContext(context.Background(), "GET", "/test", nil)
+	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
 	req.AddCookie(&http.Cookie{ //nolint:gosec // test-only cookie
 		Name:  "refresh_token",
 		Value: "test-refresh-token-from-cookie",
@@ -159,7 +159,7 @@ func TestExtractRefreshTokenPriority(t *testing.T) {
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(
 		context.Background(),
-		"POST",
+		http.MethodPost,
 		"/test",
 		nil,
 	)
@@ -205,7 +205,7 @@ func TestLoginHandlerSetsRefreshTokenCookie(t *testing.T) {
 
 			// Check that both cookies are set
 			setCookieHeaders := (*httptest.ResponseRecorder)(r).Result().Header.Values("Set-Cookie")
-			assert.True(t, len(setCookieHeaders) >= 2, "Should set at least 2 cookies")
+			assert.GreaterOrEqual(t, len(setCookieHeaders), 2, "Should set at least 2 cookies")
 
 			hasJWTCookie := false
 			hasRefreshTokenCookie := false
@@ -282,7 +282,7 @@ func TestRefreshHandlerWithCookie(t *testing.T) {
 
 			// Check that new cookies are set
 			setCookieHeaders := (*httptest.ResponseRecorder)(r).Result().Header.Values("Set-Cookie")
-			assert.True(t, len(setCookieHeaders) >= 2, "Should set new cookies")
+			assert.GreaterOrEqual(t, len(setCookieHeaders), 2, "Should set new cookies")
 		})
 }
 
@@ -396,7 +396,7 @@ func TestLogoutHandlerClearsRefreshTokenCookie(t *testing.T) {
 
 			// Check that both cookies are cleared (MaxAge=-1)
 			setCookieHeaders := (*httptest.ResponseRecorder)(r).Result().Header.Values("Set-Cookie")
-			assert.True(t, len(setCookieHeaders) >= 2, "Should clear cookies")
+			assert.GreaterOrEqual(t, len(setCookieHeaders), 2, "Should clear cookies")
 
 			hasJWTClear := false
 			hasRefreshTokenClear := false
@@ -538,13 +538,13 @@ func TestTokenGeneratorSetsRefreshToken(t *testing.T) {
 
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, tokenPair)
 	assert.NotEmpty(t, tokenPair.AccessToken)
 	assert.NotEmpty(t, tokenPair.RefreshToken)
 	assert.Equal(t, "Bearer", tokenPair.TokenType)
-	assert.True(t, tokenPair.ExpiresAt > 0)
-	assert.True(t, tokenPair.CreatedAt > 0)
+	assert.Positive(t, tokenPair.ExpiresAt)
+	assert.Positive(t, tokenPair.CreatedAt)
 }
 
 func TestExtractRefreshTokenContentType(t *testing.T) {
@@ -559,7 +559,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
 			context.Background(),
-			"POST",
+			http.MethodPost,
 			"/test",
 			strings.NewReader(`{"refresh_token":"from-json-body"}`),
 		)
@@ -581,7 +581,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
 			context.Background(),
-			"POST",
+			http.MethodPost,
 			"/test",
 			strings.NewReader("refresh_token=from-form-body"),
 		)
@@ -603,7 +603,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
 			context.Background(),
-			"POST",
+			http.MethodPost,
 			"/test?refresh_token=from-query",
 			strings.NewReader(`{"refresh_token":"from-json-body"}`),
 		)
@@ -625,7 +625,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
 			context.Background(),
-			"POST",
+			http.MethodPost,
 			"/test",
 			strings.NewReader(`{"refresh_token":"from-json-body"}`),
 		)

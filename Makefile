@@ -1,3 +1,9 @@
+GO ?= go
+TOOLS_MOD := -modfile=$(CURDIR)/go.tools.mod
+LINT_CONFIG := $(CURDIR)/.golangci.yml
+GO_PACKAGES := ./... ./_example/...
+EXAMPLE_MODULES := _example/authorization _example/basic _example/oauth_sso _example/redis_store _example/token_generator
+
 .PHONY: help format test lint clean coverage install-tools vet
 
 # Default target
@@ -16,55 +22,53 @@ help:
 # Format code
 format:
 	@echo "Formatting Go code..."
-	@if command -v golangci-lint > /dev/null; then \
-		golangci-lint fmt ./...; \
-	else \
-		echo "golangci-lint not found!"; \
-		echo "Run 'make install-tools' to install golangci-lint"; \
-		exit 1; \
-	fi
+	$(GO) tool $(TOOLS_MOD) golangci-lint fmt --config=$(LINT_CONFIG) $(GO_PACKAGES)
+	@set -e; for module in $(EXAMPLE_MODULES); do \
+		(cd "$$module" && $(GO) tool $(TOOLS_MOD) golangci-lint fmt --config=$(LINT_CONFIG)); \
+	done
 	@echo "Format complete"
 
 # Run tests with coverage
 test:
 	@echo "Running tests..."
-	@go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+	@$(GO) test -v -race -coverprofile=coverage.out -covermode=atomic $(GO_PACKAGES)
+	@set -e; for module in $(EXAMPLE_MODULES); do (cd "$$module" && $(GO) test ./...); done
 	@echo "Tests complete"
 
 # Run linter
 lint:
 	@echo "Running golangci-lint..."
-	@if command -v golangci-lint > /dev/null; then \
-		golangci-lint run ./...; \
-	else \
-		echo "golangci-lint not found!"; \
-		echo "Run 'make install-tools' to install golangci-lint"; \
-		exit 1; \
-	fi
+	$(GO) tool $(TOOLS_MOD) golangci-lint run --config=$(LINT_CONFIG) $(GO_PACKAGES)
+	@set -e; for module in $(EXAMPLE_MODULES); do \
+		(cd "$$module" && $(GO) tool $(TOOLS_MOD) golangci-lint run --config=$(LINT_CONFIG)); \
+	done
 	@echo "Lint complete"
 
 # Run go vet
 vet:
 	@echo "Running go vet..."
-	@go vet ./...
+	@$(GO) vet ./...
 	@echo "Vet complete"
 
 # Generate and display coverage report
 coverage: test
 	@echo "Generating coverage report..."
-	@go tool cover -html=coverage.out -o coverage.html
+	@$(GO) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
-	@go tool cover -func=coverage.out
+	@$(GO) tool cover -func=coverage.out
 
 # Clean test cache and coverage files
 clean:
 	@echo "Cleaning test cache and coverage files..."
-	@go clean -testcache
+	@$(GO) clean -testcache
 	@rm -f coverage.out coverage.html
 	@echo "Clean complete"
 
 # Install development tools
 install-tools:
 	@echo "Installing development tools..."
-	@go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+	@$(GO) mod download $(TOOLS_MOD)
 	@echo "Tools installed successfully"
+
+.PHONY: fmt
+fmt: format

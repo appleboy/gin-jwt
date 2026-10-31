@@ -29,8 +29,8 @@ func TestToken(t *testing.T) {
 
 	// Test ExpiresIn method
 	expiresIn := token.ExpiresIn()
-	assert.True(t, expiresIn > 3500) // Should be close to 3600 (1 hour)
-	assert.True(t, expiresIn <= 3600)
+	assert.Greater(t, expiresIn, int64(3500)) // Should be close to 3600 (1 hour)
+	assert.LessOrEqual(t, expiresIn, int64(3600))
 }
 
 func TestTokenExpiresIn(t *testing.T) {
