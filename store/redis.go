@@ -14,12 +14,11 @@ import (
 
 var _ core.TokenStore = &RedisRefreshTokenStore{}
 
-// RedisRefreshTokenStore provides a Redis-based refresh token store with client-side caching
+// RedisRefreshTokenStore provides a Redis-based refresh token store with authoritative reads.
 type RedisRefreshTokenStore struct {
-	client   rueidis.Client
-	prefix   string
-	ctx      context.Context
-	cacheTTL time.Duration
+	client rueidis.Client
+	prefix string
+	ctx    context.Context
 }
 
 // RedisConfig holds the configuration for Redis store
@@ -32,9 +31,12 @@ type RedisConfig struct {
 	// TLS configuration
 	TLSConfig *tls.Config // TLS configuration for secure connections (optional, default: nil)
 
-	// Client-side cache configuration
-	CacheSize int           // Client-side cache size in bytes (default: 128MB)
-	CacheTTL  time.Duration // Client-side cache TTL (default: 1 minute)
+	// CacheSize is retained for compatibility.
+	// Ignored: refresh token reads bypass client-side caching to honor revocation.
+	CacheSize int
+	// CacheTTL is retained for compatibility.
+	// Ignored: refresh token reads bypass client-side caching to honor revocation.
+	CacheTTL time.Duration
 
 	// Connection pool configuration
 	PoolSize        int           // Connection pool size (default: 10)
@@ -60,7 +62,7 @@ func DefaultRedisConfig() *RedisConfig {
 	}
 }
 
-// NewRedisRefreshTokenStore creates a new Redis-based refresh token store with client-side caching
+// NewRedisRefreshTokenStore creates a Redis store that reads token state from the server.
 func NewRedisRefreshTokenStore(config *RedisConfig) (*RedisRefreshTokenStore, error) {
 	if config == nil {
 		config = DefaultRedisConfig()
@@ -78,12 +80,11 @@ func NewRedisRefreshTokenStore(config *RedisConfig) (*RedisRefreshTokenStore, er
 		// Connection configuration
 		ConnWriteTimeout: 10 * time.Second,
 
-		// Client-side cache configuration
-		CacheSizeEachConn: config.CacheSize,
-		DisableCache:      false,
+		// Revoked tokens must never be served from a stale client-side cache.
+		DisableCache: true,
 	}
 
-	// Create Redis client with client-side caching enabled
+	// Create the Redis client with client-side caching disabled.
 	client, err := rueidis.NewClient(clientOpt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Redis client: %w", err)
@@ -97,10 +98,9 @@ func NewRedisRefreshTokenStore(config *RedisConfig) (*RedisRefreshTokenStore, er
 	}
 
 	return &RedisRefreshTokenStore{
-		client:   client,
-		prefix:   config.KeyPrefix,
-		ctx:      ctx,
-		cacheTTL: config.CacheTTL,
+		client: client,
+		prefix: config.KeyPrefix,
+		ctx:    ctx,
 	}, nil
 }
 
@@ -146,8 +146,12 @@ func (s *RedisRefreshTokenStore) Set(
 		return errors.New("token expiry time must be in the future")
 	}
 
-	// Store in Redis with expiration
-	cmd := s.client.B().Setex().Key(key).Seconds(int64(ttl.Seconds())).Value(string(data)).Build()
+	// Preserve subsecond expirations and round up to Redis's millisecond precision.
+	ttlMilliseconds := ttl.Milliseconds()
+	if ttl%time.Millisecond != 0 {
+		ttlMilliseconds++
+	}
+	cmd := s.client.B().Psetex().Key(key).Milliseconds(ttlMilliseconds).Value(string(data)).Build()
 	if err := s.client.Do(ctx, cmd).Error(); err != nil {
 		return fmt.Errorf("failed to store token in Redis: %w", err)
 	}
@@ -156,7 +160,7 @@ func (s *RedisRefreshTokenStore) Set(
 }
 
 // Get retrieves user data associated with a refresh token
-// This method benefits from client-side caching for frequently accessed tokens
+// Reads bypass client-side caching so successful revocation is immediately visible.
 func (s *RedisRefreshTokenStore) Get(ctx context.Context, token string) (any, error) {
 	if token == "" {
 		return nil, core.ErrRefreshTokenNotFound
@@ -164,9 +168,8 @@ func (s *RedisRefreshTokenStore) Get(ctx context.Context, token string) (any, er
 
 	key := s.buildKey(token)
 
-	// Use client-side cache by default
-	cmd := s.client.B().Get().Key(key).Cache()
-	result := s.client.DoCache(ctx, cmd, s.cacheTTL)
+	cmd := s.client.B().Get().Key(key).Build()
+	result := s.client.Do(ctx, cmd)
 
 	if result.Error() != nil {
 		if rueidis.IsRedisNil(result.Error()) {

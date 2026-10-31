@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -75,8 +77,8 @@ func TestRedisRefreshTokenStore_Integration(t *testing.T) {
 		testCount(t, store)
 	})
 
-	t.Run("ClientSideCache", func(t *testing.T) {
-		testClientSideCache(t, store)
+	t.Run("RepeatedReadsAndRevocation", func(t *testing.T) {
+		testRepeatedReadsAndRevocation(t, store)
 	})
 }
 
@@ -84,7 +86,7 @@ func testBasicOperations(t *testing.T, store *RedisRefreshTokenStore) {
 	ctx := context.Background()
 	token := "test-token-basic"
 	userData := map[string]any{
-		"user_id":  123,
+		"user_id":  float64(123),
 		"username": "testuser",
 	}
 	expiry := time.Now().Add(time.Hour)
@@ -135,21 +137,20 @@ func testExpiration(t *testing.T, store *RedisRefreshTokenStore) {
 	userData := "test-data"
 
 	// Set token with very short expiry
-	shortExpiry := time.Now().Add(100 * time.Millisecond)
+	shortExpiry := time.Now().Add(500 * time.Millisecond)
 	err := store.Set(ctx, token, userData, shortExpiry)
-	assert.NoError(t, err, "Set should not return error")
+	require.NoError(t, err, "Set should support subsecond expiration")
 
 	// Token should be available immediately
 	retrievedData, err := store.Get(ctx, token)
 	assert.NoError(t, err, "Get should not return error immediately after set")
 	assert.Equal(t, userData, retrievedData, "Retrieved data should match stored data")
 
-	// Wait for expiration
-	time.Sleep(200 * time.Millisecond)
-
-	// Token should be expired
-	_, err = store.Get(ctx, token)
-	assert.ErrorIs(t, err, core.ErrRefreshTokenExpired, "Token should be expired")
+	// Redis removes expired keys, so the store reports them as not found.
+	require.Eventually(t, func() bool {
+		_, getErr := store.Get(ctx, token)
+		return errors.Is(getErr, core.ErrRefreshTokenNotFound)
+	}, 3*time.Second, 10*time.Millisecond, "Redis should evict the expired token")
 
 	// Clean up test data
 	_ = store.client.Do(ctx, store.client.B().Del().Key(store.buildKey(token)).Build())
@@ -162,22 +163,27 @@ func testCleanup(t *testing.T, store *RedisRefreshTokenStore) {
 	tokens := []string{"cleanup-token-1", "cleanup-token-2", "cleanup-token-3"}
 	userData := "cleanup-data"
 
-	// Set tokens with past expiry (already expired)
-	pastExpiry := time.Now().Add(-time.Hour)
+	// Seed expired data directly because Set rejects past expiry times.
+	data, err := json.Marshal(&core.RefreshTokenData{
+		UserData: userData,
+		Expiry:   time.Now().Add(-time.Hour),
+		Created:  time.Now().Add(-2 * time.Hour),
+	})
+	require.NoError(t, err)
 	for _, token := range tokens[:2] {
-		err := store.Set(ctx, token, userData, pastExpiry)
-		assert.NoError(t, err, "Set should not return error")
+		cmd := store.client.B().Set().Key(store.buildKey(token)).Value(string(data)).Build()
+		require.NoError(t, store.client.Do(ctx, cmd).Error())
 	}
 
 	// Set one token with future expiry
 	futureExpiry := time.Now().Add(time.Hour)
-	err := store.Set(ctx, tokens[2], userData, futureExpiry)
+	err = store.Set(ctx, tokens[2], userData, futureExpiry)
 	assert.NoError(t, err, "Set should not return error")
 
 	// Run cleanup
 	cleaned, err := store.Cleanup(ctx)
 	assert.NoError(t, err, "Cleanup should not return error")
-	assert.GreaterOrEqual(t, cleaned, 0, "Cleanup should return non-negative count")
+	assert.Equal(t, 2, cleaned, "Cleanup should remove both expired tokens")
 
 	// Verify that non-expired token still exists
 	_, err = store.Get(ctx, tokens[2])
@@ -223,35 +229,24 @@ func testCount(t *testing.T, store *RedisRefreshTokenStore) {
 	}
 }
 
-func testClientSideCache(t *testing.T, store *RedisRefreshTokenStore) {
+func testRepeatedReadsAndRevocation(t *testing.T, store *RedisRefreshTokenStore) {
 	ctx := context.Background()
-	token := "test-token-cache"
-	userData := "cache-test-data"
-	expiry := time.Now().Add(time.Hour)
+	token := t.Name()
+	userData := "revocation-test-data"
 
-	// Set token
-	err := store.Set(ctx, token, userData, expiry)
-	assert.NoError(t, err, "Set should not return error")
+	for range 20 {
+		require.NoError(t, store.Set(ctx, token, userData, time.Now().Add(time.Hour)))
+		for range 2 {
+			retrievedData, err := store.Get(ctx, token)
+			require.NoError(t, err)
+			require.Equal(t, userData, retrievedData)
+		}
 
-	// First get (should populate cache)
-	start1 := time.Now()
-	retrievedData1, err := store.Get(ctx, token)
-	duration1 := time.Since(start1)
-	assert.NoError(t, err, "First Get should not return error")
-	assert.Equal(t, userData, retrievedData1, "First retrieved data should match stored data")
-
-	// Second get (should use cache and be faster)
-	start2 := time.Now()
-	retrievedData2, err := store.Get(ctx, token)
-	duration2 := time.Since(start2)
-	assert.NoError(t, err, "Second Get should not return error")
-	assert.Equal(t, userData, retrievedData2, "Second retrieved data should match stored data")
-
-	// Note: Cache performance test might be flaky in CI environments
-	t.Logf("First get took: %v, Second get took: %v", duration1, duration2)
-
-	// Clean up test data
-	_ = store.client.Do(ctx, store.client.B().Del().Key(store.buildKey(token)).Build())
+		require.NoError(t, store.Delete(ctx, token))
+		_, err := store.Get(ctx, token)
+		require.ErrorIs(t, err, core.ErrRefreshTokenNotFound,
+			"a revoked token must not be returned by a subsequent read")
+	}
 }
 
 func TestRedisRefreshTokenStore_ConnectionFailure(t *testing.T) {

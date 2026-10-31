@@ -26,7 +26,8 @@ func WithRedisAuth(password string, db int) RedisOption {
 	}
 }
 
-// WithRedisCache configures client-side cache
+// WithRedisCache retains legacy cache settings for API compatibility.
+// Redis token reads ignore these settings to make revocation immediately visible.
 func WithRedisCache(size int, ttl time.Duration) RedisOption {
 	return func(config *store.RedisConfig) {
 		config.CacheSize = size
@@ -89,7 +90,7 @@ func (mw *GinJWTMiddleware) initializeRedisStore() {
 			log.Printf("Failed to connect to Redis: %v, falling back to in-memory store", err)
 			mw.RefreshTokenStore = mw.inMemoryStore
 		} else {
-			log.Println("Successfully connected to Redis store with client-side cache enabled")
+			log.Println("Connected to Redis store with authoritative token reads")
 			mw.RefreshTokenStore = redisStore
 		}
 	}

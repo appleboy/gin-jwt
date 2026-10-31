@@ -107,7 +107,7 @@
 - 🍪 支持 Cookie 与 Header Token
 - 📝 易于集成，API 清晰
 - 🔐 符合 RFC 6749 规范的刷新令牌（OAuth 2.0 标准）
-- 🗄️ 可插拔的刷新令牌存储（内存、Redis 客户端缓存）
+- 🗄️ 可插拔的刷新令牌存储（内存、Redis）
 - 🏭 直接生成 Token，无需 HTTP 中间件
 - 📦 结构化 Token 类型与元数据
 
@@ -414,7 +414,7 @@ func helloHandler(c *gin.Context) {
 
 展示 Redis 集成用于 refresh token 存储，包含：
 
-- 客户端缓存以提升性能
+- 直接读取 Redis 以确保令牌撤销立即生效
 - 自动降级至内存存储
 - 生产环境就绪的配置示例
 
@@ -1129,11 +1129,11 @@ fmt.Printf("New Refresh Token: %s\n", newTokenPair.RefreshToken)
 
 ## Redis 存储配置
 
-此库支持 Redis 作为刷新令牌存储后端，并内置客户端缓存以提升性能。相比默认的内存存储，Redis 存储提供更好的可扩展性和持久性。
+此库支持 Redis 作为刷新令牌存储后端，并直接读取 Redis 以确保令牌撤销立即生效。相比默认的内存存储，Redis 存储提供更好的可扩展性和持久性。
 
 ### Redis 功能特色
 
-- 🔄 **客户端缓存**：内置 Redis 客户端缓存以提升性能
+- 🔄 **即时撤销**：直接读取 Redis，避免返回已撤销令牌的缓存值
 - 🚀 **自动回退**：Redis 连接失败时自动回退到内存存储
 - ⚙️ **简易配置**：简单的方法配置 Redis 存储
 - 🔧 **方法链**：流畅的 API，便于配置
@@ -1172,7 +1172,6 @@ middleware := &jwt.GinJWTMiddleware{
 }.EnableRedisStore(
     jwt.WithRedisAddr("redis.example.com:6379"),
     jwt.WithRedisAuth("password", 1),
-    jwt.WithRedisCache(128*1024*1024, time.Minute),     // 128MB 缓存，1分钟 TTL
     jwt.WithRedisPool(20, time.Hour, 2*time.Hour),      // 连接池配置
     jwt.WithRedisKeyPrefix("myapp:jwt:"),               // 键前缀
 )
@@ -1195,7 +1194,7 @@ middleware := &jwt.GinJWTMiddleware{
 - `WithRedisAddr(addr string)` - 设置 Redis 服务器地址
 - `WithRedisAuth(password string, db int)` - 设置认证和数据库
 - `WithRedisTLS(tlsConfig *tls.Config)` - 设置 TLS 配置以进行安全连接
-- `WithRedisCache(size int, ttl time.Duration)` - 配置客户端缓存
+- `WithRedisCache(size int, ttl time.Duration)` - 为兼容性保留；已忽略，以确保令牌撤销立即生效
 - `WithRedisPool(poolSize int, maxIdleTime, maxLifetime time.Duration)` - 配置连接池
 - `WithRedisKeyPrefix(prefix string)` - 设置 Redis 键的前缀
 
@@ -1207,8 +1206,8 @@ middleware := &jwt.GinJWTMiddleware{
 - **Password**：Redis 密码（默认：`""`）
 - **DB**：Redis 数据库编号（默认：`0`）
 - **TLSConfig**：用于安全连接的 TLS 配置（默认：`nil`）
-- **CacheSize**：客户端缓存大小（字节）（默认：`128MB`）
-- **CacheTTL**：客户端缓存 TTL（默认：`1 分钟`）
+- **CacheSize**：为兼容性保留；已忽略
+- **CacheTTL**：为兼容性保留；已忽略
 - **KeyPrefix**：所有 Redis 键的前缀（默认：`"gin-jwt:"`）
 
 ### 回退行为
@@ -1276,7 +1275,6 @@ func main() {
         },
     }).EnableRedisStore(                                            // 使用选项启用 Redis
         jwt.WithRedisAddr("localhost:6379"),                       // Redis 服务器地址
-        jwt.WithRedisCache(64*1024*1024, 30*time.Second),         // 64MB 缓存，30秒 TTL
     )
 
     if err != nil {

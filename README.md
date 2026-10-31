@@ -107,7 +107,7 @@ Easily add login, token refresh, and authorization to your Gin applications.
 - 🍪 Cookie and header token support
 - 📝 Easy integration and clear API
 - 🔐 RFC 6749 compliant refresh tokens (OAuth 2.0 standard)
-- 🗄️ Pluggable refresh token storage (in-memory, Redis with client-side caching)
+- 🗄️ Pluggable refresh token storage (in-memory, Redis)
 - 🏭 Direct token generation without HTTP middleware
 - 📦 Structured Token type with metadata
 
@@ -413,7 +413,7 @@ Direct token generation without HTTP middleware, perfect for:
 
 Demonstrates Redis integration for refresh token storage with:
 
-- Client-side caching for improved performance
+- Server-authoritative reads for immediate token revocation
 - Automatic fallback to in-memory store
 - Production-ready configuration examples
 
@@ -1128,11 +1128,11 @@ See the [complete example](_example/token_generator/) for more details.
 
 ## Redis Store Configuration
 
-This library supports Redis as a backend for refresh token storage, with built-in client-side caching for improved performance. Redis store provides better scalability and persistence compared to the default in-memory store.
+This library supports Redis as a backend for refresh token storage, with server-authoritative reads to honor token revocation. Redis store provides better scalability and persistence compared to the default in-memory store.
 
 ### Redis Features
 
-- 🔄 **Client-side Caching**: Built-in Redis client-side caching for improved performance
+- 🔄 **Immediate Revocation**: Read tokens directly from Redis so revoked tokens are not returned from a stale cache
 - 🚀 **Automatic Fallback**: Falls back to in-memory store if Redis connection fails
 - ⚙️ **Easy Configuration**: Simple methods to configure Redis store
 - 🔧 **Method Chaining**: Fluent API for convenient configuration
@@ -1171,7 +1171,6 @@ middleware := &jwt.GinJWTMiddleware{
 }.EnableRedisStore(
     jwt.WithRedisAddr("redis.example.com:6379"),
     jwt.WithRedisAuth("password", 1),
-    jwt.WithRedisCache(128*1024*1024, time.Minute),     // 128MB cache, 1min TTL
     jwt.WithRedisPool(20, time.Hour, 2*time.Hour),      // Pool config
     jwt.WithRedisKeyPrefix("myapp:jwt:"),               // Key prefix
 )
@@ -1194,7 +1193,7 @@ middleware := &jwt.GinJWTMiddleware{
 - `WithRedisAddr(addr string)` - Sets Redis server address
 - `WithRedisAuth(password string, db int)` - Sets authentication and database
 - `WithRedisTLS(tlsConfig *tls.Config)` - Sets TLS configuration for secure connections
-- `WithRedisCache(size int, ttl time.Duration)` - Configures client-side cache
+- `WithRedisCache(size int, ttl time.Duration)` - Retained for compatibility; ignored to ensure immediate token revocation
 - `WithRedisPool(poolSize int, maxIdleTime, maxLifetime time.Duration)` - Configures connection pool
 - `WithRedisKeyPrefix(prefix string)` - Sets key prefix for Redis keys
 
@@ -1206,8 +1205,8 @@ middleware := &jwt.GinJWTMiddleware{
 - **Password**: Redis password (default: `""`)
 - **DB**: Redis database number (default: `0`)
 - **TLSConfig**: TLS configuration for secure connections (default: `nil`)
-- **CacheSize**: Client-side cache size in bytes (default: `128MB`)
-- **CacheTTL**: Client-side cache TTL (default: `1 minute`)
+- **CacheSize**: Retained for compatibility; ignored
+- **CacheTTL**: Retained for compatibility; ignored
 - **KeyPrefix**: Prefix for all Redis keys (default: `"gin-jwt:"`)
 
 ### Fallback Behavior
@@ -1275,7 +1274,6 @@ func main() {
         },
     }).EnableRedisStore(                                            // Enable Redis with options
         jwt.WithRedisAddr("localhost:6379"),                       // Redis server address
-        jwt.WithRedisCache(64*1024*1024, 30*time.Second),         // 64MB cache, 30s TTL
     )
 
     if err != nil {

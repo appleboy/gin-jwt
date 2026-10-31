@@ -107,7 +107,7 @@
 - 🍪 支援 Cookie 與 Header Token
 - 📝 易於整合，API 清晰
 - 🔐 符合 RFC 6749 規範的刷新 Token（OAuth 2.0 標準）
-- 🗄️ 可插拔的刷新 Token 儲存（記憶體、Redis 用戶端快取）
+- 🗄️ 可插拔的刷新 Token 儲存（記憶體、Redis）
 - 🏭 直接產生 Token，無需 HTTP 中介軟體
 - 📦 結構化 Token 類型與中繼資料
 
@@ -414,7 +414,7 @@ func helloHandler(c *gin.Context) {
 
 展示 Redis 整合用於 refresh token 儲存，包含：
 
-- 用戶端快取以提升效能
+- 直接讀取 Redis 以確保 Token 撤銷立即生效
 - 自動降級至記憶體儲存
 - 生產環境就緒的配置範例
 
@@ -1129,11 +1129,11 @@ fmt.Printf("New Refresh Token: %s\n", newTokenPair.RefreshToken)
 
 ## Redis 儲存配置
 
-此函式庫支援 Redis 作為刷新 Token 儲存後端，並內建用戶端快取以提升效能。相比預設的記憶體儲存，Redis 儲存提供更好的可延展性和持久性。
+此函式庫支援 Redis 作為刷新 Token 儲存後端，並直接讀取 Redis 以確保 Token 撤銷立即生效。相比預設的記憶體儲存，Redis 儲存提供更好的可延展性和持久性。
 
 ### Redis 功能特色
 
-- 🔄 **用戶端快取**：內建 Redis 用戶端快取以提升效能
+- 🔄 **即時撤銷**：直接讀取 Redis，避免回傳已撤銷 Token 的快取值
 - 🚀 **自動回退**：Redis 連線失敗時自動回退到記憶體儲存
 - ⚙️ **簡易配置**：簡單的方法配置 Redis 儲存
 - 🔧 **方法鏈**：流暢的 API，便於配置
@@ -1172,7 +1172,6 @@ middleware := &jwt.GinJWTMiddleware{
 }.EnableRedisStore(
     jwt.WithRedisAddr("redis.example.com:6379"),
     jwt.WithRedisAuth("password", 1),
-    jwt.WithRedisCache(128*1024*1024, time.Minute),     // 128MB 快取，1分鐘 TTL
     jwt.WithRedisPool(20, time.Hour, 2*time.Hour),      // 連線池配置
     jwt.WithRedisKeyPrefix("myapp:jwt:"),               // 鍵前綴
 )
@@ -1195,7 +1194,7 @@ middleware := &jwt.GinJWTMiddleware{
 - `WithRedisAddr(addr string)` - 設定 Redis 伺服器位址
 - `WithRedisAuth(password string, db int)` - 設定認證和資料庫
 - `WithRedisTLS(tlsConfig *tls.Config)` - 設定 TLS 配置以進行安全連線
-- `WithRedisCache(size int, ttl time.Duration)` - 配置用戶端快取
+- `WithRedisCache(size int, ttl time.Duration)` - 為相容性保留；已忽略，以確保 Token 撤銷立即生效
 - `WithRedisPool(poolSize int, maxIdleTime, maxLifetime time.Duration)` - 配置連線池
 - `WithRedisKeyPrefix(prefix string)` - 設定 Redis 鍵的前綴
 
@@ -1207,8 +1206,8 @@ middleware := &jwt.GinJWTMiddleware{
 - **Password**：Redis 密碼（預設：`""`）
 - **DB**：Redis 資料庫編號（預設：`0`）
 - **TLSConfig**：用於安全連線的 TLS 配置（預設：`nil`）
-- **CacheSize**：用戶端快取大小（位元組）（預設：`128MB`）
-- **CacheTTL**：用戶端快取 TTL（預設：`1 分鐘`）
+- **CacheSize**：為相容性保留；已忽略
+- **CacheTTL**：為相容性保留；已忽略
 - **KeyPrefix**：所有 Redis 鍵的前綴（預設：`"gin-jwt:"`）
 
 ### 回退行為
@@ -1276,7 +1275,6 @@ func main() {
         },
     }).EnableRedisStore(                                            // 使用選項啟用 Redis
         jwt.WithRedisAddr("localhost:6379"),                       // Redis 伺服器位址
-        jwt.WithRedisCache(64*1024*1024, 30*time.Second),         // 64MB 快取，30秒 TTL
     )
 
     if err != nil {

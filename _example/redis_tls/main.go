@@ -96,7 +96,6 @@ func main() {
 		jwt.WithRedisAddr("redis.example.com:6380"), // Use TLS port (usually 6380)
 		jwt.WithRedisAuth("your-password", 0),
 		jwt.WithRedisTLS(tlsConfig),
-		jwt.WithRedisCache(64*1024*1024, 30*time.Second), // 64MB cache, 30s TTL
 	)
 
 	// Create the JWT middleware
