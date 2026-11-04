@@ -1,7 +1,6 @@
 package store
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,7 +16,7 @@ import (
 )
 
 func setupRedisContainer(t *testing.T) (string, string) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Start Redis container
 	redisContainer, err := redis.Run(ctx,
@@ -84,7 +83,7 @@ func TestRedisRefreshTokenStore_Integration(t *testing.T) {
 }
 
 func testBasicOperations(t *testing.T, store *RedisRefreshTokenStore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	token := "test-token-basic"
 	userData := map[string]any{
 		"user_id":  float64(123),
@@ -138,7 +137,7 @@ func testBasicOperations(t *testing.T, store *RedisRefreshTokenStore) {
 }
 
 func testExpiration(t *testing.T, store *RedisRefreshTokenStore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	token := "test-token-expiry" // #nosec G101 -- This is a test token identifier, not a credential
 	userData := "test-data"
 
@@ -163,7 +162,7 @@ func testExpiration(t *testing.T, store *RedisRefreshTokenStore) {
 }
 
 func testCleanup(t *testing.T, store *RedisRefreshTokenStore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create multiple tokens with different expiration times
 	tokens := []string{"cleanup-token-1", "cleanup-token-2", "cleanup-token-3"}
@@ -202,7 +201,7 @@ func testCleanup(t *testing.T, store *RedisRefreshTokenStore) {
 }
 
 func testCount(t *testing.T, store *RedisRefreshTokenStore) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Clear any existing test data first
 	keys := []string{"count-token-1", "count-token-2", "count-token-3"}
@@ -236,7 +235,7 @@ func testCount(t *testing.T, store *RedisRefreshTokenStore) {
 }
 
 func testRepeatedReadsAndRevocation(t *testing.T, store *RedisRefreshTokenStore) {
-	ctx := context.Background()
+	ctx := t.Context()
 	token := t.Name()
 	userData := "revocation-test-data"
 
@@ -293,7 +292,7 @@ func TestRedisRefreshTokenStore_InvalidToken(t *testing.T) {
 
 	// Test with expired token in past
 	expiredTime := time.Now().Add(-time.Hour)
-	err = store.Set(context.Background(), "expired-token", "data", expiredTime)
+	err = store.Set(t.Context(), "expired-token", "data", expiredTime)
 	require.Error(t, err, "Should return error when setting token with past expiry time")
 	assert.Contains(
 		t,

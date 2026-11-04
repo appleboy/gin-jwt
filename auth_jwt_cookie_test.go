@@ -1,7 +1,6 @@
 package jwt
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -128,7 +127,7 @@ func TestExtractRefreshTokenFromCookie(t *testing.T) {
 
 	// Create a test context with refresh token cookie
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, "/test", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "/test", nil)
 	req.AddCookie(&http.Cookie{ //nolint:gosec // test-only cookie
 		Name:  "refresh_token",
 		Value: "test-refresh-token-from-cookie",
@@ -158,7 +157,7 @@ func TestExtractRefreshTokenPriority(t *testing.T) {
 	// Test: Cookie has highest priority over form
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(
-		context.Background(),
+		t.Context(),
 		http.MethodPost,
 		"/test",
 		nil,
@@ -533,7 +532,7 @@ func TestTokenGeneratorSetsRefreshToken(t *testing.T) {
 		Authenticator:       validAuthenticator,
 	})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	userData := testAdmin
 
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
@@ -558,7 +557,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 	t.Run("JSON body with application/json Content-Type", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
-			context.Background(),
+			t.Context(),
 			http.MethodPost,
 			"/test",
 			strings.NewReader(`{"refresh_token":"from-json-body"}`),
@@ -580,7 +579,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 	t.Run("Form body with application/x-www-form-urlencoded Content-Type", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
-			context.Background(),
+			t.Context(),
 			http.MethodPost,
 			"/test",
 			strings.NewReader("refresh_token=from-form-body"),
@@ -602,7 +601,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 	t.Run("Query parameters are not supported (security)", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
-			context.Background(),
+			t.Context(),
 			http.MethodPost,
 			"/test?refresh_token=from-query",
 			strings.NewReader(`{"refresh_token":"from-json-body"}`),
@@ -624,7 +623,7 @@ func TestExtractRefreshTokenContentType(t *testing.T) {
 	t.Run("Cookie takes highest precedence over body", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequestWithContext(
-			context.Background(),
+			t.Context(),
 			http.MethodPost,
 			"/test",
 			strings.NewReader(`{"refresh_token":"from-json-body"}`),

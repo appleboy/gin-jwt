@@ -20,7 +20,7 @@ import (
 )
 
 func setupRedisContainerForJWT(t *testing.T) (string, string) {
-	ctx := context.Background()
+	ctx := t.Context()
 	t.Helper()
 
 	// Start Redis container
@@ -35,7 +35,7 @@ func setupRedisContainerForJWT(t *testing.T) (string, string) {
 	require.NoError(t, err, "failed to get Redis port")
 
 	t.Cleanup(func() {
-		if err := redisContainer.Terminate(ctx); err != nil {
+		if err := redisContainer.Terminate(context.Background()); err != nil {
 			t.Logf("failed to terminate Redis container: %s", err)
 		}
 	})
@@ -358,7 +358,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 	// Test login
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(
-		context.Background(),
+		t.Context(),
 		http.MethodPost,
 		"/login",
 		strings.NewReader(`{"username":"`+testAdmin+`","password":"`+testAdmin+`"}`),
@@ -380,7 +380,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 
 	// Test protected endpoint with access token
 	w = httptest.NewRecorder()
-	req, _ = http.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/hello", nil)
+	req, _ = http.NewRequestWithContext(t.Context(), http.MethodGet, "/auth/hello", nil)
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	r.ServeHTTP(w, req)
 
@@ -389,7 +389,7 @@ func testLoginAndRefreshFlow(t *testing.T, r *gin.Engine) {
 	// Test refresh token
 	w = httptest.NewRecorder()
 	req, _ = http.NewRequestWithContext(
-		context.Background(),
+		t.Context(),
 		http.MethodPost,
 		"/refresh",
 		strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)),
@@ -416,7 +416,7 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 	// Login and get refresh token
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequestWithContext(
-		context.Background(),
+		t.Context(),
 		http.MethodPost,
 		"/login",
 		strings.NewReader(`{"username":"`+testAdmin+`","password":"`+testAdmin+`"}`),
@@ -436,7 +436,7 @@ func testTokenPersistenceAcrossRequests(t *testing.T, r *gin.Engine) {
 
 		w = httptest.NewRecorder()
 		req, _ = http.NewRequestWithContext(
-			context.Background(),
+			t.Context(),
 			http.MethodPost,
 			"/refresh",
 			strings.NewReader(fmt.Sprintf(`{"refresh_token":"%s"}`, refreshToken)),
@@ -460,7 +460,7 @@ func testRedisStoreOperations(t *testing.T, middleware *GinJWTMiddleware) {
 	require.True(t, ok, "should be using Redis store")
 
 	// Test store operations directly
-	ctx := context.Background()
+	ctx := t.Context()
 	testToken := "direct-test-token"
 	testData := map[string]any{"test": "data"}
 	expiry := time.Now().Add(time.Hour)
