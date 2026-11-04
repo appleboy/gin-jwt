@@ -1,7 +1,6 @@
 package jwt
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -1559,7 +1558,7 @@ func TestTokenGenerator(t *testing.T) {
 	require.NoError(t, err)
 
 	userData := testAdmin
-	ctx := context.Background()
+	ctx := t.Context()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
 
 	require.NoError(t, err)
@@ -1600,7 +1599,7 @@ func TestTokenGeneratorWithRevocation(t *testing.T) {
 	require.NoError(t, err)
 
 	userData := testAdmin
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Generate first token pair
 	oldTokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
@@ -1665,7 +1664,7 @@ func TestTokenStruct(t *testing.T) {
 	require.NoError(t, err)
 
 	userData := testAdmin
-	ctx := context.Background()
+	ctx := t.Context()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, userData)
 	require.NoError(t, err)
 
@@ -1953,7 +1952,7 @@ func TestStandardJWTClaimsInPayloadFunc(t *testing.T) {
 	require.NoError(t, err)
 
 	// Generate a token
-	ctx := context.Background()
+	ctx := t.Context()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, "user123")
 	require.NoError(t, err)
 	assert.NotNil(t, tokenPair)
@@ -2015,7 +2014,7 @@ func TestFrameworkClaimsCannotBeOverwritten(t *testing.T) {
 	require.NoError(t, err)
 
 	// Generate a token
-	ctx := context.Background()
+	ctx := t.Context()
 	tokenPair, err := authMiddleware.TokenGenerator(ctx, "user123")
 	require.NoError(t, err)
 
@@ -2084,7 +2083,7 @@ func TestAllStandardClaimsCanBeSet(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			ctx := context.Background()
+			ctx := t.Context()
 			tokenPair, err := authMiddleware.TokenGenerator(ctx, "user")
 			require.NoError(t, err)
 

@@ -941,12 +941,12 @@ func (mw *GinJWTMiddleware) jwtFromHeader(c *gin.Context, key string) (string, e
 		return "", ErrEmptyAuthHeader
 	}
 
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || parts[0] != mw.TokenHeadName {
+	head, token, found := strings.Cut(authHeader, " ")
+	if !found || head != mw.TokenHeadName {
 		return "", ErrInvalidAuthHeader
 	}
 
-	return parts[1], nil
+	return token, nil
 }
 
 func (mw *GinJWTMiddleware) jwtFromQuery(c *gin.Context, key string) (string, error) {
