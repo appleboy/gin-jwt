@@ -188,12 +188,12 @@ Never chain multiple middleware instances with abort() - this creates issues. Si
 
 **GitHub Actions Workflows**:
 
-- `.github/workflows/go.yml`: Runs tests on Go 1.24 and 1.25, uploads coverage to Codecov
+- `.github/workflows/go.yml`: Runs tests on Go 1.26 and 1.27, uploads coverage to Codecov
 - `.github/workflows/codeql.yml`: Security scanning
 - `.github/workflows/trivy-scan.yml`: Container vulnerability scanning
 - `.github/workflows/goreleaser.yml`: Release automation
 
-**Linting**: Uses golangci-lint v2.6 with extensive ruleset (see .golangci.yml) including bodyclose, gosec, govet, staticcheck, and more. Formatters include gofmt, gofumpt, goimports, golines.
+**Linting**: Uses golangci-lint v2.12 with extensive ruleset (see .golangci.yml) including bodyclose, gosec, govet, staticcheck, and more. Formatters include gofmt, gofumpt, goimports, golines.
 
 ## Important Files
 
@@ -209,7 +209,7 @@ Never chain multiple middleware instances with abort() - this creates issues. Si
 ## Module Information
 
 - **Module Path**: `github.com/appleboy/gin-jwt/v3`
-- **Go Version**: 1.24+
+- **Go Version**: 1.26+
 - **Key Dependencies**:
   - `github.com/gin-gonic/gin` (web framework)
   - `github.com/golang-jwt/jwt/v5` (JWT implementation)
